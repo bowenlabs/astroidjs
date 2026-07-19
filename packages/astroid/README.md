@@ -1,11 +1,12 @@
 # astroidjs
 
-**Astroid** — an opinionated meta-framework over [Louise Toolkit](../louise) and
-Astro for building editable, multi-editor sites on Cloudflare Workers.
+**Astroid** — an opinionated meta-framework over
+[Louise Toolkit](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/louise)
+and Astro for building editable, multi-editor sites on Cloudflare Workers.
 
-> **Status: experimental / pre-release.** The API will change. Nothing is
-> published yet — the package exists so its opinions can co-evolve with Louise in
-> one workspace.
+> **Status: pre-1.0, experimental.** The API will change between minor versions —
+> pin an exact version if you depend on it. Astroid lives in the same workspace as
+> Louise so its opinions co-evolve with the toolkit.
 
 ## What it is
 
@@ -75,8 +76,11 @@ astroid generate   regenerate src/schema.ts, src/worker.ts, src/middleware.ts fr
 astroid doctor     validate the config, the wrangler bindings, and generated-file freshness
 astroid dev        regenerate, then run `astro dev`
 astroid build      regenerate, then run `astro build`
-astroid deploy     provision + deploy (coming soon)
+astroid deploy     provision bindings + migrate + secrets + deploy (--dry-run / --yes)
 ```
+
+`deploy` is plan-first: it prints exactly what it will run and refuses to
+provision non-interactively without `--yes` (use `--dry-run` to preview).
 
 The generated trio carries a "do not hand-edit" banner — `generate` (and
 `dev`/`build`) rewrite them on every run, and `doctor` diffs them against your
@@ -92,10 +96,10 @@ Astro app — in one step.
 1. ✅ **Config surface** (`defineAstroid`) — single brand per project.
 2. ✅ Config → generated Drizzle schema.
 3. ✅ Config → generated `worker.ts` + middleware (no hand-wired route ordering).
-4. `<Section>` / `<Editable>` / `<Collection>` component primitives.
-5. **CLI** — `astroid generate / doctor / dev / build` ✅; `create-astroid` scaffold
-   ✅ (`npm create astroid`); `astroid deploy` provisioning next.
+4. ✅ `<Section>` / `<Editable>` / `<Collection>` component primitives.
+5. ✅ **CLI** — `astroid generate / doctor / dev / build / deploy`; `create-astroid`
+   scaffold (`npm create astroid`).
 
 ## License
 
-[MIT](../../LICENSE) © BowenLabs
+[MIT](https://github.com/bowenlabs/louise-toolkit/blob/main/LICENSE) © BowenLabs
