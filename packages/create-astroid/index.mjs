@@ -265,18 +265,29 @@ async function main() {
     // every module takes its dormant path deliberately rather than tripping over
     // an undefined binding. Empty for a project with no credentialed module.
     ASTROID_MODULE_SECRETS: generateAstroidSecretsEnv(config),
-    // Dependencies a module needs, injected into the template package.json.
-    // Only the enabled modules' — nobody installs a megabyte of mapping library
-    // for a site with no map.
-    ASTROID_EXTRA_DEPS: map
-      ? `\n${Object.entries(ASTROID_MAP_DEPENDENCIES)
-          .map(([name, range]) => `    ${JSON.stringify(name)}: ${JSON.stringify(range)},`)
-          .join("\n")}`
-      : "",
   };
 
   // 1. The static floor (Astro app, auth seam, config files) with tokens filled.
   copyTemplate(TEMPLATE_DIR, dir, tokens);
+
+  // 1b. Module dependencies, merged into the copied package.json.
+  //
+  //     Merged by PARSING the file rather than substituting a token into it:
+  //     a `__TOKEN__` inside a JSON object makes template/package.json invalid
+  //     JSON, and everything that scans a repo for manifests — Snyk, Dependabot,
+  //     editors, workspace tooling — parses it and fails. (It did.)
+  //
+  //     Only the enabled modules contribute: nobody installs a megabyte of
+  //     mapping library for a site with no map.
+  const extraDeps = { ...(map ? ASTROID_MAP_DEPENDENCIES : {}) };
+  if (Object.keys(extraDeps).length > 0) {
+    const pkgPath = join(dir, "package.json");
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    pkg.dependencies = Object.fromEntries(
+      Object.entries({ ...pkg.dependencies, ...extraDeps }).sort(([a], [b]) => a.localeCompare(b)),
+    );
+    writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+  }
 
   // 2. The typed config the generators + the app read.
   write(dir, "astroid.config.ts", astroidConfigSource(config));
