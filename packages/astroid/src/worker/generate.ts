@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS_IMAGE_KEYS = ["logoUrl", "faviconUrl", "defaultOgImageUrl
 export function generateAstroidWorker(config: AstroidConfig): string {
   const inquiries = capturesInquiries(config);
   const mediaBase = config.deploy?.mediaBase ?? "/media";
-  const seedName = config.brands[0]?.theme.name ?? "My site";
+  const seedName = config.theme.name;
   const plan = astroidEditorRoutePlan(config);
 
   const editorImports = [

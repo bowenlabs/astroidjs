@@ -1,7 +1,7 @@
 # astroidjs
 
 **Astroid** — an opinionated meta-framework over [Louise Toolkit](../louise) and
-Astro for building editable, multi-brand sites on Cloudflare Workers.
+Astro for building editable, multi-editor sites on Cloudflare Workers.
 
 > **Status: experimental / pre-release.** The API will change. Nothing is
 > published yet — the package exists so its opinions can co-evolve with Louise in
@@ -28,38 +28,38 @@ exports. This keeps the toolkit neutral while Astroid holds the opinions.
 
 ## Configure
 
-The whole shape of a project — which brands it serves, each brand's theme +
-editable home, its commerce backend and optional modules — collapses into one
-typed config. The vocabulary is drawn from the real sites Astroid targets: a
-storefront (coracle.coffee), a wholesale front (ghostfire.coffee), and an artist
-portfolio (themidwestartist.com), over one stack.
+The whole shape of a project — its brand + theme + editable home, its commerce
+backend and optional modules — collapses into one typed config. **One brand per
+project:** every site Astroid targets serves a single brand from a single deploy,
+so the config describes one brand, not an array. What actually multiplexes is
+*editors* (Louise's org plugin) and *audiences* (a gated portal beside the public
+site) — both options on the one brand. The vocabulary is drawn from the real
+sites Astroid targets: a storefront (coracle.coffee), a wholesale front
+(ghostfire.coffee), an artist portfolio (themidwestartist.com), and a plain
+marketing baseline (louise-web).
 
 ```ts
 import { defineAstroid } from "astroidjs";
 
 export default defineAstroid({
-  brands: [
-    {
-      key: "coracle",
-      archetype: "storefront",
-      theme: { name: "Coracle Coffee", colors: { brand: "#1f6f78" } },
-      sections: ["hero", "marquee", "featured", "productGrid", "visit"],
-    },
-    {
-      key: "ghostfire",
-      archetype: "wholesale",
-      theme: { name: "Ghostfire Coffee", colors: { brand: "#c0392b" } },
-      sections: ["hero", "featureGrid", "story"],
-      modules: ["orderTracking"],
-    },
-    {
-      key: "megbowen",
-      archetype: "portfolio",
-      theme: { name: "Meg Bowen Studio", colors: { brand: "#2b2b2b" } },
-      portal: { enabled: true, gated: true },
-    },
-  ],
-  commerce: { provider: "square", sharedCatalog: true },
+  key: "coracle",
+  archetype: "storefront",
+  theme: { name: "Coracle Coffee", colors: { brand: "#1f6f78" } },
+  sections: ["hero", "marquee", "featured", "productGrid", "visit"],
+  commerce: { provider: "square" },
+  deploy: { platform: "cloudflare" },
+});
+```
+
+A portfolio with a gated client area, for contrast:
+
+```ts
+export default defineAstroid({
+  key: "megbowen",
+  archetype: "portfolio",
+  theme: { name: "Meg Bowen Studio", colors: { brand: "#2b2b2b" } },
+  sections: ["hero", "gallery", "story", "contact"],
+  portal: { enabled: true, gated: true },
   deploy: { platform: "cloudflare" },
 });
 ```

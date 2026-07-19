@@ -14,11 +14,6 @@ import {
 } from "louise-toolkit/content";
 import type { AstroidConfig } from "../config.js";
 
-/** More than one brand → shared content tables carry a `brand` discriminator. */
-export function isMultiBrand(config: AstroidConfig): boolean {
-  return config.brands.length > 1;
-}
-
 /**
  * The opinionated `pages` collection — the EDITABLE page fields, versioned
  * drafts, and full-text search. Keyed to the same names as Louise's `pagesColumns`
@@ -26,13 +21,11 @@ export function isMultiBrand(config: AstroidConfig): boolean {
  * columns (`id`/`status`/timestamps/`publishedVersionId`) live on the table via
  * `pagesColumns`, never here — matching the site's `pages-collection.ts`.
  *
- * Multi-brand adds a required `brand` field so one shared `pages` table can hold
- * every brand's pages, discriminated by key. Validated by `defineCollection` at
- * build time, so a malformed field shape throws here rather than at codegen.
+ * Validated by `defineCollection` at build time, so a malformed field shape throws
+ * here rather than at codegen.
  */
-export function astroidPagesCollection(config: AstroidConfig): CollectionConfig {
+export function astroidPagesCollection(_config: AstroidConfig): CollectionConfig {
   const fields: Record<string, FieldConfig> = {};
-  if (isMultiBrand(config)) fields.brand = { type: "text", required: true };
   fields.slug = { type: "text", required: true };
   fields.title = { type: "text", required: true };
   // Sanitized rich HTML (a string), not TipTap JSON — matches `pagesColumns.body`.
