@@ -13,9 +13,24 @@ export const prerender = false;
 
 const { editMode } = Astro.locals;
 
-let page: { id: number; title: string; body: string | null } | null = null;
+// `seo_*` are the page's SEO overrides, deliberately separate from `title` —
+// which is the on-page H1. The home page passes NO title to <Site>, so <title>
+// is the site-wide default ("Acme Coffee", not "Acme Coffee | Acme Coffee");
+// set `seo_title` on the row to override just the head.
+interface HomeRow {
+  id: number;
+  title: string;
+  body: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  og_image: string | null;
+  noindex: number | null;
+}
+let page: HomeRow | null = null;
 try {
-  page = await env.DB.prepare("SELECT id, title, body FROM pages WHERE slug = 'home'").first();
+  page = await env.DB.prepare(
+    "SELECT id, title, body, seo_title, seo_description, og_image, noindex FROM pages WHERE slug = 'home'",
+  ).first<HomeRow>();
 } catch {
   // No DB binding yet (pre-provision) — fall through to the seed-me prompt.
 }
@@ -42,7 +57,13 @@ if (editMode && page) {
 }
 ---
 
-<Site title={title} description={undefined} versionedPageId={page?.id}>
+<Site
+  title={page?.seo_title ?? undefined}
+  description={page?.seo_description ?? undefined}
+  ogImage={page?.og_image ?? undefined}
+  noindex={Boolean(page?.noindex)}
+  versionedPageId={page?.id}
+>
   {
     page ? (
       <main class="mx-auto max-w-3xl px-6 py-16">

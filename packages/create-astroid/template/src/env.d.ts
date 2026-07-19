@@ -23,8 +23,19 @@ type CloudflareEnv = {
   EMAIL: SendEmail;
   /** Static assets (bound by the @astrojs/cloudflare adapter). */
   ASSETS: Fetcher;
-  /** Signs Better Auth sessions (`wrangler secret put SESSION_SECRET`). */
+  /**
+   * Signs Better Auth sessions (`wrangler secret put SESSION_SECRET`). A
+   * Secrets Store binding works here too — Louise reads either shape.
+   */
   SESSION_SECRET: string;
+  /**
+   * Turnstile secret. Scaffolded with the DUMMY_REPLACE_ME sentinel, which
+   * reads as "not configured" — captcha stays off until this AND a real
+   * (non-test) site key are both set, so half-provisioning can't lock you out.
+   */
+  TURNSTILE_SECRET?: string;
+  /** Public Turnstile site key; the always-passing test key keeps captcha off. */
+  TURNSTILE_SITE_KEY?: string;
   /** First editor's email — seeded as an admin, then part of the DB allowlist. */
   OWNER_EMAIL: string;
   /** Optional second bootstrap editor (e.g. your engineer). */

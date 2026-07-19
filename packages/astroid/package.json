@@ -27,6 +27,11 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./astro": {
+      "types": "./dist/astro/index.d.ts",
+      "import": "./dist/astro/index.js",
+      "default": "./dist/astro/index.js"
+    },
     "./components/*.astro": "./src/components/*.astro",
     "./components/Collection": {
       "types": "./src/components/Collection.tsx",
@@ -59,12 +64,15 @@
   "scripts": {
     "build": "tsgo -p tsconfig.build.json",
     "prepublishOnly": "tsgo -p tsconfig.build.json",
+    "test": "vp test",
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^24.13.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "solid-js": "^1.9.14",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=24.0.0"

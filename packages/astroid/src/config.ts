@@ -20,6 +20,7 @@
 // (coracle), a wholesale front (ghostfire), an artist portfolio (megbowen), and a
 // plain marketing baseline (louise-web).
 
+import type { RateRule } from "louise-toolkit/security";
 import { AstroidConfigError } from "./errors.js";
 
 /**
@@ -92,6 +93,53 @@ export interface CommerceConfig {
   provider: CommerceProvider;
 }
 
+export interface SeoConfig {
+  /**
+   * `<title>` template, `%s` standing in for the page title. Applied only when
+   * a page supplies its own title, so the home page reads "Acme Coffee" and not
+   * "Acme Coffee | Acme Coffee". Default `"%s | <site name>"`.
+   */
+  titleTemplate?: string;
+  /**
+   * schema.org `@type` for the business node in the JSON-LD graph. Defaults to
+   * the archetype's broad type (see `ARCHETYPE_BUSINESS_TYPE`); set a more
+   * specific subtype whenever you know one — `"CafeOrCoffeeShop"`,
+   * `"ArtGallery"`, `"HomeAndConstructionBusiness"` — since a narrower type is
+   * strictly better for rich results.
+   */
+  businessType?: string;
+  /** `@handle` for Twitter/X card attribution. */
+  twitterHandle?: string;
+  /** Open Graph locale, e.g. `"en_US"`. */
+  locale?: string;
+}
+
+export interface SecurityConfig {
+  /**
+   * Extra rate-limit rules for surfaces Astroid doesn't know about, and the seam
+   * for overriding a default budget. These are matched BEFORE the derived
+   * defaults (first match wins), so declaring a rule for a path Astroid already
+   * covers replaces that one rule rather than the whole set.
+   */
+  rateRules?: RateRule[];
+  /**
+   * Extra origins to allow in the generated Content-Security-Policy, merged with
+   * the ones Astroid derives from the enabled modules. Add a host here when you
+   * pull in a third party Astroid can't see (a chat widget, a video embed).
+   */
+  cspOrigins?: CspOrigins;
+}
+
+/** Per-directive origin lists contributed to the CSP. */
+export interface CspOrigins {
+  script?: string[];
+  frame?: string[];
+  connect?: string[];
+  font?: string[];
+  img?: string[];
+  worker?: string[];
+}
+
 export interface DeployConfig {
   platform: "cloudflare";
   /** Media base for R2 + `cf-image` resizing — matches Louise's media route
@@ -119,6 +167,10 @@ export interface AstroidConfig {
   portal?: Portal;
   /** Commerce backend. */
   commerce?: CommerceConfig;
+  /** Title template, structured-data type, and social-card attribution. */
+  seo?: SeoConfig;
+  /** Additions to the rate-limit rules + CSP origins Astroid derives. */
+  security?: SecurityConfig;
   deploy?: DeployConfig;
 }
 
@@ -150,7 +202,9 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
     throw new AstroidConfigError("Astroid config requires `theme.name` (the brand's display name)");
   }
   if (!config.theme.colors || !config.theme.colors.brand) {
-    throw new AstroidConfigError("Astroid config requires `theme.colors.brand` (the primary brand color)");
+    throw new AstroidConfigError(
+      "Astroid config requires `theme.colors.brand` (the primary brand color)",
+    );
   }
 
   return config;
