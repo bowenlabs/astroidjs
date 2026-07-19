@@ -12,6 +12,7 @@ import {
   defineCollection,
   type FieldConfig,
 } from "louise-toolkit/content";
+import { sanitizeRichHtml } from "louise-toolkit/security";
 import type { AstroidConfig } from "../config.js";
 
 /**
@@ -24,7 +25,13 @@ import type { AstroidConfig } from "../config.js";
  * Validated by `defineCollection` at build time, so a malformed field shape throws
  * here rather than at codegen.
  */
-export function astroidPagesCollection(_config: AstroidConfig): CollectionConfig {
+export function astroidPagesCollection(config: AstroidConfig): CollectionConfig {
+  // The `body` is rich HTML edited in place (`<Editable type="richtext">`) and
+  // staged as a draft, so sanitize it on every write — never store raw HTML. A
+  // pasted `<img>` pointing off-origin (a hotlink) is dropped: body images must
+  // live in the media library. Mirrors the reference site's pages-collection hook.
+  const mediaBase = config.deploy?.mediaBase ?? "/media";
+
   const fields: Record<string, FieldConfig> = {};
   fields.slug = { type: "text", required: true };
   fields.title = { type: "text", required: true };
@@ -42,6 +49,16 @@ export function astroidPagesCollection(_config: AstroidConfig): CollectionConfig
   return defineCollection({
     slug: "pages",
     fields,
+    hooks: {
+      beforeChange: [
+        ({ data }) => {
+          if (typeof data.body === "string") {
+            return { ...data, body: sanitizeRichHtml(data.body, { mediaBase }) };
+          }
+          return data;
+        },
+      ],
+    },
     versions: { drafts: true },
     search: { fields: ["title", "body", "sections"] },
   });
