@@ -7,9 +7,11 @@ import "../styles/site.css";
 interface Props {
   title?: string;
   description?: string;
+  /** A `pages` row id whose `<Editable>` fields stage drafts + publish. */
+  versionedPageId?: number;
 }
 
-const { title = "__BRAND_NAME__", description } = Astro.props;
+const { title = "__BRAND_NAME__", description, versionedPageId } = Astro.props;
 const { editMode } = Astro.locals;
 ---
 
@@ -23,6 +25,6 @@ const { editMode } = Astro.locals;
   </head>
   <body class="min-h-screen bg-base-100 text-base-content" data-edit-mode={editMode ? "" : undefined}>
     <slot />
-    <LouiseEdit />
+    <LouiseEdit versionedPageId={versionedPageId} />
   </body>
 </html>
