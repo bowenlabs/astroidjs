@@ -46,7 +46,6 @@
     "access": "public"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.0",
     "louise-toolkit": "workspace:*"
   },
   "peerDependencies": {

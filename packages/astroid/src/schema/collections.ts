@@ -6,12 +6,17 @@
 // codegen decides HOW they become D1 tables. Dependency flows one way — this
 // imports `louise-toolkit/content`, never the reverse.
 
+// `content/define` rather than the `content` barrel: the barrel eagerly pulls the
+// codegen/localApi/validation chunks, and those import drizzle-orm for real — an
+// *optional* peer of louise-toolkit, so importing it here forced a package on
+// consumers who only ever describe collections. This entry is the drizzle-free
+// half (see louise-toolkit/src/core/content/define.ts).
 import {
   type CollectionConfig,
   type ContentConfig,
   defineCollection,
   type FieldConfig,
-} from "louise-toolkit/content";
+} from "louise-toolkit/content/define";
 import { sanitizeRichHtml } from "louise-toolkit/security";
 import type { AstroidConfig } from "../config.js";
 
