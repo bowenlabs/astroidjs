@@ -34,13 +34,21 @@ for (const email of emails) {
 const target = process.argv.includes("--local") ? "--local" : "--remote";
 const now = new Date().toISOString();
 
+/**
+ * Quote a value as a SQL string literal, doubling any embedded single quote.
+ * `wrangler d1 execute` takes raw SQL via `--command` with no parameter binding,
+ * so values have to be escaped rather than bound — and an apostrophe is legal in
+ * an email local part, so this is a correctness fix as much as a safety one.
+ */
+const q = (value) => `'${String(value).replace(/'/g, "''")}'`;
+
 for (const email of emails) {
   const id = randomUUID();
   const name = email.split("@")[0];
   const sql =
     "INSERT OR IGNORE INTO user " +
     "(id, name, email, emailVerified, createdAt, updatedAt, role, firstName, lastName) VALUES " +
-    `('${id}', '${name}', '${email}', 1, '${now}', '${now}', 'admin', NULL, NULL);`;
+    `(${q(id)}, ${q(name)}, ${q(email)}, 1, ${q(now)}, ${q(now)}, 'admin', NULL, NULL);`;
   console.log(`Seeding editor ${email} (${target}) …`);
   execFileSync("wrangler", ["d1", "execute", "DB", target, "--command", sql], { stdio: "inherit" });
 }

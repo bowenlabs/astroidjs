@@ -7,7 +7,7 @@
 //   astroid doctor   [--config <path>] [--cwd <dir>]   validate config + bindings + generated-file freshness
 //   astroid dev      [...astro args]                   generate, then `astro dev`
 //   astroid build    [...astro args]                   generate, then `astro build`
-//   astroid deploy                                     (not yet — provisioning is a later slice)
+//   astroid deploy   [--dry-run] [--yes] [--local]     provision + migrate + secrets + deploy
 //
 // It loads the project's `astroid.config.ts` with Node's native TypeScript
 // stripping (the config only imports the built `astroidjs`, so it resolves), and

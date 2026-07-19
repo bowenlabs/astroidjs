@@ -113,8 +113,42 @@ function write(destDir, relPath, contents) {
   writeFileSync(abs, contents);
 }
 
+const USAGE = `Scaffold a new Astroid site — an editable Astro app on Cloudflare Workers.
+
+Usage:
+  npm create astroid [directory] [options]
+
+Options:
+  --dir <path>          Target directory (also accepted as the first positional)
+  --name <name>         Brand / site name
+  --key <slug>          Project key (slug); defaults to a slug of --name
+  --archetype <type>    ${ARCHETYPES.join(" | ")}   (default: marketing)
+  --color <hex>         Brand color (default: #5b4bff)
+  --host <domain>       Primary domain, e.g. example.com
+  -h, --help            Show this help
+  -v, --version         Show the create-astroid version
+
+Anything not passed as a flag is prompted for; in a non-TTY every prompt takes
+its default, so the command is CI-safe. The target directory must be empty.
+`;
+
 async function main() {
-  const { flags, positionals } = parseArgs(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const { flags, positionals } = parseArgs(argv);
+
+  // Handle these before any prompting — otherwise `--help` reads as a truthy
+  // flag and drops the user into the interactive scaffold instead. The short
+  // forms are read off argv directly: parseArgs only treats `--` as a flag, so
+  // a bare `-h` would otherwise be taken as the target directory.
+  if (flags.help || argv.includes("-h")) {
+    process.stdout.write(USAGE);
+    return;
+  }
+  if (flags.version || argv.includes("-v")) {
+    const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+    process.stdout.write(`${pkg.version}\n`);
+    return;
+  }
 
   const dirArg = positionals[0] ?? flags.dir;
   const rawName = flags.name || (dirArg ? basename(resolve(dirArg)) : undefined);
