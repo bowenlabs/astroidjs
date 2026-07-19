@@ -10,4 +10,5 @@ export * from "./secrets.js";
 export * from "./project/index.js";
 export * from "./schema/index.js";
 export * from "./security/index.js";
+export * from "./seo/index.js";
 export * from "./worker/index.js";

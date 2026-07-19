@@ -93,6 +93,27 @@ export interface CommerceConfig {
   provider: CommerceProvider;
 }
 
+export interface SeoConfig {
+  /**
+   * `<title>` template, `%s` standing in for the page title. Applied only when
+   * a page supplies its own title, so the home page reads "Acme Coffee" and not
+   * "Acme Coffee | Acme Coffee". Default `"%s | <site name>"`.
+   */
+  titleTemplate?: string;
+  /**
+   * schema.org `@type` for the business node in the JSON-LD graph. Defaults to
+   * the archetype's broad type (see `ARCHETYPE_BUSINESS_TYPE`); set a more
+   * specific subtype whenever you know one — `"CafeOrCoffeeShop"`,
+   * `"ArtGallery"`, `"HomeAndConstructionBusiness"` — since a narrower type is
+   * strictly better for rich results.
+   */
+  businessType?: string;
+  /** `@handle` for Twitter/X card attribution. */
+  twitterHandle?: string;
+  /** Open Graph locale, e.g. `"en_US"`. */
+  locale?: string;
+}
+
 export interface SecurityConfig {
   /**
    * Extra rate-limit rules for surfaces Astroid doesn't know about, and the seam
@@ -146,6 +167,8 @@ export interface AstroidConfig {
   portal?: Portal;
   /** Commerce backend. */
   commerce?: CommerceConfig;
+  /** Title template, structured-data type, and social-card attribution. */
+  seo?: SeoConfig;
   /** Additions to the rate-limit rules + CSP origins Astroid derives. */
   security?: SecurityConfig;
   deploy?: DeployConfig;
@@ -179,7 +202,9 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
     throw new AstroidConfigError("Astroid config requires `theme.name` (the brand's display name)");
   }
   if (!config.theme.colors || !config.theme.colors.brand) {
-    throw new AstroidConfigError("Astroid config requires `theme.colors.brand` (the primary brand color)");
+    throw new AstroidConfigError(
+      "Astroid config requires `theme.colors.brand` (the primary brand color)",
+    );
   }
 
   return config;

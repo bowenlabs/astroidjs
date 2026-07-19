@@ -65,6 +65,33 @@ export default defineAstroid({
 });
 ```
 
+## SEO
+
+A settings-driven head, structured data, and the two crawler files — first-party,
+no `astro-seo` dependency.
+
+`<Seo>` resolves three levels (page override → the page's own default →
+`site_settings`) with one rule worth knowing: an **empty string is unset**, so
+clearing a field in the editor falls back instead of publishing a blank `<meta>`.
+The title template applies only when a page supplies its own title, so the home
+page reads `Acme Coffee`, not `Acme Coffee | Acme Coffee`. `disableIndexing` in
+settings is a site-wide kill switch that beats any page asking to be indexed —
+useful for staging.
+
+`<StructuredData>` emits a schema.org `@graph`: the business, the `WebSite`, and
+optionally the entity the page is *about* (a Product, a VisualArtwork). The
+business `@type` comes from the archetype (`storefront` → `Store`, `portfolio` →
+`Person`); set `seo.businessType` to a narrower subtype whenever you know one.
+The payload is escaped with `escapeJsonLd`, not `JSON.stringify` — `stringify`
+doesn't escape `<`, so an editor-authored value containing `</script>` would
+close the tag early and inject markup into `<head>`.
+
+`robots.txt` and `sitemap.xml` derive their disallow list from the same config
+(`astroidNoindexPaths`), so the two files can't disagree about what's crawlable.
+Both are **origin-aware** — built from the serving origin rather than a
+configured domain, because a preview deploy advertising the production host
+invites its content to be indexed under the real domain.
+
 ## Security defaults
 
 Two stack-wide concerns every site was re-deriving by hand, moved into the

@@ -8,7 +8,8 @@ import Site from "../layouts/Site.astro";
 export const prerender = false;
 ---
 
-<Site title="Sign in">
+{/* noindex: an editor sign-in page has nothing for a search result to offer. */}
+<Site title="Sign in" noindex>
   <main class="hero min-h-screen">
     <div class="hero-content w-full max-w-sm">
       <form id="magic" class="card w-full bg-base-200 shadow-sm">
