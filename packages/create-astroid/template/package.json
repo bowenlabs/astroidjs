@@ -20,7 +20,7 @@
     "astroidjs": "^0.1.0",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
-    "louise-toolkit": "^0.13.0",
+    "louise-toolkit": "^0.14.0",
     "solid-js": "^1.9.14",
     "zod": "^4.4.3"
   },
