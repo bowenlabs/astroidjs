@@ -1,0 +1,26 @@
+---
+// The base HTML shell. `Astro.locals.editMode` is set by the generated
+// middleware.ts (from your auth seam); use it to render edit affordances.
+import "../styles/site.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = "__BRAND_NAME__", description } = Astro.props;
+const { editMode } = Astro.locals;
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+  </head>
+  <body class="min-h-screen bg-base-100 text-base-content" data-edit-mode={editMode ? "" : undefined}>
+    <slot />
+  </body>
+</html>

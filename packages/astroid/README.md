@@ -94,7 +94,7 @@ Astro app — in one step.
 3. ✅ Config → generated `worker.ts` + middleware (no hand-wired route ordering).
 4. `<Section>` / `<Editable>` / `<Collection>` component primitives.
 5. **CLI** — `astroid generate / doctor / dev / build` ✅; `create-astroid` scaffold
-   + `astroid deploy` provisioning next.
+   ✅ (`npm create astroid`); `astroid deploy` provisioning next.
 
 ## License
 

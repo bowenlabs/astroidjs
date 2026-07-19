@@ -1,0 +1,29 @@
+---
+// The home page. Reads the editable site settings from D1 (seeded on first run by
+// the generated worker's seedRoute), with a config fallback so it renders before
+// anything is provisioned. Grow this into the editable page-builder home as you
+// add sections.
+import { env } from "cloudflare:workers";
+import Hero from "../components/Hero.astro";
+import Site from "../layouts/Site.astro";
+
+export const prerender = false;
+
+let settings: { site_name?: string; tagline?: string; meta_description?: string } | null = null;
+try {
+  settings = await env.DB.prepare(
+    "SELECT site_name, tagline, meta_description FROM site_settings WHERE id = 1",
+  ).first();
+} catch {
+  // No DB binding yet (pre-provision) — fall through to the config defaults.
+}
+
+const siteName = settings?.site_name || "__BRAND_NAME__";
+const tagline = settings?.tagline || "An editable site on the edge, built with Astroid.";
+---
+
+<Site title={siteName} description={settings?.meta_description}>
+  <main>
+    <Hero title={siteName} tagline={tagline} />
+  </main>
+</Site>
