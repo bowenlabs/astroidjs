@@ -1,5 +1,36 @@
 # astroidjs
 
+## 0.3.0
+
+### Minor Changes
+
+- feat: first-class support for a real storefront's patterns (coracle.coffee is the
+  first adopter).
+
+  - Two-instance auth: the `louise_` editor convention (editor tables prefixed
+    `louise_`, `editorsRoute` + template + migration + seed aligned) with a
+    configurable second (portal) instance — `basePath` / `cookiePrefix` /
+    `tablePrefix` overridable + an `assertAuthIsolation` collision guard, so a
+    site's existing shop-customer instance is expressible with no data migration.
+    New `astroidjs` auth exports (`ASTROID_EDITOR_TABLE_PREFIX`, `astroidEditorTable`,
+    `assertAuthIsolation`); `PortalUser` widened with typed `id` + `email`.
+  - `config.sectionCatalog`: inject a site's own section catalog for server-side
+    pages validation/sanitize (bespoke `_type`s validate instead of 422).
+  - `config.settings` (`columns` / `customKeys` / `imageKeys`): thread into the
+    generated `settingsRoute` + Actions; `columns: []` keeps a custom-heavy site's
+    values in `site_settings.custom`.
+  - `config.inquiries`: force the contact-form + inquiries surface on/off.
+  - Commerce catalog `mode: "live"`: manage no D1 catalog table (read live from a
+    cache; the owner-overlay is the site's own). Generated `schema.ts` re-exports a
+    scaffold-once `src/schema.site.ts` for site-owned tables.
+
+  Stock-config generation output is unchanged.
+
+### Patch Changes
+
+- Updated dependencies
+  - louise-toolkit@0.17.0
+
 ## 0.2.0
 
 ### Minor Changes
