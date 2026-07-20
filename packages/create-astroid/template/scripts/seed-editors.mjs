@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Seed the first editor(s) — an admin `user` row per OWNER_EMAIL / ENGINEER_EMAIL.
+// Seed the first editor(s) — an admin `louise_user` row per OWNER_EMAIL / ENGINEER_EMAIL.
 // A row here IS an editor and IS the magic-link allowlist, so this bootstraps
 // access before anyone can sign in. Idempotent (INSERT OR IGNORE on unique email).
 // After this, add more editors from the Users panel (never by editing env).
@@ -46,7 +46,7 @@ for (const email of emails) {
   const id = randomUUID();
   const name = email.split("@")[0];
   const sql =
-    "INSERT OR IGNORE INTO user " +
+    "INSERT OR IGNORE INTO louise_user " +
     "(id, name, email, emailVerified, createdAt, updatedAt, role, firstName, lastName) VALUES " +
     `(${q(id)}, ${q(name)}, ${q(email)}, 1, ${q(now)}, ${q(now)}, 'admin', NULL, NULL);`;
   console.log(`Seeding editor ${email} (${target}) …`);

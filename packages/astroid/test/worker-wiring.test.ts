@@ -457,3 +457,45 @@ describe("core web vitals", () => {
     expect(astroidSecretNames(base).vitals).toEqual(["CF_ACCOUNT_ID", "CF_API_TOKEN"]);
   });
 });
+
+describe("site settings customKeys (FW-3)", () => {
+  it("stock config passes no customKeys — the route call is unchanged", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).not.toContain("SETTINGS_CUSTOM_KEYS");
+    expect(routeLine(worker, "settingsRoute")).not.toContain("customKeys");
+  });
+
+  it("threads config.settings.customKeys into the settings route", () => {
+    const worker = generateAstroidWorker({
+      ...base,
+      settings: { customKeys: ["footerColumns", "hours", "ui"], imageKeys: ["heroImage"] },
+    });
+    expect(worker).toContain(
+      'const SETTINGS_CUSTOM_KEYS = ["footerColumns","hours","ui"];',
+    );
+    expect(routeLine(worker, "settingsRoute")).toContain("customKeys: SETTINGS_CUSTOM_KEYS");
+    // Extra image keys widen the media-strict set.
+    expect(worker).toContain('const SETTINGS_IMAGE_KEYS = ["logoUrl","faviconUrl","defaultOgImageUrl","heroImage"];');
+  });
+});
+
+describe("inquiry-capture override", () => {
+  it("`inquiries: true` forces the inquiries table + form/inquiries routes on", () => {
+    // A bespoke `contactForm` section Astroid can't see still needs the table.
+    const worker = generateAstroidWorker({ ...base, inquiries: true });
+    expect(worker).toContain("inquiriesRoute({");
+    expect(worker).toContain("formRoute({");
+    expect(astroidEditorRoutePlan({ ...base, inquiries: true }).map((r) => r.name)).toContain(
+      "inquiries",
+    );
+  });
+
+  it("`inquiries: false` suppresses it even with a contact section", () => {
+    const plan = astroidEditorRoutePlan({
+      ...base,
+      sections: ["hero", "contact"],
+      inquiries: false,
+    });
+    expect(plan.map((r) => r.name)).not.toContain("inquiries");
+  });
+});

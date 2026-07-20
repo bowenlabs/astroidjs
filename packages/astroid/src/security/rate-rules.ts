@@ -72,7 +72,10 @@ export function astroidRateRules(config: AstroidConfig): RateRule[] {
   });
 
   if (config.portal?.enabled) {
-    const base = ASTROID_PORTAL_BASE_PATH;
+    // The portal's mount is configurable (a site may already ship a second
+    // instance at its own path), so the credential-surface rules must track the
+    // resolved base path, not the default constant — mirrors `astroidPortal`.
+    const base = config.portal.basePath ?? ASTROID_PORTAL_BASE_PATH;
     // Customer credentials, unlike the editor's, are password-based — so these
     // guard credential stuffing and enumeration, not just mail volume.
     rules.push({

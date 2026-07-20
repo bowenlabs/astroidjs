@@ -48,6 +48,16 @@ function pageMediaBase(config: AstroidConfig): string {
 }
 
 /**
+ * The section catalog a `pages` write is validated + sanitized against: the
+ * site's own (`config.sectionCatalog`) when it registered bespoke sections, else
+ * Astroid's built-in vocabulary. This is what lets a site with its own section
+ * designs (coracle's 13) keep the same write contract as a stock Astroid site.
+ */
+function resolveSectionCatalog(config: AstroidConfig) {
+  return config.sectionCatalog ?? astroidSectionCatalog;
+}
+
+/**
  * Return a copy of a `pages` write payload with its `sections` rich-text fields
  * sanitized against the project media base — a no-op when the write carries no
  * `sections`. Pure; leaves every other field (and a partial PATCH's absent ones)
@@ -63,7 +73,7 @@ export function sanitizeAstroidPageSections(
 ): Record<string, unknown> {
   if (data.sections === undefined) return data;
   const mediaBase = pageMediaBase(config);
-  const sections = sanitizeSectionsRichText(data.sections, astroidSectionCatalog, (html) =>
+  const sections = sanitizeSectionsRichText(data.sections, resolveSectionCatalog(config), (html) =>
     sanitizeRichHtml(html, { mediaBase }),
   );
   return { ...data, sections };
@@ -82,7 +92,7 @@ export async function assertAstroidPageSections(
   operation: "create" | "update" = "update",
 ): Promise<void> {
   if (data.sections === undefined) return;
-  await assertValidSections(astroidSectionCatalog, data.sections, {
+  await assertValidSections(resolveSectionCatalog(config), data.sections, {
     operation,
     mediaBase: pageMediaBase(config),
   });

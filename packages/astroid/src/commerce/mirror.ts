@@ -14,13 +14,18 @@
 //
 //   mirror   — pulled + owned columns both live in D1 (themidwestartist.com).
 //              Reads are one local query. The catalog can be stale between syncs.
-//   overlay  — only the owned columns live in D1, keyed by the provider's id
-//              (coracle.coffee's `product_display_meta`). The catalog is read
-//              live from the provider and joined at read time: never stale,
-//              but every read costs a provider round-trip (cache accordingly).
+//   overlay  — only the owned columns live in D1, keyed by the provider's id.
+//              The catalog is read live from the provider and joined at read
+//              time: never stale, but every read costs a provider round-trip
+//              (cache accordingly).
+//   live     — Astroid manages NO catalog table at all: the catalog is read live
+//              from the provider (cached), and any owner-side overlay table is
+//              the SITE's own (coracle.coffee's `product_display_meta`, declared
+//              in schema.site.ts and joined in the site's loader). Use when the
+//              existing overlay shape predates Astroid and must be preserved 1:1.
 //
-// `overlay` is just `mirror` with an empty pulled set, so one generator serves
-// both and a project can switch by changing one word.
+// `overlay` is just `mirror` with an empty pulled set; `live` emits neither table
+// nor migration. One generator serves all three and a project switches by one word.
 
 import type { AstroidConfig } from "../config.js";
 
@@ -38,13 +43,15 @@ export interface OwnedColumn {
 export interface CatalogMirrorConfig {
   /**
    * `mirror` keeps the provider's catalog fields in D1 (fast reads, briefly
-   * stale); `overlay` keeps only the owner's fields and reads the catalog live.
-   * Default `mirror`.
+   * stale); `overlay` keeps only the owner's fields and reads the catalog live;
+   * `live` manages no catalog table at all (the site owns any overlay table and
+   * reads the catalog live from a cache). Default `mirror`.
    */
-  mode?: "mirror" | "overlay";
-  /** Table name. Default `products`. */
+  mode?: "mirror" | "overlay" | "live";
+  /** Table name. Default `products`. Ignored in `live` mode (no table). */
   table?: string;
-  /** The owner-editable columns, on top of the built-ins below. */
+  /** The owner-editable columns, on top of the built-ins below. Ignored in
+   *  `live` mode (the overlay table, if any, is the site's own). */
   owned?: Record<string, OwnedColumn>;
 }
 
@@ -135,6 +142,8 @@ function ownedColumnSource(key: string, col: OwnedColumn): string {
 export function generateCatalogTable(config: AstroidConfig): string | null {
   if (!config.commerce) return null;
   const { mode, table, owned } = astroidCatalogMirror(config);
+  // `live` mode: Astroid manages no catalog table (the site owns any overlay).
+  if (mode === "live") return null;
 
   const lines: string[] = [];
   const p = (s = "") => lines.push(s);
@@ -218,6 +227,8 @@ function ownedColumnSql(key: string, col: OwnedColumn): string {
 export function generateCatalogMigrationSql(config: AstroidConfig): string | null {
   if (!config.commerce) return null;
   const { mode, table, owned } = astroidCatalogMirror(config);
+  // `live` mode: no Astroid-managed table, so no migration.
+  if (mode === "live") return null;
 
   const cols: string[] = [
     "  `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL",

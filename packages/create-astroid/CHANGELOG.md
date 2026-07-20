@@ -1,5 +1,21 @@
 # create-astroid
 
+## 0.3.0
+
+### Minor Changes
+
+- feat: scaffold the `louise_` editor-table convention — the editor auth instance's
+  tables are `louise_`-prefixed (template `src/auth.ts` `tablePrefix`, the
+  `0001_auth` migration, `seed-editors.mjs`, and the `resolveAdmins` query), leaving
+  the unprefixed `user`/`session` tables free for a second (portal) instance.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - astroidjs@0.3.0
+  - louise-toolkit@0.17.0
+
 ## 0.2.0
 
 ### Minor Changes

@@ -5,6 +5,7 @@
 // inhabitant; the generator, theme system, and section library follow.
 
 export * from "./analytics/index.js";
+export * from "./auth/index.js";
 export * from "./commerce/index.js";
 export * from "./config.js";
 export * from "./email/index.js";

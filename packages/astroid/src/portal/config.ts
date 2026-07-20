@@ -48,9 +48,15 @@ export function astroidPortal(config: AstroidConfig): ResolvedPortal | null {
   const roles = portal.roles?.length ? portal.roles : ["customer"];
   return {
     enabled: true,
-    basePath: ASTROID_PORTAL_BASE_PATH,
-    cookiePrefix: ASTROID_PORTAL_COOKIE_PREFIX,
-    tablePrefix: ASTROID_PORTAL_TABLE_PREFIX,
+    // Isolation is configurable so a site with an existing second instance
+    // (coracle's shop account at /api/shop-auth, cookie `coracle_shop`, the
+    // unprefixed `user` tables) keeps its live mount + cookies unchanged. The
+    // defaults stay the safe distinct-from-editor values; `defineAstroid`'s
+    // `assertAuthIsolation` rejects a resolved value that collides with the
+    // editor. `?? ""` is respected for tablePrefix (empty = unprefixed tables).
+    basePath: portal.basePath ?? ASTROID_PORTAL_BASE_PATH,
+    cookiePrefix: portal.cookiePrefix ?? ASTROID_PORTAL_COOKIE_PREFIX,
+    tablePrefix: portal.tablePrefix ?? ASTROID_PORTAL_TABLE_PREFIX,
     roles,
     defaultRole: roles[0],
     routes: portal.routes?.length ? portal.routes : DEFAULT_ROUTES,

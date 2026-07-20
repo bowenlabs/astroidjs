@@ -131,3 +131,36 @@ describe("assertAstroidPageSections", () => {
     await expect(assertAstroidPageSections(config, { title: "t" })).resolves.toBeUndefined();
   });
 });
+
+describe("site sectionCatalog injection (FW-2)", () => {
+  // A site with bespoke sections (coracle's `homeHero` etc.) registers its own
+  // catalog; the write hooks must then validate ITS `_type`s, not the built-in
+  // vocabulary — and still reject anything outside the site's own catalog.
+  const siteConfig: AstroidConfig = {
+    ...config,
+    sectionCatalog: {
+      homeHero: {
+        label: "Home hero",
+        icon: "ph ph-sparkle",
+        fields: { heading: { type: "text" }, body: { type: "textarea" } },
+      },
+    },
+  };
+  const siteHooks = astroidPagesWriteHooks(siteConfig);
+
+  it("accepts a site `_type` that the built-in catalog would reject", async () => {
+    const section = { sections: [{ _type: "homeHero", heading: "Hi" }] };
+    // built-in catalog has no `homeHero` → rejects
+    await expect(hooks.validate(section, { operation: "update" })).rejects.toThrow(
+      /unknown section type/i,
+    );
+    // the site catalog has it → accepts
+    await expect(siteHooks.validate(section, { operation: "update" })).resolves.toBeUndefined();
+  });
+
+  it("still rejects a `_type` outside the site catalog", async () => {
+    await expect(
+      siteHooks.validate({ sections: [{ _type: "hero", heading: "x" }] }, { operation: "update" }),
+    ).rejects.toThrow(/unknown section type/i);
+  });
+});
