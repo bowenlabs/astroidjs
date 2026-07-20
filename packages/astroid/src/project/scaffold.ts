@@ -29,6 +29,10 @@ import {
   generateAstroidSquareCard,
 } from "../commerce/checkout-scaffold.js";
 import { generateCatalogMigrationSql } from "../commerce/mirror.js";
+import { generateAstroidVitalsBeacon } from "../analytics/index.js";
+import { generateAstroidActions } from "./actions.js";
+import { cwvBeaconScript } from "louise-toolkit/analytics";
+
 import type { AstroidConfig } from "../config.js";
 import { generateMapEmbedComponent, generateMapTileRoute } from "../map/scaffold.js";
 import { generateAstroidGalleryPage } from "../portfolio/scaffold.js";
@@ -76,6 +80,19 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // created, and the first sync wrote nothing while reporting success.
   const catalogSql = generateCatalogMigrationSql(config);
   if (catalogSql) files.push({ path: "migrations/0003_catalog.sql", contents: catalogSql });
+
+  // --- the CWV beacon -------------------------------------------------------
+  // A static file under public/, so it is same-origin and covered by
+  // `script-src 'self'` — an inline script carrying generated content could not
+  // be hashed into the CSP and would be blocked.
+  const beacon = generateAstroidVitalsBeacon(config, cwvBeaconScript());
+  files.push({ path: beacon.path, contents: beacon.contents });
+
+  // --- the typed Astro Actions surface --------------------------------------
+  // Always: every project has editable pages, and the routes alone leave the
+  // Astro-native half of ADR 0001 unbuilt. Scaffold-once because it is meant to
+  // be added to.
+  files.push({ path: "src/actions/index.ts", contents: generateAstroidActions(config) });
 
   // --- commerce: the server-authoritative payment seam ----------------------
   // Scaffold-once: a real store adds shipping, tax, an order row, a receipt.

@@ -14,6 +14,7 @@ export type AstroidEditorRouteName =
   | "ai"
   | "health"
   | "realtime"
+  | "vitals"
   | "overview"
   | "seoFix"
   | "versions"
@@ -107,6 +108,12 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
       note: "WebSocket upgrade for the per-page live editing session (ADR 0002). Owns /api/louise/realtime/*. Guards the handshake as a same-origin, session-gated mutation, then forwards to the per-page Durable Object with the SERVER-resolved editor identity — presence is never taken from the client.",
     });
   }
+
+  routes.push({
+    name: "vitals",
+    factory: "vitalsRoute",
+    note: "Public CWV ingestion (POST /api/louise/vitals). NOT session-gated — these are anonymous visitor beacons — but same-origin only, and it accepts-and-drops without the dataset binding. Always 204.",
+  });
 
   routes.push({
     name: "health",

@@ -15,6 +15,10 @@
 //      NEVER clobber them, or it would wipe provisioned ids — so they live in a
 //      separate function the regenerate path doesn't call.
 
+import {
+  ASTROID_VITALS_BINDING,
+  astroidVitalsDataset,
+} from "../analytics/index.js";
 import { astroidCheckoutVars } from "../commerce/checkout-scaffold.js";
 import { astroidCommerceProviders } from "../commerce/roles.js";
 import {
@@ -213,6 +217,13 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  // Cloudflare Images: the media route reads upload dimensions + backs server-");
   p("  // side re-encode. Also @astrojs/cloudflare's production image service.");
   p('  "images": { "binding": "IMAGES" },');
+  p("  // Analytics Engine: real-visitor Core Web Vitals. Free, and the ingest");
+  p("  // route accepts-and-drops without it, so it costs nothing unused. Reading");
+  p("  // the p75 back out needs CF_ACCOUNT_ID + CF_API_TOKEN (see .env.example) —");
+  p("  // until those are real the Health badge reads 'not measured yet'.");
+  p(
+    `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_VITALS_BINDING)}, "dataset": ${JSON.stringify(astroidVitalsDataset(config))} }],`,
+  );
   p("  // Workers AI. Powers the editor's rewrite + SEO-suggest buttons and alt-text");
   p("  // generation on upload — all of which SHIP IN THE EDITOR DRAWER already and,");
   p("  // without this binding, were permanently invisible: their routes answer 503");

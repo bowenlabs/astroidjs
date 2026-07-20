@@ -10,6 +10,10 @@
 // `resolveEditor`, and the section-catalog `validate` on the pages routes.
 
 import type { AstroidConfig } from "../config.js";
+import {
+  ASTROID_VITALS_BINDING,
+  generateAstroidCwvQuery,
+} from "../analytics/index.js";
 import { astroidPortal } from "../portal/config.js";
 import { ASTROID_HEALTH_CRON, astroidCron, astroidUsesQueues } from "../queues/messages.js";
 import {
@@ -22,7 +26,12 @@ import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "./routes.js
 
 // Astroid's default editable site_settings surface — the columns the Settings
 // panel may write, and which of them hold a media-library image URL.
-const DEFAULT_SETTINGS_COLUMNS = [
+//
+// EXPORTED because the generated worker is not the only consumer: the scaffolded
+// Astro Actions surface needs the identical allowlist, and a second literal in an
+// editable file is a list that drifts from the one the routes enforce. Both read
+// this.
+export const ASTROID_SETTINGS_COLUMNS = [
   "siteName",
   "tagline",
   "logoUrl",
@@ -39,7 +48,7 @@ const DEFAULT_SETTINGS_COLUMNS = [
   "defaultOgImageUrl",
   "disableIndexing",
 ];
-const DEFAULT_SETTINGS_IMAGE_KEYS = ["logoUrl", "faviconUrl", "defaultOgImageUrl"];
+export const ASTROID_SETTINGS_IMAGE_KEYS = ["logoUrl", "faviconUrl", "defaultOgImageUrl"];
 
 /**
  * Generate the Worker entrypoint (`worker.ts`) from an Astroid config: the editor
@@ -59,7 +68,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   // one factory in the plan that isn't an editor route. Importing it with the
   // rest type-checks fine HERE (the plan is just strings) and fails only in the
   // scaffold, which is exactly how it got caught.
-  const realtimeRouteFactories = new Set(["realtimeRoute"]);
+  // Same trap as realtimeRoute: these live outside `louise-toolkit/editor`.
+  const realtimeRouteFactories = new Set(["realtimeRoute", "vitalsRoute"]);
   const editorImports = [
     "DEFAULT_PAGE_FIELDS",
     ...new Set(plan.map((route) => route.factory).filter((f) => !realtimeRouteFactories.has(f))),
@@ -75,11 +85,13 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const routeCall = (name: AstroidEditorRouteName): string => {
     switch (name) {
       case "overview":
-        // `inbox` is deliberately omitted: the inquiries table has no read-state
-        // column, so an "unread" count would be the total — a number that never
-        // goes down and means nothing. An absent slice hides its card, which is
-        // the honest outcome.
-        return "overviewRoute({ resolveEditor, content: overviewContent, health: overviewHealth })";
+        // `inbox` only when this project captures inquiries — an absent slice
+        // hides its card, which is right for an archetype with no contact form.
+        return inquiries
+          ? "overviewRoute({ resolveEditor, content: overviewContent, inbox: overviewInbox, health: overviewHealth })"
+          : "overviewRoute({ resolveEditor, content: overviewContent, health: overviewHealth })";
+      case "vitals":
+        return `vitalsRoute({ dataset: (env) => env.${ASTROID_VITALS_BINDING} })`;
       case "health":
         return "healthRoute({ resolveEditor, read: readSiteHealth })";
       case "realtime":
@@ -137,6 +149,9 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   for (const name of editorImports) p(`  ${name},`);
   p('} from "louise-toolkit/editor";');
   if (usesRealtime(config)) p('import { realtimeRoute } from "louise-toolkit/realtime";');
+  p(
+    'import { cwvSqlQuery, parseCwvRows, summarizeCwv, vitalsRoute } from "louise-toolkit/analytics";',
+  );
   if (inquiries) p('import { defineForm } from "louise-toolkit/forms";');
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
   p('import { checkLinks } from "louise-toolkit/browser";');
@@ -150,6 +165,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p(`import { ${tables.join(", ")} } from "./schema.js";`);
   const astroidImports = [
     "astroidPagesCollection",
+    "readModuleSecret",
     ...(inquiries ? ["sendInquiryMail"] : []),
     ...(queues ? ["type AstroidQueueMessage"] : []),
   ].sort();
@@ -172,8 +188,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p();
   p("// Editable site_settings columns the Settings panel may write, and which of");
   p("// them resolve to a media-library asset.");
-  p(`const SETTINGS_COLUMNS = ${JSON.stringify(DEFAULT_SETTINGS_COLUMNS)};`);
-  p(`const SETTINGS_IMAGE_KEYS = ${JSON.stringify(DEFAULT_SETTINGS_IMAGE_KEYS)};`);
+  p(`const SETTINGS_COLUMNS = ${JSON.stringify(ASTROID_SETTINGS_COLUMNS)};`);
+  p(`const SETTINGS_IMAGE_KEYS = ${JSON.stringify(ASTROID_SETTINGS_IMAGE_KEYS)};`);
   p();
   p("// Delete-safety for the media library: where a media key can be REFERENCED,");
   p("// so deleting an asset that's live on a page warns instead of silently");
@@ -203,6 +219,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("const overviewHealth = async (env: CloudflareEnv) =>");
   p("  (await readSiteHealth(env)) ?? undefined;");
   p();
+  for (const line of generateAstroidCwvQuery(config)) p(line);
+  p();
   p("// The daily scan. Crawls the site's own pages for broken links and counts the");
   p("// two accessibility/SEO gaps that are cheap to compute, then persists one");
   p("// snapshot for the dashboard to read. Every part degrades on its own — a");
@@ -220,6 +238,10 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("    ),");
   p("  ]);");
   p("  const summary = summarizeHealth({ brokenLinks, missingAlt, seoGaps });");
+  p("  // Field data, when the SQL API credentials are real. Absent leaves the");
+  p("  // Health badge at 'not measured yet' rather than failing the scan.");
+  p("  const cwv = await queryCwv(env);");
+  p("  if (cwv) summary.cwv = cwv;");
   p("  await writeHealthSummary(env.RL, summary);");
   p("  return summary;");
   p("}");
@@ -234,6 +256,19 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("  }");
   p("}");
   p();
+  if (inquiries) {
+    p();
+    p("// Unhandled inquiries. The COUNT is the whole table on purpose: the");
+    p("// Inquiries tab reviews and CLEARS submissions (GET lists, DELETE removes),");
+    p("// so a row that still exists is a message still waiting on you. There is no");
+    p("// read/unread column because deletion IS the acknowledgement — which also");
+    p("// means this number goes down as you work through them, rather than being a");
+    p("// total that only ever climbs.");
+    p("const overviewInbox = async (env: CloudflareEnv) => {");
+    p('  const n = await countRows(env, "SELECT COUNT(*) AS n FROM inquiries");');
+    p("  return { unread: n };");
+    p("};");
+  }
   p("// The Home dashboard's content counts. Raw SQL because these are COUNTs over");
   p("// THIS project's tables — the toolkit deliberately makes no assumption about");
   p("// column names. A throw here degrades to a hidden card, never a 500.");

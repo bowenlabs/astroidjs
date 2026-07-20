@@ -14,10 +14,12 @@ import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { ASTROID_HEALTH_CRON, astroidCrons } from "../src/queues/messages.js";
 import { generateAstroidWrangler } from "../src/project/generate.js";
+import { astroidVitalsDataset } from "../src/analytics/index.js";
 import { generateAstroidCheckoutEnv } from "../src/commerce/checkout-scaffold.js";
 import { generateAstroidScaffoldFiles } from "../src/project/scaffold.js";
 import { generateAstroidRealtimeEnv } from "../src/realtime/scaffold.js";
 import { generateAstroidWorker } from "../src/worker/generate.js";
+import { astroidSecretNames } from "../src/status.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/worker/routes.js";
 
 /**
@@ -64,13 +66,23 @@ describe("overview route", () => {
     expect(worker).toContain("MAX(updated_at) FROM pages");
   });
 
-  it("omits the inbox slice rather than reporting a fake unread count", () => {
-    // The inquiries table has no read-state column, so "unread" could only be
-    // the total — a number that never goes down. An absent slice hides its card,
-    // which is the honest outcome.
-    const worker = generateAstroidWorker({ ...base, archetype: "storefront" });
-    expect(worker).toContain("overviewRoute({");
-    expect(worker).not.toContain("inbox:");
+  it("counts UNHANDLED inquiries — the whole table, deliberately", () => {
+    // There is no read/unread column because the Inquiries tab reviews and
+    // CLEARS submissions: GET lists, DELETE removes, and deletion IS the
+    // acknowledgement. So a surviving row is a message still waiting, and the
+    // number goes down as you work through them rather than only climbing.
+    const worker = generateAstroidWorker({ ...base, sections: ["hero", "contact"] });
+    expect(routeLine(worker, "overviewRoute")).toContain("inbox: overviewInbox");
+    expect(worker).toContain("SELECT COUNT(*) AS n FROM inquiries");
+  });
+
+  it("omits the inbox slice when the project captures no inquiries", () => {
+    // No contact section and no wholesaleInquiry module → no inquiries table,
+    // so the slice would query something that doesn't exist. Absent hides the
+    // card, which is right for a site with no contact form.
+    const worker = generateAstroidWorker({ ...base, sections: ["hero", "cta"] });
+    expect(routeLine(worker, "overviewRoute")).not.toContain("inbox:");
+    expect(worker).not.toContain("overviewInbox");
   });
 });
 
@@ -374,5 +386,53 @@ describe("card checkout", () => {
     expect(wrangler).toContain('"SQUARE_ENVIRONMENT": "sandbox"');
     expect(generateAstroidCheckoutEnv(square)).toContain("SQUARE_APP_ID: string;");
     expect(generateAstroidCheckoutEnv(base)).toBe("");
+  });
+});
+
+describe("core web vitals", () => {
+  it("closes the loop: ingest, store, and read back", () => {
+    // `HealthSummary.cwv` existed and the Health panel rendered a "not measured
+    // yet" badge for it — permanently accurate and permanently useless, because
+    // nothing collected the data. All three parts are needed for the badge to
+    // ever change.
+    const worker = generateAstroidWorker(base);
+    expect(routeLine(worker, "vitalsRoute")).toContain("dataset: (env) => env.VITALS");
+    expect(generateAstroidWrangler(base)).toContain('"binding": "VITALS"');
+    expect(worker).toContain("async function queryCwv(");
+    expect(worker).toContain("if (cwv) summary.cwv = cwv;");
+  });
+
+  it("imports vitalsRoute from /analytics, not /editor", () => {
+    // Same trap as realtimeRoute — it isn't an editor route, and bundling it
+    // into that import block only fails in a scaffolded project.
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain('} from "louise-toolkit/analytics";');
+    const editorBlock = worker.slice(0, worker.indexOf('} from "louise-toolkit/editor";'));
+    expect(editorBlock).not.toContain("vitalsRoute,");
+  });
+
+  it("names the dataset per project", () => {
+    // Two Astroid sites on one Cloudflare account must not write into the same
+    // table, or their p75s blend.
+    expect(astroidVitalsDataset({ ...base, key: "acme" })).toBe("acme_web_vitals");
+    expect(generateAstroidWrangler({ ...base, key: "other" })).toContain('"other_web_vitals"');
+  });
+
+  it("ships the beacon as a STATIC file, not an inline script", () => {
+    // Astro hashes processed scripts into script-src; an is:inline script with
+    // generated content can't be hashed and would be CSP-blocked. From public/
+    // it is same-origin and covered by `script-src 'self'`.
+    const beacon = generateAstroidScaffoldFiles(base).find((f) => f.path === "public/vitals.js");
+    expect(beacon).toBeDefined();
+    expect(beacon?.contents).toContain("navigator.sendBeacon");
+  });
+
+  it("keeps the read-back credentials dormant by default", () => {
+    // The SQL API is account-scoped and has no binding, so it needs a token.
+    // Unprovisioned must skip the query, not fail the whole health scan.
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain("readModuleSecret(env.CF_ACCOUNT_ID)");
+    expect(worker).toContain("if (!accountId || !token) return undefined;");
+    expect(astroidSecretNames(base).vitals).toEqual(["CF_ACCOUNT_ID", "CF_API_TOKEN"]);
   });
 });
