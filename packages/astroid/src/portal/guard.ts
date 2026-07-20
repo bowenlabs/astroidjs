@@ -17,8 +17,14 @@
 //                           this user DOES have — not back to login, which
 //                           reads as "your password failed" when it didn't
 
-/** A signed-in portal user, as far as the guard is concerned. */
+/** A signed-in portal user. The guard only reads `role`; `id` + `email` are the
+ *  universal identity fields every instance resolves, typed so consumers
+ *  (`locals.portalUser`) read them without a cast. Anything else a project's
+ *  resolver returns (name, phone, a linked commerce id) is reachable via the
+ *  index signature. */
 export interface PortalUser {
+  id: string;
+  email: string;
   role: string;
   [key: string]: unknown;
 }
