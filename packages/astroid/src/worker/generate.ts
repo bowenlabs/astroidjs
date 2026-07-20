@@ -11,7 +11,7 @@
 
 import type { AstroidConfig } from "../config.js";
 import { astroidPortal } from "../portal/config.js";
-import { astroidCron, astroidUsesQueues } from "../queues/messages.js";
+import { ASTROID_HEALTH_CRON, astroidCron, astroidUsesQueues } from "../queues/messages.js";
 import { capturesInquiries } from "../schema/framework.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "./routes.js";
 
@@ -65,12 +65,13 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const routeCall = (name: AstroidEditorRouteName): string => {
     switch (name) {
       case "overview":
-        // Only the `content` slice is wired. `inbox` is deliberately omitted:
-        // the inquiries table has no read-state column, so an "unread" count
-        // would be the total — a number that never goes down and means nothing.
-        // An absent slice hides its card, which is the honest outcome. (`health`
-        // likewise, until the health module is generated.)
-        return "overviewRoute({ resolveEditor, content: overviewContent })";
+        // `inbox` is deliberately omitted: the inquiries table has no read-state
+        // column, so an "unread" count would be the total — a number that never
+        // goes down and means nothing. An absent slice hides its card, which is
+        // the honest outcome.
+        return "overviewRoute({ resolveEditor, content: overviewContent, health: overviewHealth })";
+      case "health":
+        return "healthRoute({ resolveEditor, read: readSiteHealth })";
       case "versions":
         return "versionsRoute({ table: pages, versionsTable: pagesVersions, config: pagesCollection, resolveEditor, bufferKv: (env) => env.DRAFTS })";
       case "search":
@@ -125,6 +126,10 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p('} from "louise-toolkit/editor";');
   if (inquiries) p('import { defineForm } from "louise-toolkit/forms";');
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
+  p('import { checkLinks } from "louise-toolkit/browser";');
+  p(
+    'import { readHealthSummary, summarizeHealth, writeHealthSummary } from "louise-toolkit/health";',
+  );
   p('import { composeWorker, type WorkerRoute } from "louise-toolkit/worker";');
   if (inquiries) p('import { inquiriesForm } from "louise-toolkit/db";');
   p(`import { ${tables.join(", ")} } from "./schema.js";`);
@@ -168,6 +173,51 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     '  { collection: "settings", table: "site_settings", columns: ["logo_url", "favicon_url", "default_og_image_url"], labelColumn: "site_name" },',
   );
   p("];");
+  p();
+  p();
+  p("// --- site health ----------------------------------------------------------");
+  p("// Stored in the RL namespace under its own key rather than a new binding:");
+  p("// it's one small singleton blob, and a binding you must provision before the");
+  p("// dashboard works is a binding people don't provision.");
+  p("const readSiteHealth = (env: CloudflareEnv) => readHealthSummary(env.RL);");
+  p();
+  p("// The same read, adapted for the overview slice. `readHealthSummary` yields");
+  p("// `null` for 'no scan yet' while a slice resolver signals absence with");
+  p("// `undefined` — the two types are otherwise identical, and this one-line");
+  p("// coercion is the whole difference.");
+  p("const overviewHealth = async (env: CloudflareEnv) =>");
+  p("  (await readSiteHealth(env)) ?? undefined;");
+  p();
+  p("// The daily scan. Crawls the site's own pages for broken links and counts the");
+  p("// two accessibility/SEO gaps that are cheap to compute, then persists one");
+  p("// snapshot for the dashboard to read. Every part degrades on its own — a");
+  p("// failed crawl or a failed COUNT yields zero rather than aborting the scan,");
+  p("// because a partial health report is worth strictly more than none.");
+  p("async function runHealthScan(env: CloudflareEnv) {");
+  p("  const origin = env.SITE_URL ?? MEDIA_BASE;");
+  p("  const [brokenLinks, missingAlt, seoGaps] = await Promise.all([");
+  p("    checkLinks({ base: origin, paths: [\"/\"] }).catch(() => []),");
+  p("    countRows(env, \"SELECT COUNT(*) AS n FROM media WHERE alt IS NULL OR alt = ''\"),");
+  p("    countRows(");
+  p("      env,");
+  p('      "SELECT COUNT(*) AS n FROM pages WHERE status = \'published\'" +');
+  p("      \" AND (seo_title IS NULL OR seo_title = '' OR seo_description IS NULL OR seo_description = '')\",");
+  p("    ),");
+  p("  ]);");
+  p("  const summary = summarizeHealth({ brokenLinks, missingAlt, seoGaps });");
+  p("  await writeHealthSummary(env.RL, summary);");
+  p("  return summary;");
+  p("}");
+  p();
+  p("/** One COUNT, degrading to 0 — a missing table must not abort the scan. */");
+  p("async function countRows(env: CloudflareEnv, sql: string): Promise<number> {");
+  p("  try {");
+  p("    const row = await env.DB.prepare(sql).first<{ n: number }>();");
+  p("    return Number(row?.n ?? 0);");
+  p("  } catch {");
+  p("    return 0;");
+  p("  }");
+  p("}");
   p();
   p("// The Home dashboard's content counts. Raw SQL because these are COUNTs over");
   p("// THIS project's tables — the toolkit deliberately makes no assumption about");
@@ -246,16 +296,30 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     p(
       "  queue: (batch, env) => processBatch(batch, (message) => handleQueueMessage(env, message)),",
     );
-    if (cron) {
-      p("  // Cron safety net. Webhooks get missed — a provider outage, a deploy");
-      p("  // mid-delivery, a DLQ'd message — and without this the site serves");
-      p("  // stale data until a human notices. Enqueued rather than run inline so");
-      p("  // it takes the same retry + DLQ path as everything else.");
-      p("  scheduled: (_controller, env, ctx) => {");
-      p('    ctx.waitUntil(env.COMMERCE_QUEUE.send({ kind: "catalog_refresh" }));');
-      p("  },");
-    }
   }
+  // ONE scheduled handler for every cron, dispatching on `controller.cron`.
+  // Cloudflare gives no other way to tell them apart, and the strings here have
+  // to match `astroidCrons` exactly — which is why both read the same constants
+  // rather than repeating a literal.
+  p("  // Cron. Cloudflare fires this for EVERY trigger in wrangler.jsonc and");
+  p("  // identifies which by `controller.cron`, so dispatch on it.");
+  p("  scheduled: (controller, env, ctx) => {");
+  p(`    if (controller.cron === ${JSON.stringify(ASTROID_HEALTH_CRON)}) {`);
+  p("      // Daily site-health scan. `waitUntil` because the crawl outlives the");
+  p("      // handler's return, and a scan that throws must not retry the cron.");
+  p("      ctx.waitUntil(runHealthScan(env).catch(() => {}));");
+  p("      return;");
+  p("    }");
+  if (cron) {
+    p(`    if (controller.cron === ${JSON.stringify(cron)}) {`);
+    p("      // Catalog safety net. Webhooks get missed — a provider outage, a");
+    p("      // deploy mid-delivery, a DLQ'd message — and without this the site");
+    p("      // serves stale data until a human notices. Enqueued rather than run");
+    p("      // inline so it takes the same retry + DLQ path as everything else.");
+    p('      ctx.waitUntil(env.COMMERCE_QUEUE.send({ kind: "catalog_refresh" }));');
+    p("    }");
+  }
+  p("  },");
   p("});");
   p();
 

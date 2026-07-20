@@ -11,6 +11,7 @@ import { capturesInquiries } from "../schema/framework.js";
 
 export type AstroidEditorRouteName =
   | "ai"
+  | "health"
   | "overview"
   | "seoFix"
   | "versions"
@@ -97,6 +98,12 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
   // button". So mounting it on a project that never uses AI costs nothing, while
   // NOT mounting it left buttons that ship in the editor drawer permanently
   // dead.
+  routes.push({
+    name: "health",
+    factory: "healthRoute",
+    note: "The site-health panel's read of the persisted scan summary. Owns /api/louise/health. Like overviewRoute, its client half already ships in the editor drawer — unmounted, the Health card was dead UI. Returns `{ summary: null }` (a 200) until the daily cron writes the first scan, which the panel renders as 'not checked yet'.",
+  });
+
   routes.push({
     name: "ai",
     factory: "aiRoute",

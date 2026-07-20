@@ -12,6 +12,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
+import { ASTROID_HEALTH_CRON, astroidCrons } from "../src/queues/messages.js";
+import { generateAstroidWrangler } from "../src/project/generate.js";
 import { generateAstroidWorker } from "../src/worker/generate.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/worker/routes.js";
 
@@ -142,5 +144,57 @@ describe("AI assists", () => {
     for (const sub of subPaths) {
       expect(names.indexOf(sub), `${sub} must precede pagesRoute`).toBeLessThan(pages);
     }
+  });
+});
+
+describe("site health", () => {
+  it("mounts healthRoute and lights up the overview health card", () => {
+    // Same shape as the overview bug: the Health PANEL already ships in the
+    // editor drawer (BUILTIN_CARDS includes it), so leaving the route unmounted
+    // meant rendering UI for a subsystem that was never provisioned.
+    const worker = generateAstroidWorker(base);
+    expect(routeLine(worker, "healthRoute")).toContain("read: readSiteHealth");
+    expect(routeLine(worker, "overviewRoute")).toContain("health: overviewHealth");
+    // `readHealthSummary` yields null for "no scan yet"; a slice resolver signals
+    // absence with undefined. The clean-room `astro check` caught the mismatch.
+    expect(worker).toContain("(await readSiteHealth(env)) ?? undefined");
+  });
+
+  it("stores the summary in the EXISTING RL namespace, not a new binding", () => {
+    // A binding you must provision before the dashboard works is a binding
+    // people don't provision. It's one small singleton blob under its own key.
+    expect(generateAstroidWorker(base)).toContain("readHealthSummary(env.RL)");
+  });
+
+  it("always schedules the daily scan, with or without queues", () => {
+    for (const config of [base, { ...base, commerce: { provider: "square" as const } }]) {
+      expect(astroidCrons(config)).toContain(ASTROID_HEALTH_CRON);
+      expect(generateAstroidWorker(config)).toContain("runHealthScan");
+    }
+  });
+
+  it("dispatches on controller.cron, and the strings match wrangler's list", () => {
+    // Cloudflare fires ONE scheduled handler for every trigger and identifies
+    // which by `controller.cron`. If wrangler.jsonc and this dispatch disagree,
+    // the job silently never runs — so both must come from `astroidCrons`.
+    const config: AstroidConfig = { ...base, commerce: { provider: "square" } };
+    const worker = generateAstroidWorker(config);
+    const wrangler = generateAstroidWrangler(config);
+    const crons = astroidCrons(config);
+    expect(crons).toHaveLength(2);
+    for (const cron of crons) {
+      expect(worker, `handler does not dispatch ${cron}`).toContain(
+        `controller.cron === ${JSON.stringify(cron)}`,
+      );
+      expect(wrangler, `wrangler does not declare ${cron}`).toContain(JSON.stringify(cron));
+    }
+  });
+
+  it("degrades each part of the scan independently", () => {
+    // A failed crawl or a missing table must not abort the whole scan — a
+    // partial health report is worth strictly more than none.
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain("checkLinks({ base: origin, paths: [\"/\"] }).catch(() => [])");
+    expect(worker).toContain("return 0;");
   });
 });

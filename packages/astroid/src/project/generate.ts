@@ -25,6 +25,7 @@ import type { AstroidConfig } from "../config.js";
 import {
   ASTROID_QUEUE_BINDING,
   astroidCron,
+  astroidCrons,
   astroidQueueNames,
   astroidUsesQueues,
 } from "../queues/messages.js";
@@ -139,14 +140,16 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p("  // No `hosts` in your config → deploys to <name>.workers.dev. Add a");
     p('  // "routes" block with a custom_domain pattern to serve a real domain.');
   }
+  // Crons. ONE `scheduled` handler receives all of them and tells them apart by
+  // `controller.cron`, so this list and the handler's dispatch must agree
+  // exactly — both come from `astroidCrons`, which is why it exists.
+  //
+  // Daily: the site-health scan (broken links, missing alt text, SEO gaps).
+  // Hourly (commerce only): the catalog re-sync safety net, so a missed or DLQ'd
+  // webhook can only leave the site stale until the next tick.
+  p(`  "triggers": { "crons": ${JSON.stringify(astroidCrons(config))} },`);
   if (astroidUsesQueues(config)) {
     const { queue, dlq } = astroidQueueNames(config);
-    const cron = astroidCron(config);
-    if (cron) {
-      p("  // Cron safety net: re-sync on a schedule so a missed or DLQ'd webhook");
-      p("  // can only leave the site stale until the next tick.");
-      p(`  "triggers": { "crons": [${JSON.stringify(cron)}] },`);
-    }
     p("  // Provider webhooks are verified at the edge, then enqueued here so the");
     p("  // receiver can return fast. Retries + DLQ routing are Cloudflare's, not");
     p("  // the consumer's — set them here, not in code.");
@@ -188,7 +191,9 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  // and the client hides the button. No account setup beyond the binding, and");
   p("  // every call is editor-gated, so a visitor can never spend your AI budget.");
   p('  "ai": { "binding": "AI" },');
-  p("  // KV: RL = the security rate limiter; DRAFTS = the autosave write-buffer.");
+  p("  // KV: RL = the security rate limiter (it also holds the daily site-health");
+  p("  // summary under its own key — one small singleton blob, not worth a binding");
+  p("  // someone has to remember to provision); DRAFTS = the autosave write-buffer.");
   p("  // Create each: `wrangler kv namespace create <RL|DRAFTS>`.");
   p('  "kv_namespaces": [');
   p('    { "binding": "RL", "id": "<run: wrangler kv namespace create RL>" },');

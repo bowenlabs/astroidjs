@@ -13,6 +13,10 @@ type CloudflareEnv = {
   MEDIA: R2Bucket;
   /** Public base for media URLs (the framework-agnostic media route reads this). */
   MEDIA_URL: string;
+  /** The site's public origin — declared in wrangler.jsonc `vars`. Read by the
+   *  health scan to know what to crawl, and by anything else that needs an
+   *  absolute URL from inside the Worker. */
+  SITE_URL: string;
   /** Cloudflare Images — upload dimensions + server-side transforms. */
   IMAGES: ImagesBinding;
   /**
