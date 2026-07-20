@@ -12,6 +12,11 @@
 import type { AstroidConfig } from "../config.js";
 import { astroidPortal } from "../portal/config.js";
 import { ASTROID_HEALTH_CRON, astroidCron, astroidUsesQueues } from "../queues/messages.js";
+import {
+  ASTROID_EDIT_SESSION_CLASS,
+  ASTROID_REALTIME_BINDING,
+  usesRealtime,
+} from "../realtime/scaffold.js";
 import { capturesInquiries } from "../schema/framework.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "./routes.js";
 
@@ -50,9 +55,14 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const seedName = config.theme.name;
   const plan = astroidEditorRoutePlan(config);
 
+  // `realtimeRoute` lives in `louise-toolkit/realtime`, not `/editor` — it is the
+  // one factory in the plan that isn't an editor route. Importing it with the
+  // rest type-checks fine HERE (the plan is just strings) and fails only in the
+  // scaffold, which is exactly how it got caught.
+  const realtimeRouteFactories = new Set(["realtimeRoute"]);
   const editorImports = [
     "DEFAULT_PAGE_FIELDS",
-    ...new Set(plan.map((route) => route.factory)),
+    ...new Set(plan.map((route) => route.factory).filter((f) => !realtimeRouteFactories.has(f))),
   ].sort();
   const tables = [
     "media",
@@ -72,6 +82,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         return "overviewRoute({ resolveEditor, content: overviewContent, health: overviewHealth })";
       case "health":
         return "healthRoute({ resolveEditor, read: readSiteHealth })";
+      case "realtime":
+        return `realtimeRoute({ resolveEditor, namespace: (env) => env.${ASTROID_REALTIME_BINDING} })`;
       case "versions":
         return "versionsRoute({ table: pages, versionsTable: pagesVersions, config: pagesCollection, resolveEditor, bufferKv: (env) => env.DRAFTS })";
       case "search":
@@ -124,6 +136,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("import {");
   for (const name of editorImports) p(`  ${name},`);
   p('} from "louise-toolkit/editor";');
+  if (usesRealtime(config)) p('import { realtimeRoute } from "louise-toolkit/realtime";');
   if (inquiries) p('import { defineForm } from "louise-toolkit/forms";');
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
   p('import { checkLinks } from "louise-toolkit/browser";');
@@ -345,6 +358,16 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("  },");
   p("});");
   p();
+  if (usesRealtime(config)) {
+    // Re-exported from the ENTRY because wrangler resolves a Durable Object
+    // binding's `class_name` against the worker's exports — the class living in
+    // src/edit-session.ts is not enough on its own, and the failure is a deploy
+    // error about an unresolvable class rather than anything pointing here.
+    p("// The realtime edit-session Durable Object. Re-exported so wrangler can");
+    p("// resolve the `class_name` in the durable_objects binding.");
+    p(`export { ${ASTROID_EDIT_SESSION_CLASS} } from "./edit-session.js";`);
+    p();
+  }
 
   return lines.join("\n");
 }

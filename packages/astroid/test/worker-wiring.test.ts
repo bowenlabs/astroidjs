@@ -14,6 +14,8 @@ import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { ASTROID_HEALTH_CRON, astroidCrons } from "../src/queues/messages.js";
 import { generateAstroidWrangler } from "../src/project/generate.js";
+import { generateAstroidScaffoldFiles } from "../src/project/scaffold.js";
+import { generateAstroidRealtimeEnv } from "../src/realtime/scaffold.js";
 import { generateAstroidWorker } from "../src/worker/generate.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/worker/routes.js";
 
@@ -228,5 +230,88 @@ describe("edge cache (ADR 0004)", () => {
     const wrangler = generateAstroidWrangler(base);
     expect(wrangler).toContain("0004-edge-caching.md");
     expect(wrangler.toLowerCase()).toContain("preview");
+  });
+});
+
+describe("realtime (ADR 0002)", () => {
+  const rt: AstroidConfig = { ...base, modules: ["realtime"] };
+
+  it("is entirely absent without the module", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).not.toContain("realtimeRoute");
+    expect(worker).not.toContain("EditSessionDO");
+    expect(generateAstroidWrangler(base)).not.toContain("durable_objects");
+    expect(generateAstroidScaffoldFiles(base).map((f) => f.path)).not.toContain(
+      "src/edit-session.ts",
+    );
+  });
+
+  it("mounts the upgrade route against the DO namespace", () => {
+    expect(routeLine(generateAstroidWorker(rt), "realtimeRoute")).toContain(
+      "namespace: (env) => env.EDIT_SESSION",
+    );
+  });
+
+  it("imports realtimeRoute from /realtime, not /editor", () => {
+    // It is the one factory in the route plan that is not an editor route.
+    // Bundling it into the editor import block type-checks in THIS package (the
+    // plan is only strings) and fails in the scaffold — clean-room `astro check`
+    // is the only thing that sees it.
+    const worker = generateAstroidWorker(rt);
+    expect(worker).toContain('import { realtimeRoute } from "louise-toolkit/realtime";');
+    const editorBlock = worker.slice(0, worker.indexOf('} from "louise-toolkit/editor";'));
+    expect(editorBlock).not.toContain("realtimeRoute,");
+  });
+
+  it("re-exports the DO class from the worker ENTRY", () => {
+    // wrangler resolves a binding's `class_name` against the worker's exports.
+    // The class living in src/edit-session.ts is not enough on its own, and the
+    // failure is a deploy error about an unresolvable class that points nowhere
+    // near this wiring.
+    expect(generateAstroidWorker(rt)).toContain(
+      'export { EditSessionDO } from "./edit-session.js";',
+    );
+  });
+
+  it("declares the binding AND a migration, with the SQLite backend", () => {
+    const wrangler = generateAstroidWrangler(rt);
+    expect(wrangler).toContain('"name": "EDIT_SESSION", "class_name": "EditSessionDO"');
+    // A DO class with no migration tag is a deploy error. And it must be
+    // `new_sqlite_classes`, not `new_classes`: the session keeps authoritative
+    // state in `ctx.storage`, and the storage backend cannot be changed after
+    // the class is first deployed — so getting this wrong is not fixable later.
+    expect(wrangler).toContain('"tag": "v1", "new_sqlite_classes": ["EditSessionDO"]');
+    expect(wrangler).not.toContain('"new_classes"');
+  });
+
+  it("scaffolds the DO subclass, delegating every hibernation handler", () => {
+    const file = generateAstroidScaffoldFiles(rt).find((f) => f.path === "src/edit-session.ts");
+    expect(file).toBeDefined();
+    const src = file?.contents ?? "";
+    // Miss one and the failure is silent: no `webSocketClose` leaks presence
+    // forever, no `alarm` never flushes a draft.
+    for (const handler of ["fetch", "webSocketMessage", "webSocketClose", "webSocketError", "alarm"]) {
+      expect(src, `DO does not delegate ${handler}`).toContain(`${handler}(`);
+    }
+    // Lazy: a DO is re-instantiated after a hibernation wake.
+    expect(src).toContain("#session ??=");
+  });
+
+  it("persists through applySaveDraft — one write path, no KV double-coalesce", () => {
+    const src =
+      generateAstroidScaffoldFiles(rt).find((f) => f.path === "src/edit-session.ts")?.contents ?? "";
+    expect(src).toContain("applySaveDraft");
+    // The DO's alarm IS the coalescer for the page, so routing through the KV
+    // write-buffer as well would be two layers of coalescing over one stream.
+    // Assert on the deps object actually passed, not the file text — the comment
+    // above it in the generated source legitimately names `bufferKv`.
+    expect(src).toContain("{ table: pages, versionsTable: pagesVersions, config: pagesCollection }");
+    // Guard the collection so a stray target can't write the wrong table.
+    expect(src).toContain('target.slug !== "pages"');
+  });
+
+  it("types the namespace only when the module is on", () => {
+    expect(generateAstroidRealtimeEnv(rt)).toContain("EDIT_SESSION: DurableObjectNamespace;");
+    expect(generateAstroidRealtimeEnv(base)).toBe("");
   });
 });

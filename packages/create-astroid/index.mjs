@@ -25,6 +25,7 @@ import {
   generateAstroidEnvBindings,
   generateAstroidPortalLocals,
   generateAstroidProject,
+  generateAstroidRealtimeEnv,
   generateAstroidScaffoldFiles,
   generateAstroidSecretsEnv,
   generateAstroidWrangler,
@@ -203,6 +204,8 @@ Options:
   --map                 Add the self-hosted PMTiles/MapLibre location map
   --pwa                 Add an installable PWA: a scoped service worker that
                         never caches /api/* or the editor, plus a manifest
+  --realtime            Add live multi-editor editing: a per-page Durable Object
+                        with presence, field sync, and a rich-text soft-lock
   --portal              Add a customer/member portal: a second, isolated auth
                         instance plus role-gated routes
   -h, --help            Show this help
@@ -248,7 +251,14 @@ async function main() {
   // Opt-in: a service worker is a caching layer over a CMS-edited site, so it
   // is never on unless asked for.
   const pwa = flags.pwa === true || flags.pwa === "true";
-  const modules = [...(map ? ["map"] : []), ...(pwa ? ["pwa"] : [])];
+  // Opt-in: realtime provisions a Durable Object, which is real infrastructure a
+  // single-editor site has no use for.
+  const realtime = flags.realtime === true || flags.realtime === "true";
+  const modules = [
+    ...(map ? ["map"] : []),
+    ...(pwa ? ["pwa"] : []),
+    ...(realtime ? ["realtime"] : []),
+  ];
   // Commerce is opt-in and unprompted: it pulls in a queue consumer, a webhook
   // receiver, and a cron, none of which a plain marketing site should carry.
   const commerceRaw = typeof flags.commerce === "string" ? flags.commerce.toLowerCase() : undefined;
@@ -284,6 +294,9 @@ async function main() {
   const siteUrl = host ? `https://${host}` : `https://${key}.workers.dev`;
   const envBindings = generateAstroidEnvBindings(config);
   const portalLocals = generateAstroidPortalLocals(config);
+  // The realtime DO namespace, or nothing — same rule as the queue bindings: a
+  // declaration is a promise, so never type a binding wrangler.jsonc won't create.
+  const realtimeEnv = generateAstroidRealtimeEnv(config);
   const tokens = {
     KEY: key,
     BRAND_NAME: name,
@@ -293,7 +306,9 @@ async function main() {
     // Extra CloudflareEnv members the queue pipeline needs, or nothing. A
     // declaration is a promise — a marketing site must not claim a binding its
     // wrangler.jsonc never creates.
-    ASTROID_ENV_BINDINGS: envBindings ? `\n${envBindings}` : "",
+    ASTROID_ENV_BINDINGS: [envBindings, realtimeEnv].filter(Boolean).join("\n")
+      ? `\n${[envBindings, realtimeEnv].filter(Boolean).join("\n")}`
+      : "",
     // The portal session on App.Locals, or nothing — a project that types a
     // local it never sets invites a null-check nobody needs.
     ASTROID_PORTAL_LOCALS: portalLocals ? `\n${portalLocals}` : "",

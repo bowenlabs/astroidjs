@@ -29,6 +29,12 @@ import {
   astroidQueueNames,
   astroidUsesQueues,
 } from "../queues/messages.js";
+import {
+  ASTROID_EDIT_SESSION_CLASS,
+  ASTROID_REALTIME_BINDING,
+  ASTROID_REALTIME_MIGRATION_TAG,
+  usesRealtime,
+} from "../realtime/scaffold.js";
 import { ASTROID_SECRET_PLACEHOLDER } from "../secrets.js";
 import { generateAstroidSchema } from "../schema/generate.js";
 import { generateAstroidMiddleware, generateAstroidWorker } from "../worker/generate.js";
@@ -139,6 +145,27 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   } else {
     p("  // No `hosts` in your config → deploys to <name>.workers.dev. Add a");
     p('  // "routes" block with a custom_domain pattern to serve a real domain.');
+  }
+  if (usesRealtime(config)) {
+    // The per-page live editing session (ADR 0002). Two halves, and BOTH are
+    // required — a binding with no migration is a deploy error, and the class
+    // must also be exported from the worker entry (the generated src/worker.ts
+    // re-exports it) or wrangler can't resolve `class_name`.
+    p("  // Durable Object: the per-page live editing session (realtime module).");
+    p('  "durable_objects": {');
+    p(
+      `    "bindings": [{ "name": ${JSON.stringify(ASTROID_REALTIME_BINDING)}, "class_name": ${JSON.stringify(ASTROID_EDIT_SESSION_CLASS)} }]`,
+    );
+    p("  },");
+    p("  // A DO class needs a migration tag. `new_sqlite_classes` (NOT");
+    p("  // `new_classes`) because the session keeps its authoritative state in");
+    p("  // `ctx.storage`, which is the SQLite-backed store — and the storage");
+    p("  // backend cannot be changed after the class is first deployed.");
+    p("  \"migrations\": [");
+    p(
+      `    { "tag": ${JSON.stringify(ASTROID_REALTIME_MIGRATION_TAG)}, "new_sqlite_classes": [${JSON.stringify(ASTROID_EDIT_SESSION_CLASS)}] }`,
+    );
+    p("  ],");
   }
   // Crons. ONE `scheduled` handler receives all of them and tells them apart by
   // `controller.cron`, so this list and the handler's dispatch must agree

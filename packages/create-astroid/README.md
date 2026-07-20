@@ -43,6 +43,8 @@ pnpm create astroid [directory] [options]
                         caches /api/* or the editor, plus a manifest
   --portal              Customer/member portal: a second, isolated auth
                         instance plus role-gated routes
+  --realtime            Live multi-editor editing: a per-page Durable Object
+                        with presence, field sync, and a rich-text soft-lock
   -h, --help            Show help
   -v, --version         Show the version
 ```

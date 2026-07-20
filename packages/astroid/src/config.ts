@@ -93,7 +93,7 @@ export const ASTROID_ARCHETYPE_SECTIONS: Record<Archetype, SectionKind[]> = {
  * pretending otherwise is what made the flag misleading. Re-add each one in the
  * change that wires it.
  */
-export type ModuleKind = "map" | "pwa" | "wholesaleInquiry";
+export type ModuleKind = "map" | "pwa" | "realtime" | "wholesaleInquiry";
 
 /** Commerce backend — mirrors Louise's provider set (louise-toolkit/commerce). */
 export type CommerceProvider = "stripe" | "square" | "fourthwall";

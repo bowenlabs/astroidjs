@@ -29,6 +29,7 @@ import type { AstroidConfig } from "../config.js";
 import { generateMapEmbedComponent, generateMapTileRoute } from "../map/scaffold.js";
 import { generateAstroidGalleryPage } from "../portfolio/scaffold.js";
 import { generateAstroidPortalAuth, generateAstroidPortalAuthRoute } from "../portal/scaffold.js";
+import { generateAstroidEditSession } from "../realtime/scaffold.js";
 import { generatePwaHeaders, generateServiceWorker, generateWebManifest } from "../pwa/generate.js";
 import { astroidUsesQueues } from "../queues/messages.js";
 import { generateAstroidQueueSeam, generateAstroidWebhookRoutes } from "../queues/scaffold.js";
@@ -116,6 +117,12 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   if (tileRoute) files.push({ path: "src/pages/map/basemap.pmtiles.ts", contents: tileRoute });
   const mapEmbed = generateMapEmbedComponent(config);
   if (mapEmbed) files.push({ path: "src/components/MapEmbed.astro", contents: mapEmbed });
+
+  // --- realtime: the per-page edit-session Durable Object -------------------
+  // Scaffold-once because it must import `cloudflare:workers` (runtime-only) and
+  // because `persist` is the seam a project tunes.
+  const editSession = generateAstroidEditSession(config);
+  if (editSession) files.push({ path: "src/edit-session.ts", contents: editSession });
 
   // --- portal: the second auth instance + its mounted catch-all -------------
   // A site edits the reset email and the role a new account gets, but not the

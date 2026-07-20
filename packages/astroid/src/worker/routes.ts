@@ -7,11 +7,13 @@
 // worker.ts. The generator turns this plan into source; tests assert the order.
 
 import type { AstroidConfig } from "../config.js";
+import { usesRealtime } from "../realtime/scaffold.js";
 import { capturesInquiries } from "../schema/framework.js";
 
 export type AstroidEditorRouteName =
   | "ai"
   | "health"
+  | "realtime"
   | "overview"
   | "seoFix"
   | "versions"
@@ -98,6 +100,14 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
   // button". So mounting it on a project that never uses AI costs nothing, while
   // NOT mounting it left buttons that ship in the editor drawer permanently
   // dead.
+  if (usesRealtime(config)) {
+    routes.push({
+      name: "realtime",
+      factory: "realtimeRoute",
+      note: "WebSocket upgrade for the per-page live editing session (ADR 0002). Owns /api/louise/realtime/*. Guards the handshake as a same-origin, session-gated mutation, then forwards to the per-page Durable Object with the SERVER-resolved editor identity — presence is never taken from the client.",
+    });
+  }
+
   routes.push({
     name: "health",
     factory: "healthRoute",
