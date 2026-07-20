@@ -24,6 +24,7 @@ import type { RateRule } from "louise-toolkit/security";
 import type { CatalogMirrorConfig } from "./commerce/mirror.js";
 import { assertCommerceRoles } from "./commerce/roles.js";
 import { AstroidConfigError } from "./errors.js";
+import type { astroidSectionCatalog } from "./components/sections.js";
 import type { PortalRoute } from "./portal/guard.js";
 import type { PwaConfig } from "./pwa/generate.js";
 
@@ -37,22 +38,42 @@ import type { PwaConfig } from "./pwa/generate.js";
 export type Archetype = "marketing" | "storefront" | "wholesale" | "portfolio";
 
 /**
- * The section vocabulary — the editable home page is an ordered list of these, top
- * to bottom. Each maps to a themeable component in the Astroid section library.
- * Drawn from real usage across the target sites (annotated below).
+ * The section vocabulary — the editable home page is an ordered list of these,
+ * top to bottom.
+ *
+ * DERIVED from the section catalog, not hand-written (#277). It used to be its
+ * own union, and the two drifted in both directions: this named four kinds with
+ * no catalog entry and no component (`marquee`, `featured`, `story`, `visit`),
+ * while omitting eight that were real and renderable. A scaffold's config then
+ * listed sections that could never render, and nothing type-checked the gap.
+ *
+ * A type-only import, so the derivation adds no runtime dependency: `config.ts`
+ * is loaded by the `create-astroid` CLI, and this keeps its import graph
+ * exactly as it was.
  */
-export type SectionKind =
-  | "hero"
-  | "marquee" // rotating tagline banner (coracle "Make Waves, Rise Tides…")
-  | "featureGrid" // value-prop cards (ghostfire "What we make together")
-  | "featured" // curated picks (coracle "On the Bench")
-  | "productGrid"
-  | "gallery" // artwork / prints (portfolio)
-  | "story" // brand origin ("The First Fire" / "big dreams for community")
-  | "visit" // physical location + hours (coracle café)
-  | "cta"
-  | "testimonial"
-  | "contact";
+export type SectionKind = keyof typeof astroidSectionCatalog;
+
+/**
+ * Each archetype's default home-page sections.
+ *
+ * Lives here, in TypeScript, rather than in `create-astroid`'s plain JS — the
+ * other half of #277. As a JS object literal it could name a section that
+ * didn't exist and nothing would say so; typed against {@link SectionKind}
+ * (itself derived from the catalog) a stale name is a compile error, and CI
+ * type-checks this package.
+ *
+ * The four kinds this used to name — `marquee`, `featured`, `story`, `visit` —
+ * had no catalog entry or component and could never render. Each is replaced by
+ * the real section that does its job: a marquee is a `banner`, curated picks
+ * are a `productGrid`, a brand-origin block is `aboutIntro`, and "visit" is
+ * exactly `locationHours`.
+ */
+export const ASTROID_ARCHETYPE_SECTIONS: Record<Archetype, SectionKind[]> = {
+  marketing: ["hero", "featureGrid", "cta", "contact"],
+  storefront: ["hero", "banner", "productGrid", "locationHours", "contact"],
+  wholesale: ["hero", "featureGrid", "aboutIntro", "contact"],
+  portfolio: ["hero", "gallery", "aboutIntro", "contact"],
+};
 
 /**
  * Optional capabilities the site switches on. Pluggable, not core — a portfolio

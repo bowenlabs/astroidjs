@@ -18,6 +18,7 @@ import {
   list,
   setting,
 } from "../src/components/sections.js";
+import { ASTROID_ARCHETYPE_SECTIONS, type SectionKind } from "../src/config.js";
 
 /**
  * The dispatcher's COMPONENTS map, read out of `Section.astro`.
@@ -46,9 +47,49 @@ function dispatcherTypes(): string[] {
 
 describe("astroidSectionCatalog", () => {
   it("declares a def for every type the dispatcher renders", () => {
-    for (const type of ["hero", "featureGrid", "cta", "contact"]) {
+    for (const type of ["hero", "featureGrid", "cta", "contact"] as const) {
       expect(isRenderableSection(type)).toBe(true);
       expect(astroidSectionCatalog[type].label).toBeTruthy();
+    }
+  });
+
+  it("is the single source of the section vocabulary (#277)", () => {
+    // `SectionKind` used to be a hand-written union in config.ts, and the two
+    // drifted BOTH ways: it named four kinds with no catalog entry and no
+    // component (marquee, featured, story, visit), and omitted eight that were
+    // real. Deriving it means the drift can't reopen.
+    //
+    // A compile-time identity, asserted structurally: if `SectionKind` ever
+    // stops being the catalog's keys, one of these assignments fails to compile.
+    const fromCatalog: SectionKind[] = Object.keys(astroidSectionCatalog) as SectionKind[];
+    const everyKind: Record<SectionKind, true> = Object.fromEntries(
+      fromCatalog.map((k) => [k, true]),
+    ) as Record<SectionKind, true>;
+    expect(Object.keys(everyKind).sort()).toEqual(Object.keys(astroidSectionCatalog).sort());
+    // The four orphans are gone rather than merely unused.
+    for (const dead of ["marquee", "featured", "story", "visit"]) {
+      expect(isRenderableSection(dead)).toBe(false);
+      expect(Object.keys(astroidSectionCatalog)).not.toContain(dead);
+    }
+  });
+
+  it("archetype defaults name only sections that exist", () => {
+    // The consequence the drift actually had: a scaffold's config listed
+    // sections that could never render. Typed now, so a stale name is a compile
+    // error — this asserts the runtime shape agrees.
+    for (const [archetype, sections] of Object.entries(ASTROID_ARCHETYPE_SECTIONS)) {
+      for (const kind of sections) {
+        expect(isRenderableSection(kind), `${archetype} → ${kind}`).toBe(true);
+      }
+    }
+  });
+
+  it("every archetype still offers a contact section", () => {
+    // `capturesInquiries` keys the inquiries table off `sections.includes("contact")`,
+    // so an archetype that dropped it would scaffold a site with a contact
+    // section and no table behind it.
+    for (const sections of Object.values(ASTROID_ARCHETYPE_SECTIONS)) {
+      expect(sections).toContain("contact");
     }
   });
 
@@ -122,8 +163,9 @@ describe("astroidSectionCatalog", () => {
     // You can't point at a URL on the page, so it belongs in the inspector.
     expect(astroidSectionCatalog.hero.fields.ctaHref.inline).toBe(false);
     expect(astroidSectionCatalog.cta.fields.ctaHref.inline).toBe(false);
-    // Visible copy stays inline (the default for text/textarea).
-    expect(astroidSectionCatalog.hero.fields.heading.inline).toBeUndefined();
+    // Visible copy stays inline — expressed as the ABSENCE of the key, since
+    // with `satisfies` the literal type simply has no `inline` property to read.
+    expect("inline" in astroidSectionCatalog.hero.fields.heading).toBe(false);
   });
 
   it("models repeatables as a real array, not numbered slots", () => {
