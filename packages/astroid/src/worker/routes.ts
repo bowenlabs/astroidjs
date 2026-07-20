@@ -10,6 +10,9 @@ import type { AstroidConfig } from "../config.js";
 import { capturesInquiries } from "../schema/framework.js";
 
 export type AstroidEditorRouteName =
+  | "ai"
+  | "overview"
+  | "seoFix"
   | "versions"
   | "search"
   | "pages"
@@ -39,6 +42,11 @@ export interface AstroidEditorRoute {
 export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRoute[] {
   const routes: AstroidEditorRoute[] = [
     {
+      name: "overview",
+      factory: "overviewRoute",
+      note: "The Home dashboard's one aggregate read. NOT optional: `mountSettings` defaults `home: true` and Home is the drawer's initial panel, so without this route the FIRST screen an owner sees after opening the editor is an empty panel fetching a 404.",
+    },
+    {
       name: "versions",
       factory: "versionsRoute",
       note: "Draft/publish + version history for pages. MUST precede pagesRoute — pagesRoute's /:id matcher would otherwise claim /pages/:id/versions and 400 on the non-integer id.",
@@ -47,6 +55,11 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
       name: "search",
       factory: "searchRoute",
       note: "Full-text search over pages (/search + /reindex). Before pagesRoute, whose /:id matcher would else claim those non-integer segments.",
+    },
+    {
+      name: "seoFix",
+      factory: "seoFixRoute",
+      note: "One-click SEO backfill for published pages missing a title/description. MUST precede pagesRoute for the same reason versions/search do: it mounts at /api/louise/pages/generate-seo, and pagesRoute claims EVERY path under /api/louise/pages/ as an item id — so mounted after, it would never be reached and the request would 400 on the non-integer id `generate-seo`.",
     },
     {
       name: "pages",
@@ -74,6 +87,21 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
       note: "Editor roster (the Users panel) over Better Auth's `user` table — a row IS an editor, and the same table is the magic-link allowlist (resolveAdmins).",
     },
   ];
+
+  // AI assists that own their own path prefix. `/api/louise/ai/*` collides with
+  // nothing, so this one's position is genuinely free.
+  //
+  // Mounted unconditionally: `louise-toolkit/ai` degrades by design (a missing
+  // binding or a model error yields null, never a throw) and the route answers
+  // 503 when `ai(env)` is undefined, which the client reads as "hide the
+  // button". So mounting it on a project that never uses AI costs nothing, while
+  // NOT mounting it left buttons that ship in the editor drawer permanently
+  // dead.
+  routes.push({
+    name: "ai",
+    factory: "aiRoute",
+    note: "Editor AI assists — rewrite/expand/shorten a selection, suggest SEO for a page. Owns /api/louise/ai/*, so it collides with nothing. POST-only and editor-gated, since each call spends AI budget.",
+  });
 
   if (capturesInquiries(config)) {
     routes.push(

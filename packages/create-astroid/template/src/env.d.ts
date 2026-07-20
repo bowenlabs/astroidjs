@@ -15,6 +15,13 @@ type CloudflareEnv = {
   MEDIA_URL: string;
   /** Cloudflare Images — upload dimensions + server-side transforms. */
   IMAGES: ImagesBinding;
+  /**
+   * Workers AI — the editor's rewrite + SEO-suggest assists and alt-text
+   * generation on upload. Every consumer degrades on its own: the routes answer
+   * 503 without it (the client then hides the button) and alt-text generation is
+   * best-effort, so a project that never wants AI simply never calls it.
+   */
+  AI: Ai;
   /** KV — the security rate limiter. */
   RL: KVNamespace;
   /** KV — the autosave draft write-buffer (optional; falls back to direct D1). */

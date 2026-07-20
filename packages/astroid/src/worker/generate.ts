@@ -64,18 +64,35 @@ export function generateAstroidWorker(config: AstroidConfig): string {
 
   const routeCall = (name: AstroidEditorRouteName): string => {
     switch (name) {
+      case "overview":
+        // Only the `content` slice is wired. `inbox` is deliberately omitted:
+        // the inquiries table has no read-state column, so an "unread" count
+        // would be the total — a number that never goes down and means nothing.
+        // An absent slice hides its card, which is the honest outcome. (`health`
+        // likewise, until the health module is generated.)
+        return "overviewRoute({ resolveEditor, content: overviewContent })";
       case "versions":
-        return "versionsRoute({ table: pages, versionsTable: pagesVersions, config: pagesCollection, resolveEditor })";
+        return "versionsRoute({ table: pages, versionsTable: pagesVersions, config: pagesCollection, resolveEditor, bufferKv: (env) => env.DRAFTS })";
       case "search":
         return "searchRoute({ table: pages, config: pagesCollection, resolveEditor })";
       case "pages":
         return 'pagesRoute({ table: pages, resolveEditor, fields: [...DEFAULT_PAGE_FIELDS, "sections"] })';
       case "save":
+        // No `bufferKv` here, deliberately: `saveRoute` has no such option. It
+        // writes live field saves (title, SEO) straight through, and the draft
+        // buffer belongs to the versioned body — i.e. to versionsRoute.
         return 'saveRoute({ resolveEditor, collections: { pages: { table: pages, fields: ["title", "seoTitle", "seoDescription"] } } })';
       case "settings":
         return "settingsRoute({ table: siteSettings, resolveEditor, columns: SETTINGS_COLUMNS, imageKeys: SETTINGS_IMAGE_KEYS, mediaBase: MEDIA_BASE })";
+      case "ai":
+        return "aiRoute({ resolveEditor, ai: (env) => env.AI })";
+      case "seoFix":
+        return "seoFixRoute({ table: pages, resolveEditor, ai: (env) => env.AI })";
       case "media":
-        return "mediaRoute({ table: media, resolveEditor })";
+        // `altText` fills a new upload's alt from the image itself. Best-effort
+        // by contract — a model error or a missing binding never fails the
+        // upload — so it costs nothing on a project that doesn't want it.
+        return "mediaRoute({ table: media, resolveEditor, referenceSources: MEDIA_REFERENCE_SOURCES, altText: (env) => env.AI })";
       case "editors":
         // Better Auth owns the `user` table (a NAME, not a Drizzle table), so this
         // route takes the default `"user"`; a `tablePrefix` would rename it.
@@ -137,6 +154,43 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("// them resolve to a media-library asset.");
   p(`const SETTINGS_COLUMNS = ${JSON.stringify(DEFAULT_SETTINGS_COLUMNS)};`);
   p(`const SETTINGS_IMAGE_KEYS = ${JSON.stringify(DEFAULT_SETTINGS_IMAGE_KEYS)};`);
+  p();
+  p("// Delete-safety for the media library: where a media key can be REFERENCED,");
+  p("// so deleting an asset that's live on a page warns instead of silently");
+  p("// breaking it. Without these the scan has nothing to look at and every");
+  p("// delete reports 'no references'. Column names are SQL, not Drizzle keys —");
+  p("// the scan is raw SQL over the table.");
+  p("const MEDIA_REFERENCE_SOURCES = [");
+  p(
+    '  { collection: "pages", table: "pages", columns: ["body", "sections", "og_image"], labelColumn: "title" },',
+  );
+  p(
+    '  { collection: "settings", table: "site_settings", columns: ["logo_url", "favicon_url", "default_og_image_url"], labelColumn: "site_name" },',
+  );
+  p("];");
+  p();
+  p("// The Home dashboard's content counts. Raw SQL because these are COUNTs over");
+  p("// THIS project's tables — the toolkit deliberately makes no assumption about");
+  p("// column names. A throw here degrades to a hidden card, never a 500.");
+  p("const overviewContent = async (env: CloudflareEnv) => {");
+  p("  const row = await env.DB.prepare(");
+  p('    "SELECT" +');
+  p("    \" (SELECT COUNT(*) FROM pages WHERE status = 'draft') AS drafts,\" +");
+  p(
+    '    " (SELECT COUNT(DISTINCT parent_id) FROM pages_versions WHERE status = \'draft\') AS unpublished," +',
+  );
+  p('    " (SELECT MAX(updated_at) FROM pages) AS last_edited",');
+  p("  ).first<{ drafts: number; unpublished: number; last_edited: number | null }>();");
+  p("  if (!row) return undefined;");
+  p("  return {");
+  p("    drafts: Number(row.drafts ?? 0),");
+  p("    unpublished: Number(row.unpublished ?? 0),");
+  p("    // Stored as a unix timestamp; the card wants ISO.");
+  p("    ...(row.last_edited");
+  p("      ? { lastEditedAt: new Date(Number(row.last_edited) * 1000).toISOString() }");
+  p("      : {}),");
+  p("  };");
+  p("};");
   if (inquiries) {
     p();
     p("// Public contact form: the built-in inquiries fields + silent spam");

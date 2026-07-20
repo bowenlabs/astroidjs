@@ -27,6 +27,7 @@ export {
   astroidCatalogMirror,
   BUILT_IN_OWNED,
   type CatalogMirrorConfig,
+  generateCatalogMigrationSql,
   generateCatalogTable,
   type OwnedColumn,
   PULLED_COLUMNS,

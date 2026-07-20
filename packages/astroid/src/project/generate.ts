@@ -182,12 +182,29 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  // Cloudflare Images: the media route reads upload dimensions + backs server-");
   p("  // side re-encode. Also @astrojs/cloudflare's production image service.");
   p('  "images": { "binding": "IMAGES" },');
+  p("  // Workers AI. Powers the editor's rewrite + SEO-suggest buttons and alt-text");
+  p("  // generation on upload — all of which SHIP IN THE EDITOR DRAWER already and,");
+  p("  // without this binding, were permanently invisible: their routes answer 503");
+  p("  // and the client hides the button. No account setup beyond the binding, and");
+  p("  // every call is editor-gated, so a visitor can never spend your AI budget.");
+  p('  "ai": { "binding": "AI" },');
   p("  // KV: RL = the security rate limiter; DRAFTS = the autosave write-buffer.");
   p("  // Create each: `wrangler kv namespace create <RL|DRAFTS>`.");
   p('  "kv_namespaces": [');
   p('    { "binding": "RL", "id": "<run: wrangler kv namespace create RL>" },');
   p('    { "binding": "DRAFTS", "id": "<run: wrangler kv namespace create DRAFTS>" },');
   p("  ],");
+  // Email Sending. NOT optional decoration: `src/env.d.ts` declares EMAIL as a
+  // required member, and Better Auth's magic-link path console-logs the link in
+  // dev but calls `env.EMAIL.send(...)` unconditionally in production. Without
+  // this binding that call is a TypeError on a binding that was never created —
+  // so sign-in was impossible on every DEPLOYED site, while every local build
+  // and every CI scaffold passed. Nothing in this repo runs a deployed scaffold,
+  // which is why it survived.
+  p("  // Cloudflare Email Sending — magic-link sign-in + inquiry notifications.");
+  p("  // Sign-in DEPENDS on this: in production the magic link is emailed, not logged.");
+  p("  // Enable Email Sending for your zone, then verify the address in MAIL_FROM.");
+  p('  "send_email": [{ "name": "EMAIL" }],');
   p("  // Public base for media URLs; same-origin keeps media self-contained. Read off");
   p("  // the runtime env by the framework-agnostic media route, so it stays a `var`.");
   p('  "vars": {');
