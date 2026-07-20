@@ -207,8 +207,18 @@ export function mediaCaption(
 // Schema only. Each entry declares what an editor can change and how it is
 // validated; the matching `.astro` component owns every pixel.
 
-/** The marketing floor: the four section types Astroid has always shipped. */
-export const astroidSectionCatalog: SectionCatalog = {
+/**
+ * Every section type Astroid ships.
+ *
+ * `satisfies` rather than a `: SectionCatalog` annotation, and it matters:
+ * `SectionCatalog` is `Record<string, SectionDef>`, so annotating would widen
+ * `keyof typeof` to `string` and throw away the literal keys. Those keys are
+ * the project's whole section vocabulary — `SectionKind` is derived from them
+ * (config.ts), `isRenderableSection` narrows to them, and `<Section>` indexes
+ * its component map with them. Annotate this and all three silently degrade to
+ * "any string", which is how the dispatcher lost its type safety once already.
+ */
+export const astroidSectionCatalog = {
   hero: {
     label: "Hero",
     icon: "hero",
@@ -465,11 +475,12 @@ export const astroidSectionCatalog: SectionCatalog = {
     },
     settings: SECTION_SETTINGS,
   },
-};
+} satisfies SectionCatalog;
 
 /** The `_type`s with a shipped render component — derived from the catalog, so
- *  it can't drift from what `<Section>` actually dispatches. */
-export type RenderableSectionType = keyof typeof astroidSectionCatalog & string;
+ *  it can't drift from what `<Section>` actually dispatches. A literal union,
+ *  not `string`, because the catalog is declared with `satisfies`. */
+export type RenderableSectionType = keyof typeof astroidSectionCatalog;
 
 /**
  * Does this `_type` have a shipped component? Narrows the untrusted `_type` of a

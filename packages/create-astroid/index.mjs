@@ -18,6 +18,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import {
+  ASTROID_ARCHETYPE_SECTIONS,
   ASTROID_MAP_DEPENDENCIES,
   astroidUsesQueues,
   defineAstroid,
@@ -43,13 +44,12 @@ const TEMPLATE_DIR = join(dirname(fileURLToPath(import.meta.url)), "template");
 // published package, so they ship as `_gitignore` / `_env.example`).
 const DOTFILE_RENAMES = { _gitignore: ".gitignore", "_env.example": ".env.example" };
 
-// Archetype → default editable home sections, when the user doesn't override.
-const ARCHETYPE_SECTIONS = {
-  marketing: ["hero", "featureGrid", "cta", "contact"],
-  storefront: ["hero", "marquee", "featured", "productGrid", "visit", "contact"],
-  wholesale: ["hero", "featureGrid", "story", "contact"],
-  portfolio: ["hero", "gallery", "story", "contact"],
-};
+// Archetype → default editable home sections. Imported from astroidjs rather
+// than duplicated here: as a literal in this file it could name a section that
+// doesn't exist and nothing would say so (it did — `marquee`, `featured`,
+// `story`, and `visit` had no component for months). Over there it's typed
+// against the section catalog, so a stale name fails the build. See #277.
+const ARCHETYPE_SECTIONS = ASTROID_ARCHETYPE_SECTIONS;
 const ARCHETYPES = Object.keys(ARCHETYPE_SECTIONS);
 
 // Commerce backends astroidjs knows how to wire (webhook verifier + catalog
