@@ -15,6 +15,10 @@ export type AstroidFrameworkTable = "inquiries" | "media" | "siteSettings";
  *  wholesale-inquiry module. Shared by table selection (here) and route selection
  *  (the worker route plan). */
 export function capturesInquiries(config: AstroidConfig): boolean {
+  // Explicit override wins — a site whose inquiry surface is a bespoke section
+  // (coracle's custom `contactForm`) can't be detected from the built-in
+  // vocabulary, so it says so directly.
+  if (typeof config.inquiries === "boolean") return config.inquiries;
   const wantsWholesale = (mods?: readonly string[]) => (mods ?? []).includes("wholesaleInquiry");
   return (
     (config.sections ?? []).includes("contact") ||

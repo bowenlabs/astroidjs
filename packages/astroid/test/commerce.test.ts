@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fourthwallToCatalogItem, squareToCatalogItem } from "../src/commerce/adapters.js";
 import { checkoutIdempotencyKey, verifyCheckout } from "../src/commerce/checkout.js";
 import { generateAstroidCheckoutRoute } from "../src/commerce/checkout-scaffold.js";
-import { generateCatalogTable } from "../src/commerce/mirror.js";
+import { generateCatalogMigrationSql, generateCatalogTable } from "../src/commerce/mirror.js";
 import {
   assertCommerceRoles,
   astroidCommerceProviders,
@@ -84,6 +84,24 @@ describe("catalog mirror schema", () => {
     expect(sql).not.toContain('name: text("name")');
     expect(sql).not.toContain("variants:");
     expect(sql).toContain("status:");
+  });
+
+  it("emits NO table or migration in live mode", () => {
+    // coracle's model: no Astroid-managed catalog table — the catalog is read
+    // live (KV-cached) from Square and any overlay table is the site's own
+    // (product_display_meta in schema.site.ts).
+    const cfg = shop({ provider: "square", catalog: { mode: "live" } });
+    expect(generateCatalogTable(cfg)).toBeNull();
+    expect(generateCatalogMigrationSql(cfg)).toBeNull();
+    // The generated schema still re-exports the site-owned tables seam.
+    expect(generateAstroidSchema(cfg)).toContain('export * from "./schema.site.js"');
+    expect(generateAstroidSchema(cfg)).not.toContain("external_id");
+  });
+
+  it("re-exports the site-owned schema seam", () => {
+    // schema.site.ts is scaffold-once (empty until a project adds a table), so
+    // this re-export is always safe and drizzle-kit picks up whatever it holds.
+    expect(generateAstroidSchema(base)).toContain('export * from "./schema.site.js"');
   });
 
   it("adds project-specific owned columns, and lets one override a built-in", () => {

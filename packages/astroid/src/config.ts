@@ -20,7 +20,9 @@
 // (coracle), a wholesale front (ghostfire), an artist portfolio (megbowen), and a
 // plain marketing baseline (louise-web).
 
+import type { SectionCatalog } from "louise-toolkit/content";
 import type { RateRule } from "louise-toolkit/security";
+import { assertAuthIsolation } from "./auth/index.js";
 import type { CatalogMirrorConfig } from "./commerce/mirror.js";
 import { assertCommerceRoles } from "./commerce/roles.js";
 import { AstroidConfigError } from "./errors.js";
@@ -151,6 +153,26 @@ export interface Portal {
    * accounts by hand, and a portal is usually for people you already know.
    */
   signUp?: boolean;
+  /**
+   * Where the portal's Better Auth instance mounts — its own handler, separate
+   * from the editor's `/api/auth`. Default `/api/portal-auth`. Override when a
+   * site already ships a second instance at a different path (e.g. a shop
+   * account at `/api/shop-auth`) whose live cookies must not change.
+   */
+  basePath?: string;
+  /**
+   * Cookie prefix for the portal instance — MUST differ from the editor's
+   * (Better Auth's default), or signing into one instance signs you out of the
+   * other. Default `"portal"`. `defineAstroid` rejects a colliding value.
+   */
+  cookiePrefix?: string;
+  /**
+   * Table-name prefix for the portal's Better Auth tables. Default `"portal_"`
+   * (`portal_user`, …); set `""` to take the unprefixed `user`/`session` tables
+   * (the editor owns `louise_*`, so they don't collide). MUST differ from the
+   * editor's `louise_` prefix.
+   */
+  tablePrefix?: string;
 }
 
 export interface CommerceConfig {
@@ -241,6 +263,21 @@ export interface CspOrigins {
   worker?: string[];
 }
 
+export interface SettingsConfig {
+  /**
+   * Site-specific settings keys stored in the `site_settings.custom` JSON column,
+   * on top of Astroid's base columns. The generated `settingsRoute` + Action
+   * accept these; the Settings panel writes them through the `settingsExtension`
+   * groups a site supplies to `mountSettings`. A site with a rich settings shape
+   * (coracle's footer columns, hours table, ui strings, shop/order config) lists
+   * their top-level keys here — everything the base columns don't cover.
+   */
+  customKeys?: string[];
+  /** Extra media-library image keys beyond the base logo/favicon/OG defaults —
+   *  settings values validated as media-library URLs on write. */
+  imageKeys?: string[];
+}
+
 export interface DeployConfig {
   platform: "cloudflare";
   /** Media base for R2 + `cf-image` resizing — matches Louise's media route
@@ -262,6 +299,17 @@ export interface AstroidConfig {
   theme: Theme;
   /** The editable home page, top to bottom. Omit to take the archetype default. */
   sections?: SectionKind[];
+  /**
+   * A site-provided section catalog that REPLACES the built-in one for
+   * SERVER-side validation + sanitization of `pages.sections` (the generated
+   * pages route + versions route). A site with bespoke section designs — its own
+   * `.astro` components and field defs (coracle's 13 sections) — registers them
+   * here so writes to its custom `_type`s validate instead of 422-ing against the
+   * built-in vocabulary. The on-canvas editor already uses the site's catalog
+   * (its `mountSections` call passes it); this closes the server half so both
+   * write paths agree. Omit to use Astroid's built-in catalog.
+   */
+  sectionCatalog?: SectionCatalog;
   /** Optional capabilities switched on for this site. */
   modules?: ModuleKind[];
   /** Gated account/portal area (order tracking, client galleries). */
@@ -274,6 +322,16 @@ export interface AstroidConfig {
   seo?: SeoConfig;
   /** Additions to the rate-limit rules + CSP origins Astroid derives. */
   security?: SecurityConfig;
+  /** Site-specific editable settings — extra `custom` keys + image keys on top
+   *  of Astroid's base `site_settings` columns. */
+  settings?: SettingsConfig;
+  /**
+   * Force the contact form + `inquiries` table on or off. Omit to detect from
+   * the config (a `contact` section, or a wholesale-inquiry module). Set `true`
+   * when a bespoke section captures inquiries under a name Astroid can't see
+   * (coracle's custom `contactForm`); set `false` to suppress it entirely.
+   */
+  inquiries?: boolean;
   /** Installable-app settings. Only read when `modules` includes `"pwa"`. */
   pwa?: PwaConfig;
   deploy?: DeployConfig;
@@ -315,6 +373,12 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   // Fourthwall, a storefront over Stripe) fails here rather than at runtime on
   // the first invoice, as a missing function.
   assertCommerceRoles(config.commerce);
+
+  // A portal is a SECOND Better Auth instance beside the editor's. Reject any
+  // isolation that would collide with the editor on the same origin (a shared
+  // cookie prefix silently cross-signs-out; a shared table prefix merges the two
+  // user tables) — the intermittent-prod failure the fixed defaults prevent.
+  assertAuthIsolation(config);
 
   // `portal.gated` is declared and resolved but read by NOTHING — the guard
   // table is built from `portal.routes` alone, and `portalGuard` allows any

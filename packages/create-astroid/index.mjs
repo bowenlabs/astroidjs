@@ -389,7 +389,11 @@ async function main() {
   let authMigrationOk = false;
   try {
     const { generateAuthSchemaSql } = await import("louise-toolkit/auth");
-    write(dir, "migrations/0001_auth.sql", generateAuthSchemaSql());
+    // The EDITOR instance's tables — `louise_`-prefixed (the editor convention),
+    // leaving the unprefixed `user`/`session` names free for a second/portal
+    // instance. Must match the `tablePrefix` in src/auth.ts and the `louise_user`
+    // table the generated `editorsRoute` reads.
+    write(dir, "migrations/0001_auth.sql", generateAuthSchemaSql({ tablePrefix: "louise_" }));
     // The portal's own auth tables. A SECOND set, prefixed — the two instances
     // share one D1 but never a row, so a portal account can't sign into the
     // studio and an editor doesn't appear in the portal. Without this migration
@@ -406,7 +410,7 @@ async function main() {
     write(
       dir,
       "migrations/0001_auth.sql",
-      "-- Better Auth tables — generate after install:\n--   pnpm exec louise gen-auth-schema --out migrations/0001_auth.sql\n",
+      "-- Better Auth tables (editor, louise_ prefix) — generate after install:\n--   pnpm exec louise gen-auth-schema --table-prefix louise_ --out migrations/0001_auth.sql\n",
     );
     // Same stub for the portal's prefixed set. Without it a portal scaffold
     // looks complete, builds, and fails on the first sign-in with a missing
@@ -441,7 +445,7 @@ async function main() {
         : [
             "  # generate the Better Auth migration (it could not be written at scaffold",
             "  # time — `louise` is on your path once the install above finishes):",
-            "  pnpm exec louise gen-auth-schema --out migrations/0001_auth.sql",
+            "  pnpm exec louise gen-auth-schema --table-prefix louise_ --out migrations/0001_auth.sql",
             ...(config.portal?.enabled
               ? [
                   "  pnpm exec louise gen-auth-schema --table-prefix portal_ \\",

@@ -36,6 +36,7 @@ import { cwvBeaconScript } from "louise-toolkit/analytics";
 import type { AstroidConfig } from "../config.js";
 import { generateMapEmbedComponent, generateMapTileRoute } from "../map/scaffold.js";
 import { generateAstroidGalleryPage } from "../portfolio/scaffold.js";
+import { astroidPortal } from "../portal/config.js";
 import { generateAstroidPortalAuth, generateAstroidPortalAuthRoute } from "../portal/scaffold.js";
 import { generateAstroidEditSession } from "../realtime/scaffold.js";
 import { generatePwaHeaders, generateServiceWorker, generateWebManifest } from "../pwa/generate.js";
@@ -87,6 +88,24 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // be hashed into the CSP and would be blocked.
   const beacon = generateAstroidVitalsBeacon(config, cwvBeaconScript());
   files.push({ path: beacon.path, contents: beacon.contents });
+
+  // --- site-owned schema tables --------------------------------------------
+  // Always: the generated src/schema.ts re-exports `./schema.site.js`, so the
+  // file must exist even when empty. A project declares tables Astroid doesn't
+  // manage here (an existing overlay predating Astroid, a redirects map, a
+  // customer address book) and they flow to drizzle-kit + the worker for free.
+  files.push({
+    path: "src/schema.site.ts",
+    contents: [
+      "// Site-owned Drizzle tables — the ones Astroid doesn't manage. Declare them",
+      "// here; the generated src/schema.ts re-exports everything from this file, so",
+      "// drizzle-kit sees them and the worker can import them. Empty by default.",
+      "//",
+      "// e.g.  export const redirects = sqliteTable(\"redirects\", { … });",
+      "export {};",
+      "",
+    ].join("\n"),
+  });
 
   // --- the typed Astro Actions surface --------------------------------------
   // Always: every project has editable pages, and the routes alone leave the
@@ -163,7 +182,16 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
     // Always non-null alongside portalAuth (same `astroidPortal` gate), but the
     // types don't know that and a silent drop here is a portal that cannot
     // authenticate — so assert it rather than `?.`-ing it away.
-    if (route) files.push({ path: "src/pages/api/portal-auth/[...all].ts", contents: route });
+    //
+    // The route file lives at the mount path, because Astro routing is
+    // file-path-based: a portal mounted at `/api/shop-auth` needs its catch-all
+    // at `src/pages/api/shop-auth/[...all].ts`, not the default `/api/portal-auth`.
+    // Derive it from the resolved basePath so a configured mount and its route
+    // can't drift.
+    const portal = astroidPortal(config)!;
+    if (route) {
+      files.push({ path: `src/pages${portal.basePath}/[...all].ts`, contents: route });
+    }
   }
 
   return files;

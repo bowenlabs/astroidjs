@@ -17,6 +17,7 @@ import {
   ASTROID_VITALS_BINDING,
   generateAstroidCwvQuery,
 } from "../analytics/index.js";
+import { astroidEditorTable } from "../auth/index.js";
 import { astroidPortal } from "../portal/config.js";
 import { ASTROID_HEALTH_CRON, astroidCron, astroidUsesQueues } from "../queues/messages.js";
 import {
@@ -115,8 +116,15 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         // writes live field saves (title, SEO) straight through, and the draft
         // buffer belongs to the versioned body — i.e. to versionsRoute.
         return 'saveRoute({ resolveEditor, collections: { pages: { table: pages, fields: ["title", "seoTitle", "seoDescription"] } } })';
-      case "settings":
-        return "settingsRoute({ table: siteSettings, resolveEditor, columns: SETTINGS_COLUMNS, imageKeys: SETTINGS_IMAGE_KEYS, mediaBase: MEDIA_BASE })";
+      case "settings": {
+        // Site-specific keys (config.settings.customKeys) are merged into
+        // site_settings.custom; omitted entirely when a project has none, so a
+        // stock site's route call is unchanged.
+        const customArg = (config.settings?.customKeys ?? []).length
+          ? ", customKeys: SETTINGS_CUSTOM_KEYS"
+          : "";
+        return `settingsRoute({ table: siteSettings, resolveEditor, columns: SETTINGS_COLUMNS, imageKeys: SETTINGS_IMAGE_KEYS, mediaBase: MEDIA_BASE${customArg} })`;
+      }
       case "ai":
         return "aiRoute({ resolveEditor, ai: (env) => env.AI })";
       case "seoFix":
@@ -127,9 +135,11 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         // upload — so it costs nothing on a project that doesn't want it.
         return "mediaRoute({ table: media, resolveEditor, referenceSources: MEDIA_REFERENCE_SOURCES, altText: (env) => env.AI })";
       case "editors":
-        // Better Auth owns the `user` table (a NAME, not a Drizzle table), so this
-        // route takes the default `"user"`; a `tablePrefix` would rename it.
-        return 'editorsRoute({ table: "user", resolveEditor })';
+        // The editor instance's user table is `louise_`-prefixed (the editor
+        // convention — the unprefixed `user` table is left for a second/portal
+        // instance). This route takes the table NAME, matching the
+        // `tablePrefix` the scaffolded `src/auth.ts` passes to `getLouiseAuth`.
+        return `editorsRoute({ table: ${JSON.stringify(astroidEditorTable("user"))}, resolveEditor })`;
       case "form":
         // `onSubmit` fires AFTER the insert and off the response path, so the
         // notify + confirm pair is store-and-forward by construction: the
@@ -200,8 +210,17 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p();
   p("// Editable site_settings columns the Settings panel may write, and which of");
   p("// them resolve to a media-library asset.");
+  const settingsImageKeys = [
+    ...ASTROID_SETTINGS_IMAGE_KEYS,
+    ...(config.settings?.imageKeys ?? []),
+  ];
+  const settingsCustomKeys = config.settings?.customKeys ?? [];
   p(`const SETTINGS_COLUMNS = ${JSON.stringify(ASTROID_SETTINGS_COLUMNS)};`);
-  p(`const SETTINGS_IMAGE_KEYS = ${JSON.stringify(ASTROID_SETTINGS_IMAGE_KEYS)};`);
+  p(`const SETTINGS_IMAGE_KEYS = ${JSON.stringify(settingsImageKeys)};`);
+  if (settingsCustomKeys.length) {
+    p("// Site-specific keys stored in the site_settings.custom JSON column.");
+    p(`const SETTINGS_CUSTOM_KEYS = ${JSON.stringify(settingsCustomKeys)};`);
+  }
   p();
   p("// Delete-safety for the media library: where a media key can be REFERENCED,");
   p("// so deleting an asset that's live on a page warns instead of silently");

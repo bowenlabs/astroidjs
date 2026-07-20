@@ -56,5 +56,12 @@ export function generateAstroidSchema(config: AstroidConfig): string {
     ...(catalog ? [catalog] : []),
     `export { ${framework.join(", ")} };`,
     "",
+    "// Site-owned tables (the ones Astroid doesn't manage): a project declares",
+    "// its own Drizzle tables in src/schema.site.ts and they're re-exported here",
+    "// so drizzle-kit sees them and the generated worker can import them. The file",
+    "// is scaffold-once — empty until a project adds a table — so this re-export is",
+    "// always safe.",
+    'export * from "./schema.site.js";',
+    "",
   ].join("\n");
 }

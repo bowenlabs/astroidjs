@@ -19,7 +19,18 @@
 import type { AstroidConfig } from "../config.js";
 
 /** `src/actions/index.ts` — the typed mutation surface, scaffolded once. */
-export function generateAstroidActions(_config: AstroidConfig): string {
+export function generateAstroidActions(config: AstroidConfig): string {
+  const customKeys = config.settings?.customKeys ?? [];
+  const extraImageKeys = config.settings?.imageKeys ?? [];
+  // Kept in step with the generated worker's settingsRoute: site-specific keys go
+  // to site_settings.custom, extra image keys widen the media-strict set. Emitted
+  // as literals only when present, so a stock project's Action is unchanged.
+  const settingsExtra = [
+    ...(customKeys.length ? [`        customKeys: ${JSON.stringify(customKeys)},`] : []),
+    extraImageKeys.length
+      ? `        imageKeys: [...ASTROID_SETTINGS_IMAGE_KEYS, ...${JSON.stringify(extraImageKeys)}],`
+      : "        imageKeys: ASTROID_SETTINGS_IMAGE_KEYS,",
+  ];
   return [
     "// The typed Astro Actions surface — ADR 0001 layer 2.",
     "//",
@@ -98,7 +109,7 @@ export function generateAstroidActions(_config: AstroidConfig): string {
     "        // than copied — a second literal here is a list that drifts from the",
     "        // one the routes check against, and nothing would fail when it did.",
     "        columns: ASTROID_SETTINGS_COLUMNS,",
-    "        imageKeys: ASTROID_SETTINGS_IMAGE_KEYS,",
+    ...settingsExtra,
     '        mediaBase: astroidConfig.deploy?.mediaBase ?? "/media",',
     "      }),",
     "    ),",
