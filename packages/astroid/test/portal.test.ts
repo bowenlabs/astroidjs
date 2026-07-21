@@ -20,6 +20,11 @@ const base: AstroidConfig = {
 };
 const withPortal = (portal: AstroidConfig["portal"]): AstroidConfig => ({ ...base, portal });
 
+// A full PortalUser for the guard/session mocks. The guard only reads `role`, but
+// PortalUser carries id + email (widened in #288), so a bare `{ role }` no longer
+// type-checks as one.
+const u = (role: string) => ({ id: "u1", email: "u@acme.test", role });
+
 describe("portal.gated", () => {
   it("is refused at config load rather than silently wiring nothing", () => {
     // It was accepted, resolved onto ResolvedPortal, and then read by NOTHING:
@@ -123,18 +128,18 @@ describe("portalGuard", () => {
   });
 
   it("lets an allowed role through", () => {
-    expect(portalGuard("/portal", { role: "customer" }, config)).toBeNull();
-    expect(portalGuard("/admin", { role: "manager" }, config)).toBeNull();
+    expect(portalGuard("/portal", u("customer"), config)).toBeNull();
+    expect(portalGuard("/admin", u("manager"), config)).toBeNull();
   });
 
   it("bounces a wrong-door user to their OWN area, not back to login", () => {
     // Sending them to /login would say "your credentials failed" about
     // credentials that worked perfectly well.
-    expect(portalGuard("/admin", { role: "customer" }, config)).toEqual({
+    expect(portalGuard("/admin", u("customer"), config)).toEqual({
       kind: "redirect",
       location: "/portal",
     });
-    expect(portalGuard("/api/admin", { role: "customer" }, config)).toEqual({
+    expect(portalGuard("/api/admin", u("customer"), config)).toEqual({
       kind: "json",
       status: 403,
       body: { ok: false, error: "Forbidden" },
@@ -143,7 +148,7 @@ describe("portalGuard", () => {
 
   it("treats a rule with no roles as any-signed-in-user", () => {
     const open = { routes: [{ prefix: "/portal" }] };
-    expect(portalGuard("/portal", { role: "anything" }, open)).toBeNull();
+    expect(portalGuard("/portal", u("anything"), open)).toBeNull();
     expect(portalGuard("/portal", null, open)).toMatchObject({ kind: "redirect" });
   });
 
@@ -154,8 +159,8 @@ describe("portalGuard", () => {
         { prefix: "/portal", roles: ["customer"] },
       ],
     };
-    expect(portalGuard("/portal/public", { role: "stranger" }, ordered)).toBeNull();
-    expect(portalGuard("/portal/orders", { role: "stranger" }, ordered)).toMatchObject({
+    expect(portalGuard("/portal/public", u("stranger"), ordered)).toBeNull();
+    expect(portalGuard("/portal/orders", u("stranger"), ordered)).toMatchObject({
       kind: "redirect",
     });
   });
@@ -179,7 +184,7 @@ describe("resolvePortalSession", () => {
     // The middleware needs it to gate, the handler needs it to know who's
     // asking — two D1 round-trips per authenticated request otherwise.
     const request = new Request("https://acme.test/portal");
-    const resolve = vi.fn(async () => ({ role: "customer" }));
+    const resolve = vi.fn(async () => u("customer"));
     const [a, b] = await Promise.all([
       resolvePortalSession(request, resolve),
       resolvePortalSession(request, resolve),
@@ -230,7 +235,7 @@ describe("isSameOrigin", () => {
 });
 
 describe("requireCustomer", () => {
-  const signedIn = async () => ({ role: "customer" });
+  const signedIn = async () => u("customer");
   const post = (headers: Record<string, string> = {}) =>
     new Request("https://acme.test/api/portal/order", { method: "POST", headers });
 
