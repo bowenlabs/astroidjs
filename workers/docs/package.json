@@ -13,10 +13,10 @@
     "@astrojs/starlight": "^0.41.10",
     "astro": "^7.2.9"
   },
-  "engines": {
-    "node": ">=26.0.0"
-  },
   "devDependencies": {
     "wrangler": "^4.102.0"
+  },
+  "engines": {
+    "node": ">=26.0.0"
   }
 }

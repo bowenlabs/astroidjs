@@ -17,5 +17,5 @@
   // so this record is the first thing in it and has nothing to conflict with.
   "routes": [{ "pattern": "docs.astroidjs.org", "custom_domain": true }],
 
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
 }
