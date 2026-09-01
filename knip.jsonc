@@ -37,9 +37,7 @@
     "packages/create-astroid/template/**",
   ],
   "ignoreDependencies": [
-    // Configuration, not imports: `jsxImportSource` in tsconfig.base.json and
-    // `jsPlugins` in .oxlintrc.json respectively.
+    // Configuration, not an import: `jsxImportSource` in tsconfig.base.json.
     "solid-js",
-    "eslint-plugin-solid",
   ],
 }

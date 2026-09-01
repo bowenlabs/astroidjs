@@ -28,3 +28,4 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - "@louise-toolkit/astro@0.1.0"
   - "louise-toolkit@0.27.0"
+  - knip@6.34.0
