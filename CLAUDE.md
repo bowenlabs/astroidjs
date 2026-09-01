@@ -77,6 +77,14 @@ never publicly re-exported. Here the tests import the dependency the way a
 consumer does, so a subpath that stops resolving fails immediately. Don't add
 aliases back.
 
+## Decisions get an ADR
+
+`docs/adr/`. Numbers are shared with louise-toolkit rather than restarted — see
+the index there for why, and check both repos before claiming a number.
+
+An ADR that has stopped being true gets **amended**, not quietly outdated. A
+stale ADR is worse than none, because people trust it.
+
 ## Changesets
 
 Pre-1.0, so a **breaking change ships as `minor`** — there is no deprecation
