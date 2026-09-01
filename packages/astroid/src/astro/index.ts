@@ -10,6 +10,9 @@ export {
   astroidCspOrigins,
   astroidSecurity,
   type AstroidSecurityConfig,
+  // Both member types of AstroidSecurityConfig travel with it: a consumer
+  // annotating that config by hand needs to be able to name them.
+  type CspDirective,
   type CspHash,
   solidHydrationHash,
 } from "./csp.js";

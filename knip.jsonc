@@ -1,0 +1,39 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "packages/astroid": {
+      // knip infers entries from `exports`, but those point at `dist/`, which it
+      // cannot map back to `src/`. Naming the two compiled entries explicitly is
+      // what stops `./astro` — a real subpath consumers import from
+      // `astro.config.mjs` — being reported as a dead file along with every type
+      // it exports. The `./components/*` exports resolve to source directly, so
+      // knip already finds those.
+      "entry": ["src/index.ts", "src/astro/index.ts"],
+    },
+    "packages/create-astroid": {
+      "ignoreDependencies": [
+        // Not imported — RESOLVED. `toolkitRanges()` reads this package's
+        // package.json through `createRequire().resolve()` to derive the version
+        // range it writes into the scaffold, so it is load-bearing in a way no
+        // static analysis can see. The other toolkit packages escape the report
+        // only because the template references them by name.
+        "@louise-toolkit/astro",
+      ],
+    },
+  },
+  "ignore": [
+    // Run by CI against a scaffolded project directory; nothing imports them.
+    "scripts/ci/checks/*.mjs",
+    // Scaffold payload, not source. These files are copied into a new project
+    // verbatim and carry `__ASTROID_*__` placeholders; several are not valid
+    // TypeScript standalone. Every one of them is unused *here* and load-bearing
+    // *there*, so knip must not see them at all. Same reasoning as .oxfmtignore.
+    "packages/create-astroid/template/**",
+  ],
+  "ignoreDependencies": [
+    // Configuration, not imports: `jsxImportSource` in tsconfig.base.json and
+    // `jsPlugins` in .oxlintrc.json respectively.
+    "solid-js",
+    "eslint-plugin-solid",
+  ],
+}

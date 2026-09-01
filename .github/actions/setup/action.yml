@@ -1,0 +1,39 @@
+name: Setup
+description: Node 26 + corepack pnpm, with the store cached.
+
+inputs:
+  cache-suffix:
+    description: Distinguishes the pnpm store cache between jobs.
+    required: false
+    default: default
+
+runs:
+  using: composite
+  steps:
+    # Node comes from .nvmrc so the runner and a developer's shell cannot drift.
+    # That drift is not hypothetical: a 0.27.0 publish ran on Homebrew's Node 24
+    # because nvm was installed but never sourced, and every `engines` warning
+    # scrolled past unread.
+    - uses: actions/setup-node@v6
+      with:
+        node-version-file: .nvmrc
+
+    # corepack, not a globally installed pnpm: the version is pinned in
+    # `packageManager`, and a global pnpm of a different major fails with a store
+    # error rather than anything that names the real problem.
+    - name: Enable corepack
+      shell: bash
+      run: corepack enable
+
+    - name: Cache the pnpm store
+      uses: actions/cache@v5
+      with:
+        path: ~/.local/share/pnpm/store
+        key: pnpm-${{ runner.os }}-${{ inputs.cache-suffix }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-${{ runner.os }}-${{ inputs.cache-suffix }}-
+          pnpm-${{ runner.os }}-
+
+    - name: Install
+      shell: bash
+      run: corepack pnpm install --frozen-lockfile

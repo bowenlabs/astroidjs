@@ -1,6 +1,6 @@
 {
   "name": "astroidjs",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Astroid — an opinionated meta-framework over Louise Toolkit and Astro for building editable, multi-editor sites on Cloudflare Workers.",
   "keywords": [
     "astro",
@@ -14,7 +14,7 @@
   "author": "BowenLabs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bowenlabs/louise-toolkit.git",
+    "url": "git+https://github.com/bowenlabs/astroidjs.git",
     "directory": "packages/astroid"
   },
   "bin": {
@@ -61,13 +61,12 @@
   },
   "scripts": {
     "build": "tsgo -p tsconfig.build.json",
-    "check": "vp check",
-    "prepublishOnly": "tsgo -p tsconfig.build.json",
-    "test": "vp test",
+    "prepublishOnly": "node ../../scripts/ci/checks/dist-present.mjs",
+    "test": "vitest run",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "louise-toolkit": "workspace:*"
+    "louise-toolkit": "^0.27.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
@@ -90,6 +89,6 @@
     }
   },
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=26.0.0"
   }
 }

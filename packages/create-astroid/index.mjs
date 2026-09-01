@@ -94,16 +94,32 @@ const slugify = (s) =>
  * config. CI could not see it — the clean-room smoke test pins both packages to
  * tarballs via pnpm `overrides`, which is exactly what erases these ranges.
  *
- * `pnpm pack` rewrites `workspace:*` to the concrete version, so in a PUBLISHED
- * create-astroid the declared dep is already exact and we just widen it to a
- * caret. Run from the workspace it is still `workspace:*`, so fall back to the
- * version of the copy actually resolved on disk — which is what the scaffold
- * would install anyway.
+ * Three shapes reach the `declared` value, and all three have to end up as one
+ * caret range:
+ *
+ *   - `workspace:*` — a sibling in this repo (`astroidjs`). Falls back to the
+ *     version of the copy actually resolved on disk, which is what the scaffold
+ *     would install anyway. `pnpm pack` rewrites these to a concrete version, so
+ *     a PUBLISHED create-astroid never carries one.
+ *   - an exact version — what `pnpm pack` leaves behind for a former
+ *     `workspace:*`.
+ *   - an already-caretted range — what an external dependency is written as now
+ *     that `louise-toolkit` and `@louise-toolkit/astro` live in another repo.
+ *
+ * That last one is why `stripRange` exists. Prefixing `^` onto `^0.27.0` yields
+ * `^^0.27.0`, which npm rejects as invalid, and every scaffolded project would
+ * fail at `pnpm install` before anything type-checked. It cost nothing to guard
+ * and would have been invisible until the first scaffold after the repo split.
  *
  * Caret on a 0.x is minor-locked (`^0.2.0` := `>=0.2.0 <0.3.0`), which is the
  * behaviour we want while the toolkit is pre-1.0 and marks breaking changes as
  * minors: patches flow, a breaking minor does not.
  */
+/** `^1.2.3` / `~1.2.3` / `>=1.2.3` → `1.2.3`. See {@link toolkitRanges}. */
+function stripRange(version) {
+  return String(version).replace(/^[\^~]|^>=\s*/, "");
+}
+
 function toolkitRanges() {
   const req = createRequire(import.meta.url);
   const self = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
@@ -121,7 +137,7 @@ function toolkitRanges() {
           "This is a packaging fault — please file an issue rather than editing the scaffold by hand.",
       );
     }
-    ranges[name] = `^${version}`;
+    ranges[name] = `^${stripRange(version)}`;
   }
   return ranges;
 }
