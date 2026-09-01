@@ -1,0 +1,21 @@
+packages:
+  - packages/*
+
+# esbuild's postinstall builds its native binary. vitest and knip both go through
+# it, so without this the install completes and the test run fails later with a
+# missing-binary error that reads like a corrupt store rather than a skipped
+# script. pnpm 11 renamed `onlyBuiltDependencies` to the `allowBuilds` map.
+allowBuilds:
+  esbuild: true
+
+# pnpm 11 refuses packages published within its `minimumReleaseAge` window — a
+# supply-chain guard against a freshly-compromised release. That is a good default
+# and we are keeping it, but it also blocks the ordinary case of this repo
+# installing toolkit versions we published ourselves minutes earlier.
+#
+# The exclusions are pinned to exact versions rather than to the package names, so
+# they expire on their own: the next toolkit bump is gated again, and these two
+# lines become inert and can be deleted.
+minimumReleaseAgeExclude:
+  - "@louise-toolkit/astro@0.1.0"
+  - "louise-toolkit@0.27.0"

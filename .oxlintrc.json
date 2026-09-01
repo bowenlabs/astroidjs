@@ -1,0 +1,40 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "import"],
+  // eslint-plugin-solid, loaded as an oxlint JS plugin. The reactivity rules only
+  // apply to the Solid component layer (`Collection.tsx` and its neighbours), so
+  // they are scoped to src/components via the override below.
+  "jsPlugins": ["eslint-plugin-solid"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/no-unsafe-function-type": "warn",
+    "no-unassigned-vars": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/src/components/**/*.{ts,tsx}"],
+      "rules": {
+        "solid/reactivity": "warn",
+        "solid/no-destructure": "warn",
+        "solid/components-return-once": "warn",
+        "solid/no-react-specific-props": "warn",
+        "solid/no-react-deps": "warn",
+        "solid/prefer-for": "warn",
+        "solid/event-handlers": "warn",
+        "solid/style-prop": "warn"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    // Scaffold payload, not source — see .oxfmtignore for the full reasoning.
+    "packages/create-astroid/template/**"
+  ]
+}

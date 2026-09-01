@@ -1,0 +1,31 @@
+{
+  "name": "@bowenlabs/astroidjs-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "corepack pnpm run build:packages",
+    "build:packages": "corepack pnpm -C packages/astroid run build",
+    "typecheck": "corepack pnpm -C packages/astroid run typecheck",
+    "test": "corepack pnpm -C packages/astroid run test",
+    "lint": "oxlint",
+    "lint:solid": "corepack pnpm dlx --package=oxlint@1.73.0 --package=eslint-plugin-solid@0.14.5 oxlint packages/astroid/src/components",
+    "lint:release": "node scripts/ci/checks/release-tooling.mjs",
+    "fmt": "oxfmt --ignore-path .oxfmtignore .",
+    "fmt:check": "oxfmt --check --ignore-path .oxfmtignore .",
+    "check": "corepack pnpm run lint && corepack pnpm run fmt:check",
+    "knip": "knip",
+    "changeset": "changeset",
+    "release": "corepack pnpm run build:packages && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "eslint-plugin-solid": "0.14.5",
+    "knip": "^5.88.1",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0"
+  },
+  "engines": {
+    "node": ">=26.0.0"
+  },
+  "packageManager": "pnpm@11.13.0"
+}

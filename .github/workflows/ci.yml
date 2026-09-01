@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & dead code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          cache-suffix: lint
+
+      - name: Lint (Oxlint)
+        run: corepack pnpm run lint
+
+      # The Solid reactivity rules, which oxlint loads as a JS plugin. Scoped to
+      # the component layer — they are meaningless for the config validator and
+      # the generators, which are plain Node.
+      - name: Lint SolidJS components (oxlint + eslint-plugin-solid)
+        run: corepack pnpm run lint:solid
+
+      - name: Format (Oxfmt)
+        run: corepack pnpm run fmt:check
+
+      - name: Dead-code check (Knip)
+        run: corepack pnpm run knip
+
+      # Release tooling, exercised on every PR rather than discovered at release
+      # time. Nothing else in this suite loads the changesets stack, and a
+      # dependency resolution that breaks it is invisible until you try to ship.
+      - name: Release tooling (changesets)
+        run: corepack pnpm run lint:release
+
+  test:
+    name: Type-check & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          cache-suffix: test
+
+      - name: Type-check
+        run: corepack pnpm run typecheck
+
+      # These resolve `louise-toolkit` from node_modules — the PUBLISHED package,
+      # through its real `exports` map. In the monorepo they were aliased to the
+      # library's source, which meant they could pass against symbols that were
+      # never publicly re-exported. A subpath that stops resolving now fails here.
+      - name: Test
+        run: corepack pnpm run test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          cache-suffix: build
+
+      - name: Build (dist/)
+        run: corepack pnpm run build:packages
+
+      # The same assertion `prepublishOnly` makes, run where a failure is cheap.
+      - name: Every published entry point exists
+        run: cd packages/astroid && node ../../scripts/ci/checks/dist-present.mjs
+
+  scaffold-smoke:
+    name: Scaffold smoke — ${{ matrix.archetype }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        archetype: [marketing, portfolio, storefront]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          cache-suffix: smoke
+
+      # The only check that exercises packages/create-astroid/template/. Nothing
+      # type-checks that tree until it is scaffolded — oxfmt, oxlint and knip are
+      # all configured to skip it — so a change that breaks it passes every other
+      # job and fails in a user's terminal.
+      - name: Scaffold, type-check and build
+        run: scripts/ci/scaffold-smoke.sh ${{ matrix.archetype }} "$RUNNER_TEMP/smoke"
+
+  # One required status to protect the branch with, so adding a job above does not
+  # mean editing branch protection.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, scaffold-smoke]
+    if: always()
+    steps:
+      - name: Fail if any job did not succeed
+        run: |
+          echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }}"
+          echo "build=${{ needs.build.result }} smoke=${{ needs['scaffold-smoke'].result }}"
+          [ "${{ needs.lint.result }}" = "success" ] \
+            && [ "${{ needs.test.result }}" = "success" ] \
+            && [ "${{ needs.build.result }}" = "success" ] \
+            && [ "${{ needs['scaffold-smoke'].result }}" = "success" ]
