@@ -26,6 +26,16 @@ PACK="$WORK/pack"
 ROOM="$WORK/room"
 rm -rf "$WORK" && mkdir -p "$PACK" "$ROOM"
 
+# Build FIRST. `pnpm pack` does not run `prepublishOnly` — only `publish` does —
+# so a pack on an unbuilt tree cheerfully produces a tarball with no `dist/`, and
+# the failure surfaces much later as the scaffolded project failing to resolve
+# `astroidjs/dist/index.js`. On a developer's machine `dist/` is usually lying
+# around from an earlier run, so this only ever breaks on a clean checkout, which
+# is to say: in CI, every time.
+echo "==> building astroidjs"
+(cd "$REPO" && corepack pnpm run build:packages >/dev/null)
+(cd "$REPO/packages/astroid" && node "$REPO/scripts/ci/checks/dist-present.mjs")
+
 echo "==> packing astroidjs + create-astroid"
 (cd "$REPO/packages/astroid" && corepack pnpm pack --pack-destination "$PACK" >/dev/null)
 (cd "$REPO/packages/create-astroid" && corepack pnpm pack --pack-destination "$PACK" >/dev/null)
