@@ -128,3 +128,20 @@ single charge.
 | `src/pages/` · `src/components/` · `src/layouts/` | Your Astro app. |
 | `migrations/` | `0000_content.sql` (content + FTS) · `0001_auth.sql` (Better Auth). |
 | `scripts/seed-editors.mjs` | Bootstrap the first editor. |
+| `docs/` | ARCHITECTURE · RUNBOOK · DECISIONS — stubs to fill in as you go. |
+
+## The docs/ trio
+
+Three near-empty documents, scaffolded on purpose. Three production Astroid sites
+each wrote the same three without coordinating, and converged on the same
+headings — so you inherit the questions rather than a blank directory.
+
+| | What goes in it |
+| --- | --- |
+| `docs/ARCHITECTURE.md` | How this site is put together — request flow, content model, bindings. |
+| `docs/RUNBOOK.md` | Operating it — local dev, migrations, secrets, deploy, and **common breakages**. |
+| `docs/DECISIONS.md` | Choices the framework leaves open, and why you made yours. |
+
+`DECISIONS.md` ships with a list of the questions every Astroid site has to
+answer — editors, rich-text storage, sections, commerce, migrations, CSP, edge
+caching. Delete each one as it becomes a real entry.
