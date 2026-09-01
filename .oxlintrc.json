@@ -34,6 +34,11 @@
   "ignorePatterns": [
     "**/dist/**",
     "**/node_modules/**",
+    "**/.astro/**",
+    // Astro generates this, and the triple-slash reference is how it works. Unlike
+    // the Louise repo — where `vp check` runs per package and never reaches
+    // workers/ — the root lint here covers the whole tree, so it sees it.
+    "**/env.d.ts",
     // Scaffold payload, not source — see .oxfmtignore for the full reasoning.
     "packages/create-astroid/template/**"
   ]

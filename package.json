@@ -9,13 +9,15 @@
     "test": "corepack pnpm -C packages/astroid run test",
     "lint": "oxlint",
     "lint:solid": "corepack pnpm dlx --package=oxlint@1.73.0 --package=eslint-plugin-solid@0.14.5 oxlint packages/astroid/src/components",
+    "lint:docs": "corepack pnpm --package=@vvago/vale@3.17.1 dlx vale workers/docs/src/content/docs",
     "lint:release": "node scripts/ci/checks/release-tooling.mjs",
     "fmt": "oxfmt --ignore-path .oxfmtignore .",
     "fmt:check": "oxfmt --check --ignore-path .oxfmtignore .",
     "check": "corepack pnpm run lint && corepack pnpm run fmt:check",
     "knip": "knip",
     "changeset": "changeset",
-    "release": "corepack pnpm run build:packages && changeset publish"
+    "release": "corepack pnpm run build:packages && changeset publish",
+    "build:docs": "corepack pnpm -C workers/docs run build"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",

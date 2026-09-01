@@ -34,6 +34,14 @@ jobs:
       - name: Dead-code check (Knip)
         run: corepack pnpm run knip
 
+      # Prose style for the published docs, against the Google developer
+      # documentation style guide. `vale sync` fetches the style package into a
+      # gitignored .vale/ — pinned and reproducible rather than vendored.
+      - name: Documentation style (Vale + Google)
+        run: |
+          corepack pnpm --package=@vvago/vale@3.17.1 dlx vale sync
+          corepack pnpm run lint:docs
+
       # Release tooling, exercised on every PR rather than discovered at release
       # time. Nothing else in this suite loads the changesets stack, and a
       # dependency resolution that breaks it is invisible until you try to ship.
@@ -75,6 +83,21 @@ jobs:
       - name: Every published entry point exists
         run: cd packages/astroid && node ../../scripts/ci/checks/dist-present.mjs
 
+  docs:
+    name: Build the docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          cache-suffix: docs
+
+      # `astro build` is what surfaces a broken content collection, an unparseable
+      # frontmatter block, or a link to a page that does not exist. None of those
+      # are visible to Vale, which reads prose and not routing.
+      - name: Build
+        run: corepack pnpm run build:docs
+
   scaffold-smoke:
     name: Scaffold smoke — ${{ matrix.archetype }}
     runs-on: ubuntu-latest
@@ -100,14 +123,16 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
-    needs: [lint, test, build, scaffold-smoke]
+    needs: [lint, test, build, docs, scaffold-smoke]
     if: always()
     steps:
       - name: Fail if any job did not succeed
         run: |
           echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }}"
-          echo "build=${{ needs.build.result }} smoke=${{ needs['scaffold-smoke'].result }}"
+          echo "build=${{ needs.build.result }} docs=${{ needs.docs.result }}"
+          echo "smoke=${{ needs['scaffold-smoke'].result }}"
           [ "${{ needs.lint.result }}" = "success" ] \
             && [ "${{ needs.test.result }}" = "success" ] \
             && [ "${{ needs.build.result }}" = "success" ] \
+            && [ "${{ needs.docs.result }}" = "success" ] \
             && [ "${{ needs['scaffold-smoke'].result }}" = "success" ]
