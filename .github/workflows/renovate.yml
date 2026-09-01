@@ -1,0 +1,44 @@
+name: Renovate
+
+# Calls the shared workflow in bowenlabs/louise-toolkit rather than carrying a
+# copy. That workflow runs self-hosted Renovate as the BowenLabs GitHub App, so
+# PRs land as `bowenlabs-renovate[bot]`, and it is scoped per-run to the calling
+# repository — one App, many repos, each run touching only its own.
+#
+# `secrets: inherit` passes the ORG-level RENOVATE_APP_ID and
+# RENOVATE_APP_PRIVATE_KEY through. Two things have to be true for this to do
+# anything, and neither is in this file:
+#
+#   1. The BowenLabs Renovate App is installed on THIS repository.
+#   2. The org secrets are scoped to include it.
+#
+# Until both are, the called workflow's preflight step skips the run with a
+# notice rather than failing it — so merging this does not start a stream of red
+# scheduled runs.
+on:
+  schedule:
+    # Every six hours. Renovate's own `schedule` gates routine work to Monday
+    # mornings; this cadence exists so the "at any time" rules — vulnerability
+    # alerts, and toolkit releases — can fire promptly in between.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: Renovate log level
+        required: false
+        default: info
+        type: choice
+        options: [info, debug]
+      dryRun:
+        description: Dry run — resolve and log, open nothing
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  renovate:
+    uses: bowenlabs/louise-toolkit/.github/workflows/renovate.yml@main
+    secrets: inherit
+    with:
+      logLevel: ${{ inputs.logLevel || 'info' }}
+      dryRun: ${{ inputs.dryRun || false }}
