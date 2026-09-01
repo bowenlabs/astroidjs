@@ -42,6 +42,23 @@ Astro-specific glue that Louise itself needs lives in a third package,
 which is released from the louise-toolkit repo. Astroid depends on it; it is not
 part of this repo.
 
+## Documentation
+
+[**docs.astroidjs.org**](https://docs.astroidjs.org) — a Starlight site built from
+`workers/docs`, covering the guide (getting started, configuration, the CLI,
+modules) and a reference page per subsystem.
+
+It is deliberately a separate site from the Louise docs rather than a section
+inside them: the two projects release independently, and a shared site would mean
+a docs deploy every time either one shipped. Cross-references go out as absolute
+links to [docs.louisetoolkit.com](https://docs.louisetoolkit.com).
+
+```sh
+corepack pnpm -C workers/docs run dev     # local preview
+corepack pnpm run build:docs              # static build to workers/docs/dist
+corepack pnpm run lint:docs               # Google developer style, via Vale
+```
+
 ## Working on it
 
 ```sh
@@ -58,9 +75,11 @@ corepack pnpm run lint:solid
 corepack pnpm run fmt:check
 corepack pnpm run knip
 corepack pnpm run lint:release
+corepack pnpm run lint:docs
 corepack pnpm run typecheck
 corepack pnpm test
 corepack pnpm run build:packages
+corepack pnpm run build:docs
 ```
 
 Plus the one that matters most and is easiest to forget:

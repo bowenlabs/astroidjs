@@ -13,3 +13,6 @@ coverage/
 *.tsbuildinfo
 # pnpm pack tarballs (build artifacts, never committed)
 *.tgz
+
+# Astro build artifacts
+.astro/

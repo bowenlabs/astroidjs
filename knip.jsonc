@@ -10,6 +10,12 @@
       // knip already finds those.
       "entry": ["src/index.ts", "src/astro/index.ts"],
     },
+    "workers/docs": {
+      // Starlight loads this through `customCss` in astro.config.mjs, which knip's
+      // Astro plugin does not read.
+      "entry": ["src/styles/**/*.css"],
+    },
+
     "packages/create-astroid": {
       "ignoreDependencies": [
         // Not imported — RESOLVED. `toolkitRanges()` reads this package's

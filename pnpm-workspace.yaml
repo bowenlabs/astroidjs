@@ -1,5 +1,6 @@
 packages:
   - packages/*
+  - workers/*
 
 # esbuild's postinstall builds its native binary. vitest and knip both go through
 # it, so without this the install completes and the test run fails later with a
@@ -7,6 +8,14 @@ packages:
 # script. pnpm 11 renamed `onlyBuiltDependencies` to the `allowBuilds` map.
 allowBuilds:
   esbuild: true
+  # wrangler ships workerd as a native binary and builds it on install. The docs
+  # Worker deploys through wrangler, so without this `pnpm install` fails outright
+  # with ERR_PNPM_IGNORED_BUILDS rather than anything that names the cause.
+  workerd: true
+  # Denied on purpose: sharp arrives only as an OPTIONAL dependency of astro, and
+  # the docs use `passthroughImageService()` — the single asset is an SVG. Pinning
+  # it off skips a heavy native build rather than prompting on every install.
+  sharp: false
 
 # pnpm 11 refuses packages published within its `minimumReleaseAge` window — a
 # supply-chain guard against a freshly-compromised release. That is a good default
