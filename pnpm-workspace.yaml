@@ -8,6 +8,10 @@ packages:
 # script. pnpm 11 renamed `onlyBuiltDependencies` to the `allowBuilds` map.
 allowBuilds:
   esbuild: true
+  # wrangler ships workerd as a native binary and builds it on install. The docs
+  # Worker deploys through wrangler, so without this `pnpm install` fails outright
+  # with ERR_PNPM_IGNORED_BUILDS rather than anything that names the cause.
+  workerd: true
   # Denied on purpose: sharp arrives only as an OPTIONAL dependency of astro, and
   # the docs use `passthroughImageService()` — the single asset is an SVG. Pinning
   # it off skips a heavy native build rather than prompting on every install.

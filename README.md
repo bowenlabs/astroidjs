@@ -44,7 +44,7 @@ part of this repo.
 
 ## Documentation
 
-[**docs.astroidjs.com**](https://docs.astroidjs.com) — a Starlight site built from
+[**docs.astroidjs.org**](https://docs.astroidjs.org) — a Starlight site built from
 `workers/docs`, covering the guide (getting started, configuration, the CLI,
 modules) and a reference page per subsystem.
 

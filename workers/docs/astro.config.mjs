@@ -11,7 +11,7 @@ import { defineConfig, passthroughImageService } from "astro/config";
 // docs deploy every time either one shipped. Cross-references between the two go
 // out as absolute links; see `LOUISE_DOCS` below.
 export default defineConfig({
-  site: "https://docs.astroidjs.com",
+  site: "https://docs.astroidjs.org",
   // The only raster-free asset here is an SVG logo, so use the passthrough image
   // service and skip the heavy `sharp` native dependency entirely.
   image: { service: passthroughImageService() },
