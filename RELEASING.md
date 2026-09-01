@@ -43,6 +43,50 @@ per package, so push them:
 git push --follow-tags origin main
 ```
 
+## Deploying the docs
+
+The documentation at [docs.astroidjs.org](https://docs.astroidjs.org) is a
+separate deploy from the npm release, and a separate Worker from anything in
+louise-toolkit.
+
+By hand:
+
+```sh
+corepack pnpm run build:docs
+corepack pnpm -C workers/docs run deploy
+```
+
+### Wiring it to Workers Builds (once)
+
+So the docs cannot drift from `main`. The connection is made in the Cloudflare
+dashboard — there is no repository-side file that establishes it:
+
+**Workers & Pages** → **astroidjs-docs** → **Settings** → **Builds** → **Connect**,
+authorize GitHub, pick `bowenlabs/astroidjs`, then:
+
+| setting        | value                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------- |
+| Root directory | `workers/docs`                                                                        |
+| Build command  | `cd ../.. && corepack pnpm install --frozen-lockfile && corepack pnpm run build:docs` |
+| Deploy command | `npx wrangler deploy` (the default)                                                   |
+
+Three things about that build command, each of which will bite otherwise:
+
+- **It changes directory first.** The root directory is `workers/docs`, but this
+  is a pnpm workspace — `pnpm install` has to run at the workspace root or it
+  resolves nothing. The deploy command still runs from `workers/docs`, which is
+  where `wrangler.jsonc` and its `assets.directory: "./dist"` are.
+- **The Worker name must match.** Cloudflare requires the dashboard Worker name
+  to equal `name` in the wrangler config at the root directory. Both are
+  `astroidjs-docs`; renaming either alone fails the build.
+- **There is no path filtering.** Workers Builds has no watch-paths setting, so
+  every push to `main` rebuilds and redeploys the docs, including pushes that
+  touch no documentation. That is cheap here — a static build — but it is why the
+  docs Worker is separate from anything heavier.
+
+Verified from a clean shallow clone: the command above installs, builds 21 pages,
+and `dist/` resolves from `workers/docs`.
+
 ## Verify
 
 Read the expected numbers off `main` rather than out of this file:
