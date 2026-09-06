@@ -66,7 +66,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "louise-toolkit": "^0.27.0"
+    "louise-toolkit": "^0.28.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
