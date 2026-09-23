@@ -2,6 +2,8 @@ import { generateHydrationScript } from "solid-js/web";
 import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { astroidCspOrigins, astroidSecurity, solidHydrationHash } from "../src/astro/csp.js";
+import { astroidCspStyleSrc } from "../src/security/csp-origins.js";
+import { generateAstroidMiddleware } from "../src/worker/generate.js";
 
 const base: AstroidConfig = {
   key: "acme",
@@ -108,5 +110,35 @@ describe("astroidSecurity", () => {
         expect(d.trim().split(/\s+/).length, `bare directive: ${d}`).toBeGreaterThan(1);
       }
     }
+  });
+});
+
+describe("astroidCspStyleSrc", () => {
+  it("is 'self' 'unsafe-inline' with no module that needs a stylesheet host", () => {
+    expect(astroidCspStyleSrc(base)).toBe("'self' 'unsafe-inline'");
+  });
+
+  it("allows the Square SDK's host-page stylesheet (card-wrapper.css)", () => {
+    // Web Payments SDK 1.85+ injects card-wrapper.css into the host page; without
+    // these hosts card.attach() rejects and the card form never mounts.
+    const square: AstroidConfig = { ...base, commerce: { provider: "square" } };
+    expect(astroidCspStyleSrc(square)).toBe(
+      "'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://web.squarecdn.com",
+    );
+  });
+
+  it("carries the config's own style origins", () => {
+    const own: AstroidConfig = {
+      ...base,
+      security: { cspOrigins: { style: ["https://fonts.googleapis.com"] } },
+    };
+    expect(astroidCspStyleSrc(own)).toContain("https://fonts.googleapis.com");
+  });
+
+  it("is what the generated middleware rewrites style-src to", () => {
+    const square: AstroidConfig = { ...base, commerce: { provider: "square" } };
+    expect(generateAstroidMiddleware(square)).toContain(
+      `cspStyleSrc: ${JSON.stringify(astroidCspStyleSrc(square))},`,
+    );
   });
 });

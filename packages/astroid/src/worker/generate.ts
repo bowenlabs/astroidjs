@@ -23,6 +23,7 @@ import {
   usesRealtime,
 } from "../realtime/scaffold.js";
 import { capturesInquiries } from "../schema/framework.js";
+import { astroidCspStyleSrc } from "../security/csp-origins.js";
 import { ASTROID_REWRITE_EXCLUDE, ASTROID_TENANT_PREFIX } from "../tenancy/index.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "./routes.js";
 
@@ -498,8 +499,10 @@ export function generateAstroidWorker(config: AstroidConfig): string {
 export function generateAstroidMiddleware(config: AstroidConfig): string {
   // Louise's brand font is bundled + base64-inlined (no Google Fonts host to
   // allow); createLouiseMiddleware auto-allows `data:` fonts in the CSP, so the
-  // inlined @font-face needs no manual `font-src` entry.
-  const cspStyleSrc = "'self' 'unsafe-inline'";
+  // inlined @font-face needs no manual `font-src` entry. Module + config `style`
+  // origins (the Square SDK's stylesheet) are baked in here; `astroid build`
+  // regenerates this file, so a config change lands on the next deploy.
+  const cspStyleSrc = astroidCspStyleSrc(config);
   const portal = astroidPortal(config);
   const tenancy = config.tenancy;
   const rewritePrefix = tenancy?.rewritePrefix ?? ASTROID_TENANT_PREFIX;
