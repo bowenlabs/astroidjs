@@ -431,6 +431,8 @@ export interface SecurityConfig {
 /** Per-directive origin lists contributed to the CSP. */
 export interface CspOrigins {
   script?: string[];
+  /** Rendered by the generated middleware (it owns `style-src`), not by Astro. */
+  style?: string[];
   frame?: string[];
   connect?: string[];
   font?: string[];

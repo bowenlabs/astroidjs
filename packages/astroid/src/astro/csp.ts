@@ -28,8 +28,10 @@
 
 import { createHash } from "node:crypto";
 import { generateHydrationScript } from "solid-js/web";
-import { astroidCommerceProviders } from "../commerce/roles.js";
-import type { AstroidConfig, CspOrigins } from "../config.js";
+import type { AstroidConfig } from "../config.js";
+import { astroidCspOrigins } from "../security/csp-origins.js";
+
+export { astroidCspOrigins } from "../security/csp-origins.js";
 
 /** A `sha256-…` CSP hash, in the shape Astro's `security.csp.hashes` takes. */
 export type CspHash = `${"sha256" | "sha384" | "sha512"}-${string}`;
@@ -94,90 +96,6 @@ export interface AstroidSecurityConfig {
 export function solidHydrationHash(): CspHash {
   const inner = generateHydrationScript().match(/<script[^>]*>([\s\S]*?)<\/script>/)?.[1] ?? "";
   return `sha256-${createHash("sha256").update(inner).digest("base64")}`;
-}
-
-/** Origins a commerce provider's client-side SDK needs. Server-only providers
- *  (Fourthwall's storefront API) contribute nothing but their image host. */
-const COMMERCE_ORIGINS: Record<string, CspOrigins> = {
-  // Square Web Payments renders the card form in an iframe from the squarecdn
-  // hosts, tokenizes against pci-connect, and pulls its own fonts. Both the
-  // sandbox and production hosts are listed so ONE build serves either
-  // environment — which environment you're in is a runtime secret, not a
-  // build-time one.
-  square: {
-    script: ["https://sandbox.web.squarecdn.com", "https://web.squarecdn.com"],
-    frame: [
-      "https://sandbox.web.squarecdn.com",
-      "https://web.squarecdn.com",
-      "https://connect.squareupsandbox.com",
-      "https://connect.squareup.com",
-    ],
-    connect: [
-      "https://pci-connect.squareupsandbox.com",
-      "https://pci-connect.squareup.com",
-      "https://sandbox.web.squarecdn.com",
-      "https://web.squarecdn.com",
-    ],
-    font: [
-      "https://square-fonts-production-f.squarecdn.com",
-      "https://d1g145x70srn7h.cloudfront.net",
-    ],
-  },
-  // Stripe.js and its Elements/Checkout iframes.
-  stripe: {
-    script: ["https://js.stripe.com"],
-    frame: ["https://js.stripe.com", "https://hooks.stripe.com"],
-    connect: ["https://api.stripe.com"],
-  },
-  // Fourthwall is read server-side; nothing runs in the browser.
-  fourthwall: {},
-};
-
-// Turnstile. Always allowed, not gated on the captcha being configured: the
-// scaffold ships the widget dormant (see the dormant-until-provisioned
-// convention) and it must not need a rebuild to switch on — CSP is baked at
-// build time, the secret is a runtime value.
-const TURNSTILE: CspOrigins = {
-  script: ["https://challenges.cloudflare.com"],
-  frame: ["https://challenges.cloudflare.com"],
-  connect: ["https://challenges.cloudflare.com"],
-};
-
-// The map module. MapLibre spins its tile-decoding workers up from blob: URLs,
-// so `worker-src blob:` is not optional — without it the map renders an empty
-// canvas and the console fills with worker-construction errors.
-//
-// Nothing else is needed, and that's the whole argument for the self-hosted
-// basemap: the PMTiles archive is served same-origin, so `connect-src` stays
-// `'self'` with no tile host and no API key to allow.
-const MAP: CspOrigins = { worker: ["blob:"] };
-
-const DIRECTIVE_KEYS = ["script", "frame", "connect", "font", "img", "worker"] as const;
-
-/** Merge origin lists, de-duplicated, order preserved. */
-function mergeOrigins(...sets: CspOrigins[]): Required<CspOrigins> {
-  const out = {} as Required<CspOrigins>;
-  for (const key of DIRECTIVE_KEYS) {
-    out[key] = [...new Set(sets.flatMap((set) => set[key] ?? []))];
-  }
-  return out;
-}
-
-/**
- * Every origin the project's enabled modules need, merged with the config's own
- * `security.cspOrigins`. Exported so a site (or `astroid doctor`) can inspect
- * what a config implies without rebuilding the whole policy.
- */
-export function astroidCspOrigins(config: AstroidConfig): Required<CspOrigins> {
-  return mergeOrigins(
-    TURNSTILE,
-    ...((config.modules ?? []).includes("map") ? [MAP] : []),
-    // EVERY provider in play, not "the" provider: a site can run Stripe for
-    // invoicing beside Fourthwall for the storefront, and a policy that allowed
-    // only one of them blocks the other's SDK at runtime.
-    ...astroidCommerceProviders(config.commerce).map((p) => COMMERCE_ORIGINS[p] ?? {}),
-    config.security?.cspOrigins ?? {},
-  );
 }
 
 /**
