@@ -59,6 +59,7 @@ pnpm create astroid [directory] [options]
   --color <hex>         Brand color
   --host <domain>       Primary domain, for example, example.com
   --commerce <provider> square | stripe | fourthwall
+  --square-locations <n> single | multi (multi-merchant; needs --commerce square)
   --map                 Self-hosted PMTiles/MapLibre location map
   --pwa                 Installable PWA (scoped service worker + manifest)
   --portal              Customer/member portal (a second, isolated auth instance)

@@ -99,12 +99,24 @@ jobs:
         run: corepack pnpm run build:docs
 
   scaffold-smoke:
-    name: Scaffold smoke — ${{ matrix.archetype }}
+    name: Scaffold smoke — ${{ matrix.leg }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        archetype: [marketing, portfolio, storefront]
+        # `flags` go to create-astroid verbatim. The commerce legs exist because
+        # the checkout route, SquareCard and the webhook receiver are only written
+        # when `--commerce` is passed, so without them nothing ever compiled those
+        # files — unit tests only string-match the generator output. `-multi`
+        # covers the checkout route's separate multi-merchant branch.
+        include:
+          - { leg: marketing, archetype: marketing, flags: "" }
+          - { leg: portfolio, archetype: portfolio, flags: "" }
+          - { leg: storefront, archetype: storefront, flags: "" }
+          - { leg: storefront-square, archetype: storefront, flags: "--commerce square" }
+          - leg: storefront-square-multi
+            archetype: storefront
+            flags: "--commerce square --square-locations multi"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -116,7 +128,11 @@ jobs:
       # all configured to skip it — so a change that breaks it passes every other
       # job and fails in a user's terminal.
       - name: Scaffold, type-check and build
-        run: scripts/ci/scaffold-smoke.sh ${{ matrix.archetype }} "$RUNNER_TEMP/smoke"
+        # $FLAGS unquoted on purpose: it is a space-separated flag list.
+        run: scripts/ci/scaffold-smoke.sh "$ARCHETYPE" "$RUNNER_TEMP/smoke" $FLAGS
+        env:
+          ARCHETYPE: ${{ matrix.archetype }}
+          FLAGS: ${{ matrix.flags }}
 
   # One required status to protect the branch with, so adding a job above does not
   # mean editing branch protection.
