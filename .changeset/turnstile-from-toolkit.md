@@ -10,3 +10,5 @@ The page now renders the widget with `renderTurnstile` (`louise-toolkit/forms/tu
 Existing projects: `login.astro` is scaffolded once and yours to edit, so this reaches new projects only. To take the fix, copy the new page's `<script>` and the `#captcha` element from a fresh scaffold.
 
 Turnstile's CSP origins now come from `turnstileCsp()` too, like Square's. Same three hosts, so nothing changes in the policy.
+
+Both packages now require `louise-toolkit` `^0.30.1`, the release that adds the `forms/turnstile` subpath. create-astroid also requires `@louise-toolkit/astro` `^0.2.1`, the adapter release built against it.
