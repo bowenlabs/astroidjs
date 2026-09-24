@@ -9,6 +9,7 @@
 // one half of the policy and not the other.
 
 import { squareWebPaymentsCsp } from "louise-toolkit/commerce/square-web";
+import { turnstileCsp } from "louise-toolkit/forms/turnstile";
 import { astroidCommerceProviders } from "../commerce/roles.js";
 import type { AstroidConfig, CspOrigins } from "../config.js";
 
@@ -36,11 +37,7 @@ const COMMERCE_ORIGINS: Record<string, CspOrigins> = {
 // scaffold ships the widget dormant (see the dormant-until-provisioned
 // convention) and it must not need a rebuild to switch on — CSP is baked at
 // build time, the secret is a runtime value.
-const TURNSTILE: CspOrigins = {
-  script: ["https://challenges.cloudflare.com"],
-  frame: ["https://challenges.cloudflare.com"],
-  connect: ["https://challenges.cloudflare.com"],
-};
+const TURNSTILE: CspOrigins = turnstileCsp();
 
 // The map module. MapLibre spins its tile-decoding workers up from blob: URLs,
 // so `worker-src blob:` is not optional — without it the map renders an empty
