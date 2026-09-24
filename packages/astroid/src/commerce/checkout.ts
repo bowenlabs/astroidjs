@@ -12,7 +12,14 @@
 //
 // The failure this prevents is not exotic. Accept `unitPrice` from the request
 // body and anyone can buy anything for a penny.
+//
+// The comparison itself is the toolkit's `cartIssues`, which reports EVERY
+// stale line rather than the first: a refusal that names one problem at a time
+// is how a customer ends up fixing a line, retrying, and being refused over the
+// next. What this adds is the opinion — policing the untrusted body, and the
+// sentence a customer sees.
 
+import { type CartIssue, cartIssues } from "louise-toolkit/commerce";
 import { AstroidUsageError } from "../errors.js";
 
 /** One line as the CLIENT sent it. Every field is untrusted. */
@@ -57,9 +64,28 @@ export type CheckoutRefusal =
   | "price-changed"
   | "invalid";
 
+/**
+ * One way the cart disagrees with the live catalog — the toolkit's
+ * `CartIssue`, less the add-on case (checkout lines carry no add-ons yet).
+ * Hand the list to `repairCart` from `louise-toolkit/commerce` to fix the cart
+ * in one step.
+ */
+export type CheckoutIssue = Exclude<CartIssue, { kind: "modifier-unavailable" }>;
+
 export type CheckoutVerification =
   | { ok: true; lines: VerifiedLine[]; subtotalCents: number }
-  | { ok: false; reason: CheckoutRefusal; message: string };
+  | {
+      ok: false;
+      /** The first problem, in cart order. */
+      reason: CheckoutRefusal;
+      message: string;
+      /**
+       * Every problem, in cart order, with what the catalog says now — empty
+       * for `"empty"` and `"invalid"`, which are about the request, not the
+       * catalog.
+       */
+      issues: CheckoutIssue[];
+    };
 
 /** Look up current prices, in minor units, keyed by variant id. Anything the
  *  map omits is treated as no longer purchasable. */
@@ -124,6 +150,28 @@ export interface VerifyCheckoutOptions {
 
 const MAX_QUANTITY = 999;
 
+/** What a customer reads, by issue kind: one line affected, or several. */
+const ISSUE_MESSAGES: Record<CheckoutIssue["kind"], [one: string, many: string]> = {
+  "out-of-stock": ["An item in your cart just sold out.", "Some items in your cart just sold out."],
+  unavailable: [
+    "An item in your cart is no longer available.",
+    "Some items in your cart are no longer available.",
+  ],
+  "price-changed": [
+    "Prices changed — please review your cart.",
+    "Prices changed — please review your cart.",
+  ],
+};
+
+/** One sentence for the whole refusal. Mixed kinds get a sentence that covers them all. */
+function issueMessage(issues: CheckoutIssue[]): string {
+  const kinds = new Set(issues.map((i) => i.kind));
+  const [kind] = kinds;
+  if (kinds.size > 1 || !kind) return "Your cart changed since you filled it — please review it.";
+  const [one, many] = ISSUE_MESSAGES[kind];
+  return issues.length > 1 ? many : one;
+}
+
 /** Accept either lookup shape without making every caller branch. */
 function normalizeLookup(result: Map<string, number> | ScopedPrices): {
   prices: Map<string, number>;
@@ -158,7 +206,7 @@ export async function verifyCheckout(
   options: VerifyCheckoutOptions = {},
 ): Promise<CheckoutVerification> {
   if (!Array.isArray(lines) || lines.length === 0) {
-    return { ok: false, reason: "empty", message: "Your cart is empty." };
+    return { ok: false, reason: "empty", message: "Your cart is empty.", issues: [] };
   }
 
   const parsed: ClientLine[] = [];
@@ -176,7 +224,7 @@ export async function verifyCheckout(
       typeof l.unitPriceCents !== "number" ||
       !Number.isFinite(l.unitPriceCents)
     ) {
-      return { ok: false, reason: "invalid", message: "That cart isn't valid." };
+      return { ok: false, reason: "invalid", message: "That cart isn't valid.", issues: [] };
     }
     parsed.push({ variantId: l.variantId, quantity: l.quantity, unitPriceCents: l.unitPriceCents });
   }
@@ -185,44 +233,20 @@ export async function verifyCheckout(
     await lookup([...new Set(parsed.map((l) => l.variantId))], options.scope),
   );
 
-  const verified: VerifiedLine[] = [];
-  let subtotalCents = 0;
-  for (const line of parsed) {
-    // Checked before the price, because a sold-out variant is usually still
-    // priced: reading `prices` first would report it as available and let the
-    // charge through.
-    if (outOfStock.has(line.variantId)) {
-      return {
-        ok: false,
-        reason: "out-of-stock",
-        message: "An item in your cart just sold out.",
-      };
-    }
-    const serverPrice = prices.get(line.variantId);
-    if (serverPrice === undefined) {
-      return {
-        ok: false,
-        reason: "unavailable",
-        message: "An item in your cart is no longer available.",
-      };
-    }
-    if (serverPrice !== line.unitPriceCents) {
-      return {
-        ok: false,
-        reason: "price-changed",
-        message: "Prices changed — please review your cart.",
-      };
-    }
-    const lineSubtotal = serverPrice * line.quantity;
-    verified.push({
-      variantId: line.variantId,
-      quantity: line.quantity,
-      unitPriceCents: serverPrice,
-      subtotalCents: lineSubtotal,
-    });
-    subtotalCents += lineSubtotal;
-  }
+  // No `liveModifierIds`, so the add-on check is skipped and every issue is a
+  // variant one — which is what makes the narrowing to CheckoutIssue true.
+  const issues = cartIssues(parsed, { prices, outOfStock }) as CheckoutIssue[];
+  const [first] = issues;
+  if (first) return { ok: false, reason: first.kind, message: issueMessage(issues), issues };
 
+  // Every line is now known to be priced, and at the price the customer saw.
+  const verified: VerifiedLine[] = parsed.map((line) => ({
+    variantId: line.variantId,
+    quantity: line.quantity,
+    unitPriceCents: line.unitPriceCents,
+    subtotalCents: line.unitPriceCents * line.quantity,
+  }));
+  const subtotalCents = verified.reduce((sum, l) => sum + l.subtotalCents, 0);
   return { ok: true, lines: verified, subtotalCents };
 }
 

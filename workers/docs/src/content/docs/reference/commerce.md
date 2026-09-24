@@ -26,6 +26,28 @@ amount. Rejects non-integer, negative, and absurd quantities.
 Refusal reasons: `"empty"`, `"invalid"`, `"price-changed"`, `"unavailable"`,
 `"out-of-stock"`.
 
+### Every stale line at once
+
+A refusal carries `issues`: every line that disagrees with the catalog, in cart
+order, each with what the catalog says now. `reason` is the first of them. A
+refusal that named only the first problem would leave the customer to fix one
+line, retry, and get refused over the next.
+
+```ts
+import { repairCart } from "louise-toolkit/commerce";
+
+if (!check.ok) {
+  // e.g. [{ kind: "price-changed", variantId: "V1", unitPriceCents: 1800, wasCents: 1500 },
+  //       { kind: "unavailable", variantId: "V2" }]
+  const { lines, changes } = repairCart(cart, check.issues);
+}
+```
+
+`repairCart` reprices changed lines and removes sold-out and delisted ones in one
+step, and returns each change so the page can tell the customer what moved.
+`issues` is empty for `"empty"` and `"invalid"`, which are about the request, not
+the catalog. The scaffolded checkout route returns `issues` in its 409 body.
+
 ### Per-location pricing
 
 One catalog sold through several merchants carries a different price per
