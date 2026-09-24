@@ -57,6 +57,11 @@ const ARCHETYPES = Object.keys(ARCHETYPE_SECTIONS);
 // consumer, the webhook receiver, and the cron safety net.
 const COMMERCE_PROVIDERS = ["square", "stripe", "fourthwall"];
 
+// Square's location model (`commerce.square.locations`). `multi` is the
+// multi-merchant shape: the location comes from the request, not the
+// environment, and the checkout route is scaffolded around resolving it.
+const SQUARE_LOCATIONS = ["single", "multi"];
+
 // --- args ------------------------------------------------------------------
 function parseArgs(argv) {
   const flags = {};
@@ -189,8 +194,17 @@ function astroidConfigSource(config) {
     `    colors: { brand: ${JSON.stringify(config.theme.colors.brand)} },`,
     "  },",
     `  sections: ${JSON.stringify(config.sections)},`,
+    // `square` must be emitted too: `astroid doctor` derives the required
+    // secrets from THIS file, so a multi-location project whose config lost the
+    // option would be told it is missing a SQUARE_LOCATION_ID it must not have.
     ...(config.commerce
-      ? [`  commerce: { provider: ${JSON.stringify(config.commerce.provider)} },`]
+      ? [
+          `  commerce: { provider: ${JSON.stringify(config.commerce.provider)}${
+            config.commerce.square?.locations
+              ? `, square: { locations: ${JSON.stringify(config.commerce.square.locations)} }`
+              : ""
+          } },`,
+        ]
       : []),
     // Must be emitted, for the same reason the portal is: `astroid generate`
     // rebuilds the middleware and CSP from THIS file, so a config that dropped
@@ -244,6 +258,9 @@ Options:
   --host <domain>       Primary domain, e.g. example.com
   --commerce <provider> ${COMMERCE_PROVIDERS.join(" | ")}
                         Also adds the queue consumer, webhook receiver, and cron
+  --square-locations <n> ${SQUARE_LOCATIONS.join(" | ")}   (default: single; needs --commerce square)
+                        multi: one Square Location per merchant, resolved from
+                        the request host — no SQUARE_LOCATION_ID
   --map                 Add the self-hosted PMTiles/MapLibre location map
   --pwa                 Add an installable PWA: a scoped service worker that
                         never caches /api/* or the editor, plus a manifest
@@ -317,6 +334,22 @@ async function main() {
     );
     process.exit(1);
   }
+  // Refused, not ignored, without Square: the checkout route is scaffolded ONCE,
+  // so a multi-merchant store that silently got the single-location route would
+  // ring every sale against one ambient SQUARE_LOCATION_ID — and look fine doing it.
+  const squareLocationsRaw = flags["square-locations"];
+  const squareLocations =
+    typeof squareLocationsRaw === "string" ? squareLocationsRaw.toLowerCase() : undefined;
+  if (squareLocationsRaw !== undefined && !SQUARE_LOCATIONS.includes(squareLocations)) {
+    process.stderr.write(
+      `create-astroid: --square-locations expects ${SQUARE_LOCATIONS.join(" | ")}\n`,
+    );
+    process.exit(1);
+  }
+  if (squareLocations && commerce !== "square") {
+    process.stderr.write("create-astroid: --square-locations needs --commerce square\n");
+    process.exit(1);
+  }
 
   if (existsSync(dir) && readdirSync(dir).length > 0) {
     process.stderr.write(`create-astroid: target directory is not empty: ${dir}\n`);
@@ -330,7 +363,14 @@ async function main() {
     ...(host ? { hosts: [host] } : {}),
     theme: { name, colors: { brand: color } },
     sections: ARCHETYPE_SECTIONS[archetype],
-    ...(commerce ? { commerce: { provider: commerce } } : {}),
+    ...(commerce
+      ? {
+          commerce: {
+            provider: commerce,
+            ...(squareLocations ? { square: { locations: squareLocations } } : {}),
+          },
+        }
+      : {}),
     // Unprefixed `user`/`session` (customers — email + password), so the studio's
     // `louise_`-prefixed tables and the portal's never collide (mirrors the
     // reference storefront). `signUp: true` because a shop lets customers register.

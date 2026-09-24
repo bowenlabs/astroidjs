@@ -38,6 +38,9 @@ pnpm create astroid [directory] [options]
   --host <domain>       Primary domain, e.g. example.com
   --commerce <provider> square | stripe | fourthwall — also adds the queue
                         consumer, webhook receiver, and cron safety net
+  --square-locations <n> single | multi — with --commerce square; multi is one
+                        Square Location per merchant, resolved from the request
+                        host rather than SQUARE_LOCATION_ID
   --map                 Self-hosted PMTiles/MapLibre location map
   --pwa                 Installable PWA: a scoped service worker that never
                         caches /api/* or the editor, plus a manifest

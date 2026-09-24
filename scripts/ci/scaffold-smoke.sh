@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scaffold a project the way a stranger would, and build it.
 #
-#   scripts/ci/scaffold-smoke.sh <archetype> <workdir>
+#   scripts/ci/scaffold-smoke.sh <archetype> <workdir> [create-astroid flags...]
 #
 # This is the only check that exercises `packages/create-astroid/template/`.
 # Nothing type-checks that tree until it is scaffolded: its files carry
@@ -16,10 +16,18 @@
 # Here `louise-toolkit` and `@louise-toolkit/astro` install from npm exactly as a
 # user gets them, and only `astroidjs` — the thing this repo builds — is pinned to
 # a local tarball. A broken published range now fails here.
+#
+# Anything after <workdir> goes to create-astroid verbatim. That is how the
+# flag-gated scaffold gets compiled: `--commerce square` is what writes the
+# checkout route, the card input and the webhook receiver, and it is also what
+# writes the `SQUARE_*` / `COMMERCE_QUEUE` members of src/env.d.ts they compile
+# against. Bolting `commerce` onto an already-scaffolded project gets the files
+# without the declarations, which is not a test of anything a user runs.
 set -euo pipefail
 
-ARCHETYPE="${1:?usage: scaffold-smoke.sh <archetype> <workdir>}"
-WORK="${2:?usage: scaffold-smoke.sh <archetype> <workdir>}"
+ARCHETYPE="${1:?usage: scaffold-smoke.sh <archetype> <workdir> [create-astroid flags...]}"
+WORK="${2:?usage: scaffold-smoke.sh <archetype> <workdir> [create-astroid flags...]}"
+shift 2
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 
 PACK="$WORK/pack"
@@ -68,9 +76,9 @@ JSON
 
 corepack pnpm add "$CREATE_TGZ" >/dev/null
 
-echo "==> scaffolding ($ARCHETYPE)"
+echo "==> scaffolding ($ARCHETYPE${*:+ $*})"
 node ./node_modules/create-astroid/index.mjs smoke \
-  --key smoke --name "Smoke Site" --archetype "$ARCHETYPE"
+  --key smoke --name "Smoke Site" --archetype "$ARCHETYPE" "$@"
 
 echo "==> the scaffold declares the versions it was built against"
 node "$REPO/scripts/ci/checks/scaffold-versions.mjs" smoke ./node_modules/create-astroid
@@ -101,4 +109,4 @@ corepack pnpm install
 corepack pnpm exec astro check
 corepack pnpm exec astro build
 
-echo "==> OK: $ARCHETYPE scaffolds, type-checks and builds"
+echo "==> OK: $ARCHETYPE${*:+ ($*)} scaffolds, type-checks and builds"

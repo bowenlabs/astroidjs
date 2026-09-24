@@ -47,6 +47,13 @@ scripts/ci/scaffold-smoke.sh marketing /tmp/smoke
 is the only check that ever compiles it, and the only one that can catch damage
 to it. Run it for any change under `template/`.
 
+Flags after the workdir go to create-astroid, and that matters for anything
+flag-gated: the commerce files (`checkout.ts`, `SquareCard.astro`, the webhook
+receiver) exist only in a `--commerce square` scaffold, so a change to the
+commerce generators needs `scaffold-smoke.sh storefront /tmp/smoke --commerce
+square` — and `--square-locations multi` as well for the checkout route. CI runs
+both legs.
+
 ## Verifying a change
 
 Run the full set, not just the tests, and **check exit codes** rather than
