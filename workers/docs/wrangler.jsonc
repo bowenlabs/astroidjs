@@ -1,6 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "astroidjs-docs",
+  // Must equal the Worker's name in the Cloudflare dashboard, or Workers Builds
+  // refuses every build before it starts. The Worker that holds
+  // docs.astroidjs.org and the build connection is `astroidjs-org` — this said
+  // `astroidjs-docs` from the first deploy, and the live docs sat on that
+  // hand-uploaded version while every build failed (see RELEASING.md).
+  "name": "astroidjs-org",
   "compatibility_date": "2026-06-20",
 
   // An assets-only Worker: no `main`, no script. `astro build` emits a plain
