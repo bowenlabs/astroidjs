@@ -18,7 +18,7 @@ import { astroidVitalsDataset } from "../src/analytics/index.js";
 import { generateAstroidCheckoutEnv } from "../src/commerce/checkout-scaffold.js";
 import { generateAstroidScaffoldFiles } from "../src/project/scaffold.js";
 import { generateAstroidRealtimeEnv } from "../src/realtime/scaffold.js";
-import { generateAstroidWorker } from "../src/worker/generate.js";
+import { generateAstroidMiddleware, generateAstroidWorker } from "../src/worker/generate.js";
 import { astroidSecretNames } from "../src/status.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/worker/routes.js";
 
@@ -307,6 +307,42 @@ describe("site health", () => {
     const worker = generateAstroidWorker(base);
     expect(worker).toContain('checkLinks({ base: origin, paths: ["/"] }).catch(() => [])');
     expect(worker).toContain("return 0;");
+  });
+});
+
+describe("API gate (ADR 0012)", () => {
+  const archetypes = ["marketing", "storefront", "wholesale", "portfolio"] as const;
+
+  it("turns the worker's deny-by-default gate on for every archetype", () => {
+    // The toolkit ships the gate opt-in; the opinion that every Astroid site
+    // runs with it belongs here. Without it, an editor route that forgets its
+    // own guard is open to anyone.
+    for (const archetype of archetypes) {
+      const worker = generateAstroidWorker({ ...base, archetype });
+      expect(worker, archetype).toContain("  gate: { resolveEditor },");
+    }
+  });
+
+  it("gives the gate the same resolver the routes get, so one session lookup serves both", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain('import { resolveEditor } from "./auth.js";');
+    expect(routeLine(worker, "pagesRoute")).toContain("resolveEditor");
+  });
+
+  it("turns the middleware's gate on for /api/louise routes that reach Astro", () => {
+    for (const archetype of archetypes) {
+      const middleware = generateAstroidMiddleware({ ...base, archetype });
+      expect(middleware, archetype).toContain("  apiGate: true,");
+    }
+  });
+
+  it("scaffolds new projects with global_fetch_strictly_public", () => {
+    // Scaffold-once: existing projects keep their wrangler.jsonc, so this
+    // reaches new sites only — deliberately, since the flag reroutes a site's
+    // own health-scan crawl.
+    expect(generateAstroidWrangler(base)).toContain(
+      '"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"]',
+    );
   });
 });
 

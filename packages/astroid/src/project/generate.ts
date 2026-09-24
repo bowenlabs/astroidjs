@@ -134,7 +134,13 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  // Pin your account so deploys don't prompt (or set CLOUDFLARE_ACCOUNT_ID).");
   p('  // "account_id": "<your-cloudflare-account-id>",');
   p(`  "compatibility_date": ${JSON.stringify(COMPATIBILITY_DATE)},`);
-  p('  "compatibility_flags": ["nodejs_compat"],');
+  // global_fetch_strictly_public (ADR 0012): a fetch to the site's own zone goes
+  // in through Cloudflare's front door, past the WAF, like any Internet request.
+  p("  // global_fetch_strictly_public: a fetch to this zone goes through Cloudflare's");
+  p("  // front door like any Internet request, past the WAF and bot rules (ADR 0012).");
+  p("  // If the daily health scan starts reporting broken links that aren't, a zone");
+  p("  // rule is challenging its self-crawl — allow it rather than drop the flag.");
+  p('  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],');
   p("  // @astrojs/cloudflare builds this entry and wires the static assets under dist/.");
   p('  "main": "src/worker.ts",');
   const tenancy = config.tenancy;

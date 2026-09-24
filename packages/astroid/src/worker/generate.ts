@@ -394,6 +394,13 @@ export function generateAstroidWorker(config: AstroidConfig): string {
       : "export default composeWorker<CloudflareEnv>({",
   );
   p("  routes: [...editorRoutes, mediaAssetRoute],");
+  p("  // Deny-by-default editor API (ADR 0012). Under /api/louise a request must");
+  p("  // resolve to an editor unless it's headed for a public route — the contact");
+  p("  // form and the vitals beacon mark themselves. Every route above still checks");
+  p("  // for itself; this is what catches one that forgets. It also gives route");
+  p("  // responses the security headers the middleware never sees, since these");
+  p("  // routes answer before Astro runs.");
+  p("  gate: { resolveEditor },");
   p("  // The SSR fallback, wrapped in the cookie-aware Worker cache (ADR 0004).");
   p("  //");
   p("  // Wrapped UNCONDITIONALLY, and that is safe: `withEdgeCache` only stores a");
@@ -569,6 +576,10 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "export const onRequest = createLouiseMiddleware({",
     "  resolveEditor: (request) => resolveEditor(request),",
     "  rateLimit: { rules: RATE_RULES, kv: () => env.RL },",
+    "  // The same deny-by-default gate for /api/louise routes that reach Astro —",
+    "  // anything the worker's routes didn't answer. A second check behind the",
+    "  // worker's gate, and free: the editor is resolved here on every request.",
+    "  apiGate: true,",
     // `extend` runs once and may need to populate BOTH — a tenanted site with a
     // portal resolves a tenant and a customer on the same request.
     ...(portal || tenancy
