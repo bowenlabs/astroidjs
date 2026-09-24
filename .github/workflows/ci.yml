@@ -64,6 +64,9 @@ jobs:
       # through its real `exports` map. In the monorepo they were aliased to the
       # library's source, which meant they could pass against symbols that were
       # never publicly re-exported. A subpath that stops resolving now fails here.
+      #
+      # The test script runs with `--coverage`, and vitest.config.ts gates lines
+      # and statements at 80%. A drop below the floor fails this step.
       - name: Test
         run: corepack pnpm run test
 
