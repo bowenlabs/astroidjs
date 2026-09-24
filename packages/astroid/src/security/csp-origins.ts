@@ -8,40 +8,20 @@
 // Both have to see the same origin set, or a module's stylesheet host lands in
 // one half of the policy and not the other.
 
+import { squareWebPaymentsCsp } from "louise-toolkit/commerce/square-web";
 import { astroidCommerceProviders } from "../commerce/roles.js";
 import type { AstroidConfig, CspOrigins } from "../config.js";
 
 /** Origins a commerce provider's client-side SDK needs. Server-only providers
  *  (Fourthwall's storefront API) contribute nothing but their image host. */
 const COMMERCE_ORIGINS: Record<string, CspOrigins> = {
-  // Square Web Payments renders the card form in an iframe from the squarecdn
-  // hosts, tokenizes against pci-connect, and pulls its own fonts. Both the
-  // sandbox and production hosts are listed so ONE build serves either
-  // environment — which environment you're in is a runtime secret, not a
+  // Square Web Payments, from the toolkit that mounts it, so a host Square adds
+  // arrives with an upgrade instead of as a console violation on every site. A
+  // hand copy lived here and had already missed two (Square's Sentry ingest,
+  // and Cash Sans's font host). Both environments by default, so ONE build
+  // serves either: which environment you're in is a runtime secret, not a
   // build-time one.
-  square: {
-    script: ["https://sandbox.web.squarecdn.com", "https://web.squarecdn.com"],
-    frame: [
-      "https://sandbox.web.squarecdn.com",
-      "https://web.squarecdn.com",
-      "https://connect.squareupsandbox.com",
-      "https://connect.squareup.com",
-    ],
-    connect: [
-      "https://pci-connect.squareupsandbox.com",
-      "https://pci-connect.squareup.com",
-      "https://sandbox.web.squarecdn.com",
-      "https://web.squarecdn.com",
-    ],
-    // Web Payments SDK 1.85+ attaches its own `card-wrapper.css` to the HOST
-    // page (not just inside the iframe). Block it and `card.attach()` rejects,
-    // so the card form never mounts.
-    style: ["https://sandbox.web.squarecdn.com", "https://web.squarecdn.com"],
-    font: [
-      "https://square-fonts-production-f.squarecdn.com",
-      "https://d1g145x70srn7h.cloudfront.net",
-    ],
-  },
+  square: squareWebPaymentsCsp(),
   // Stripe.js and its Elements/Checkout iframes.
   stripe: {
     script: ["https://js.stripe.com"],

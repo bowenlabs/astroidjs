@@ -85,6 +85,19 @@ describe("astroidSecurity", () => {
     );
   });
 
+  it("takes Square's origins from the toolkit, including hosts a hand copy missed", () => {
+    // The list used to be copied here by hand, and fell behind: Square's own
+    // Sentry ingest (a console violation on every checkout) and Cash Sans's
+    // font host (card-wrapper.css's font, blocked) were both missing.
+    const square: AstroidConfig = { ...base, commerce: { provider: "square" } };
+    expect(directive(square, "connect-src")).toContain("https://o160250.ingest.sentry.io");
+    expect(directive(square, "font-src")).toContain("https://cash-f.squarecdn.com");
+    // No wallets: Astroid mounts the card form only, so Google Pay stays out.
+    expect(astroidSecurity(square).csp.scriptDirective.resources).not.toContain(
+      "https://pay.google.com",
+    );
+  });
+
   it("merges config-supplied origins and de-duplicates", () => {
     const withExtras: AstroidConfig = {
       ...base,

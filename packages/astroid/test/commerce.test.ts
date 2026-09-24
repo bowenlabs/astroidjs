@@ -1,3 +1,4 @@
+import { repairCart } from "louise-toolkit/commerce";
 import { describe, expect, it, vi } from "vitest";
 import {
   fourthwallToCatalogItem,
@@ -536,6 +537,63 @@ describe("verifyCheckout", () => {
       lookup,
     );
     expect(lookup.mock.calls[0]?.[0]).toEqual(["V1"]);
+  });
+
+  it("reports every stale line at once, with the live price", async () => {
+    // Refusing over the first problem only is a loop: fix one line, retry,
+    // get refused over the next. The whole list comes back, in cart order.
+    const res = await verifyCheckout(
+      [
+        { variantId: "OK", quantity: 1, unitPriceCents: 500 },
+        { variantId: "V1", quantity: 1, unitPriceCents: 1500 },
+        { variantId: "GONE", quantity: 1, unitPriceCents: 100 },
+      ],
+      prices({ OK: 500, V1: 1800 }),
+    );
+    expect(res).toEqual({
+      ok: false,
+      reason: "price-changed",
+      message: "Your cart changed since you filled it — please review it.",
+      issues: [
+        { kind: "price-changed", variantId: "V1", unitPriceCents: 1800, wasCents: 1500 },
+        { kind: "unavailable", variantId: "GONE" },
+      ],
+    });
+  });
+
+  it("words one kind of problem across several lines in the plural", async () => {
+    const res = await verifyCheckout(
+      [
+        { variantId: "A", quantity: 1, unitPriceCents: 100 },
+        { variantId: "B", quantity: 1, unitPriceCents: 100 },
+      ],
+      prices({}),
+    );
+    expect(res).toMatchObject({
+      reason: "unavailable",
+      message: "Some items in your cart are no longer available.",
+    });
+  });
+
+  it("carries no issues when the request itself is the problem", async () => {
+    expect(await verifyCheckout([], prices({}))).toMatchObject({ issues: [] });
+    expect(await verifyCheckout([{ nope: true }], prices({}))).toMatchObject({ issues: [] });
+  });
+
+  it("returns issues repairCart can apply in one step", async () => {
+    const cart = [
+      { variantId: "V1", quantity: 2, unitPriceCents: 1500 },
+      { variantId: "GONE", quantity: 1, unitPriceCents: 100 },
+    ];
+    const res = await verifyCheckout(cart, prices({ V1: 1800 }));
+    if (res.ok) throw new Error("expected a refusal");
+    const repaired = repairCart(cart, res.issues);
+    expect(repaired.lines).toEqual([{ variantId: "V1", quantity: 2, unitPriceCents: 1800 }]);
+    // …and the repaired cart goes straight through.
+    expect(await verifyCheckout(repaired.lines, prices({ V1: 1800 }))).toMatchObject({
+      ok: true,
+      subtotalCents: 3600,
+    });
   });
 });
 
