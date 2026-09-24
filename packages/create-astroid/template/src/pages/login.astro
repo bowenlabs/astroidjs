@@ -45,9 +45,9 @@ const siteKey = turnstileSiteKey(env);
           </label>
           {
             siteKey && (
-              /* Turnstile injects a hidden `cf-turnstile-response` input here once
-                 it solves. The submit handler reads it out of the form. */
-              <div class="cf-turnstile" data-sitekey={siteKey} data-size="flexible" />
+              /* Rendered explicitly by the script below, which reads the key
+                 from here — a processed script can't take `define:vars`. */
+              <div id="captcha" data-sitekey={siteKey} />
             )
           }
           <button type="submit" class="btn btn-primary">Email me a sign-in link</button>
@@ -57,43 +57,45 @@ const siteKey = turnstileSiteKey(env);
     </div>
   </main>
 
-  {
-    /* Turnstile's widget script. `is:inline` because it's a remote src Astro must
-       not process; the CSP already allows challenges.cloudflare.com for script,
-       frame, and connect (astroidSecurity). Only loaded when there's a widget. */
-    siteKey && (
-      <script
-        is:inline
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-        async
-        defer
-      />
-    )
-  }
-
-  {/* Processed (NOT is:inline) so Astro's security.csp hashes it into script-src.
-      Keep it dependency-free and static — an is:inline or define:vars script here
-      would be unhashable and CSP-blocked. */}
+  {/* Processed (NOT is:inline) so Astro's security.csp hashes it into script-src,
+      and bundles the import. The widget's own script is loaded by
+      `renderTurnstile` from challenges.cloudflare.com, which the CSP already
+      allows for script, frame and connect (astroidSecurity). */}
   <script>
-    const form = document.getElementById("magic");
+    import { renderTurnstile, type TurnstileWidget } from "louise-toolkit/forms/turnstile";
+
+    const form = document.getElementById("magic") as HTMLFormElement | null;
     const msg = document.getElementById("msg");
+    const captcha = document.getElementById("captcha");
+
+    // Absent when no real site key is set — then the server's captcha plugin is
+    // off too, and the request goes without a token.
+    let widget: TurnstileWidget | null = null;
+    const ready = captcha?.dataset.sitekey
+      ? renderTurnstile(captcha, { siteKey: captcha.dataset.sitekey, size: "flexible" })
+          .then((w) => {
+            widget = w;
+          })
+          .catch(() => {
+            // The server will refuse a request without a token, so say so now
+            // rather than after the owner has typed their email.
+            if (msg) msg.textContent = "The sign-in check didn't load — reload the page to try again.";
+          })
+      : Promise.resolve();
+
     form?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const input = document.getElementById("email") as HTMLInputElement | null;
       const email = input?.value.trim();
       if (!email || !msg) return;
+      await ready;
+      if (captcha && !widget) return; // the load failure is already on screen
       msg.textContent = "Sending…";
-      // Turnstile writes its token into a hidden input it injects into the form.
-      // Better Auth's captcha plugin reads it from the `x-captcha-response`
-      // HEADER (not the body), and rejects the request outright when it's
-      // missing — so this header is what makes a captcha-enabled sign-in work.
-      // Absent when no widget rendered, in which case the plugin isn't active
-      // either and the header is simply not sent.
-      const token = (form as HTMLFormElement).querySelector<HTMLInputElement>(
-        'input[name="cf-turnstile-response"]',
-      )?.value;
+      // Better Auth's captcha plugin reads the token from the `x-captcha-response`
+      // HEADER (not the body), and rejects the request outright when it's missing.
+      const token = widget?.token();
       try {
-        await fetch("/api/auth/sign-in/magic-link", {
+        const res = await fetch("/api/auth/sign-in/magic-link", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -101,9 +103,17 @@ const siteKey = turnstileSiteKey(env);
           },
           body: JSON.stringify({ email, callbackURL: "/?louise" }),
         });
-        msg.textContent = "If that email is an editor, a sign-in link is on its way.";
+        // Enumeration-safe either way: a non-editor gets the same 200 as an
+        // editor, so a failure here is the captcha, a rate limit, or an outage.
+        msg.textContent = res.ok
+          ? "If that email is an editor, a sign-in link is on its way."
+          : "That didn't go through — please try again.";
       } catch {
         msg.textContent = "Something went wrong — please try again.";
+      } finally {
+        // A token is single-use, and this one is spent whatever happened. Without
+        // a fresh one, "send it again" posts the spent token and is refused.
+        widget?.reset();
       }
     });
   </script>
