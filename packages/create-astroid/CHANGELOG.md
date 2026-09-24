@@ -1,5 +1,33 @@
 # create-astroid
 
+## 0.7.0
+
+> **0.6.0 was never published to npm.** It was versioned but not released, so this is the first release after 0.5.1. Upgrading from 0.5.1 takes the 0.6.0 changes below as well, including its breaking ones.
+
+### Minor Changes
+
+- cb19d48: `--square-locations <single|multi>` scaffolds a multi-merchant Square store directly.
+
+  **What changed.** `commerce.square.locations: "multi"` has been in `astroidjs` for a while (the location comes from the request host, not `SQUARE_LOCATION_ID`), but `create-astroid` had no way to ask for it. The checkout route is scaffold-once, so a store that wanted it had to scaffold single-location, edit `astroid.config.ts`, delete `src/pages/api/checkout.ts` and `src/components/SquareCard.astro`, and run `astroid generate`. Now `pnpm create astroid --commerce square --square-locations multi` writes the multi-merchant checkout route and card input, and records `square: { locations: "multi" }` in `astroid.config.ts`, so `astroid doctor` stops flagging a `SQUARE_LOCATION_ID` the project must not have.
+
+  **What you have to do.** Nothing, for an existing project. The flag needs `--commerce square` and exits with an error without it, rather than scaffolding a single-location route a multi-merchant store would silently charge through. The generated `resolveLocationId` refuses every checkout until you map your hosts to Square location ids — deliberately, so an unwired store takes no money rather than the wrong money.
+
+- eca22e9: **The scaffolded sign-in page no longer strands a second "email me a link".** A Turnstile token is single-use, and `login.astro` never asked for a fresh one. After the first send, every later send (a typo'd address, "didn't get it, send again") posted the spent token. Better Auth's captcha plugin refused it, and the page said "a sign-in link is on its way" anyway, because it never read the response.
+
+  The page now renders the widget with `renderTurnstile` (`louise-toolkit/forms/turnstile`) and resets it after every send. A failed request (a captcha refusal, a rate limit or an outage) says "please try again" instead of claiming success. A non-editor address still gets the same response as an editor's, so the page reveals nothing about who is an editor. If Turnstile's script can't load, the page says so before the owner types anything.
+
+  Existing projects: `login.astro` is scaffolded once and yours to edit, so this reaches new projects only. To take the fix, copy the new page's `<script>` and the `#captcha` element from a fresh scaffold.
+
+  Turnstile's CSP origins now come from `turnstileCsp()` too, like Square's. Same three hosts, so nothing changes in the policy.
+
+  Both packages now require `louise-toolkit` `^0.30.1`, the release that adds the `forms/turnstile` subpath. create-astroid also requires `@louise-toolkit/astro` `^0.2.1`, the adapter release built against it.
+
+### Patch Changes
+
+- Updated dependencies [fe0a198]
+- Updated dependencies [eca22e9]
+  - astroidjs@0.12.0
+
 ## 0.6.0
 
 ### Minor Changes
