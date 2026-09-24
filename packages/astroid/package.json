@@ -62,7 +62,7 @@
   "scripts": {
     "build": "tsgo -p tsconfig.build.json",
     "prepublishOnly": "node ../../scripts/ci/checks/dist-present.mjs",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
@@ -71,6 +71,7 @@
   "devDependencies": {
     "@types/node": "^24.13.3",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
+    "@vitest/coverage-v8": "4.1.11",
     "astro": "^7.2.9",
     "solid-js": "^1.9.15",
     "typescript": "^5.9.3",
