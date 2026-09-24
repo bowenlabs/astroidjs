@@ -26,6 +26,6 @@ allowBuilds:
 # they expire on their own: the next toolkit bump is gated again, and these two
 # lines become inert and can be deleted.
 minimumReleaseAgeExclude:
-  - "@louise-toolkit/astro@0.1.0 || 0.1.1 || 0.2.0 || 0.2.1"
-  - louise-toolkit@0.27.0 || 0.28.0 || 0.30.0 || 0.30.1
+  - "@louise-toolkit/astro@0.1.0 || 0.1.1 || 0.2.0 || 0.2.1 || 0.2.2"
+  - louise-toolkit@0.27.0 || 0.28.0 || 0.30.0 || 0.30.1 || 0.31.0
   - knip@6.34.0
