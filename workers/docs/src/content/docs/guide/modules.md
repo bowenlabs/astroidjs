@@ -106,8 +106,8 @@ Two properties are worth knowing:
 - **It augments, it does not replace.** With the module off, the socket unopened,
   or the connection dropped, the client falls back to the existing debounced
   auto-save. Realtime is an accelerator, never a dependency.
-- **There is one write path.** The session's flush goes through `applySaveDraft`
-  —the same merge-over-pending-draft the fetch auto-save uses—so drafts,
+- **There is one write path.** The session's flush goes through `applySaveDraft`—the
+  same merge-over-pending-draft the fetch auto-save uses—so drafts,
   version history, publish semantics, and read-your-writes are all unchanged. The
   DO is a new front end to that path, not a parallel store.
 

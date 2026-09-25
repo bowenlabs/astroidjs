@@ -112,8 +112,8 @@ which is the drift the module exists to kill.
 **Checkout is server-authoritative.** `verifyCheckout` treats the client's price
 as a staleness check, never an input to the charge: re-price server-side, refuse
 on mismatch. `checkoutIdempotencyKey` derives a stable key from the verified cart
-**and a required `identity`**, so a double-clicked Pay button charges once—
-while two customers buying the same thing stay two charges.
+**and a required `identity`**, so a double-clicked Pay button charges once—while
+two customers buying the same thing stay two charges.
 
 ```ts
 const key = await checkoutIdempotencyKey(check, "order", cartId);
@@ -202,8 +202,8 @@ no `astro-seo` dependency.
 clearing a field in the editor falls back instead of publishing a blank `<meta>`.
 The title template applies only when a page supplies its own title, so the home
 page reads `Acme Coffee`, not `Acme Coffee | Acme Coffee`. `disableIndexing` in
-settings is a site-wide kill switch that beats any page asking to be indexed—
-useful for staging.
+settings is a site-wide kill switch that beats any page asking to be indexed—useful
+for staging.
 
 `<StructuredData>` emits a schema.org `@graph`: the business, the `WebSite`, and
 optionally the entity the page is _about_ (a Product, a VisualArtwork). The
@@ -262,8 +262,8 @@ the captcha frame); `security.cspOrigins` adds anything Astroid can't see.
 
 Astroid's optional modules are opt-in at the _config_ level, never at the
 _account_ level: switching commerce on must not require a Square account before
-`pnpm dev` will boot. So a module whose secrets aren't provisioned is **dormant**
-—it renders, it serves, it says out loud that it's simulated, and it never calls
+`pnpm dev` will boot. So a module whose secrets aren't provisioned is **dormant**—it
+renders, it serves, it says out loud that it's simulated, and it never calls
 upstream with a dummy credential. A fresh clone runs with zero external accounts.
 
 `create-astroid` seeds every module secret with one loud sentinel,

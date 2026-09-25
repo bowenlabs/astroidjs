@@ -72,8 +72,8 @@ scripts/ci/scaffold-smoke.sh marketing /tmp/smoke
 ```
 
 `lint:release` loads the changesets stack. Nothing else does, so a dependency
-resolution that breaks releasing is otherwise invisible until you try to ship—
-which is how it was found.
+resolution that breaks releasing is otherwise invisible until you try to ship—which
+is how it was found.
 
 ## Tests resolve the PUBLISHED toolkit
 

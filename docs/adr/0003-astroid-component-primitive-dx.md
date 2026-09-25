@@ -110,7 +110,7 @@ const { as: Tag = "div", field, ...rest } = Astro.props;
 
 ### 5. `<Editable>` owns the `data-louise-*` marker contract; edit-mode is context, not per-section props
 
-The inline-edit markers the sites stamp by hand today—
+The inline-edit markers the sites stamp by hand today:
 `data-louise-sfield={edit ? \`${idx}.heading\` : undefined}`, plus
 `data-louise-multiline`—become the single responsibility of`<Editable>`. The
 `\_editMode`/`\_editIndex`pair stops being copy-pasted into every section's`Props`: it moves to an Astro context/slot the section library reads, so authors

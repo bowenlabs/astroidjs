@@ -73,10 +73,10 @@ Astro        →  renderer / router / build
     Astroid  →  opinions: theme, sections, config, scaffold  (astroidjs)
 ```
 
-- [`astroidjs`](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/astroid)
-  —the meta-framework and the `astroid` CLI this scaffold writes a project for
-- [`louise-toolkit`](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/louise)
-  —the underlying toolkit
+- [`astroidjs`](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/astroid)—the
+  meta-framework and the `astroid` CLI this scaffold writes a project for
+- [`louise-toolkit`](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/louise)—the
+  underlying toolkit
 
 ## License
 

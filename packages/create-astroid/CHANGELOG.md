@@ -97,8 +97,8 @@
 
 - 2227153: Astro support moves to `@louise-toolkit/astro`
 
-  **Breaking.** The `louise-toolkit/astro` subpath is gone. Its contents—
-  `createLouiseMiddleware`, the Action factories, `louiseLoader`,
+  **Breaking.** The `louise-toolkit/astro` subpath is gone. Its contents—`createLouiseMiddleware`,
+  the Action factories, `louiseLoader`,
   `defineCatalogLoader`, `formToAstroSchema`—now live in a new package, and
   `louise-toolkit` no longer declares Astro at all: no peer, no devDependency, no
   export, no keyword.
@@ -359,8 +359,8 @@
 
 - 3a8e08b: Storefront scaffolds now ship a working customer portal. `--archetype storefront`
   auto-enables the portal (a shop has customers who sign in), and the portal's Better
-  Auth instance uses **unprefixed** `user`/`session` tables with email + password—
-  matching the studio's `louise_`-prefixed tables without collision, and mirroring the
+  Auth instance uses **unprefixed** `user`/`session` tables with email + password—matching
+  the studio's `louise_`-prefixed tables without collision, and mirroring the
   reference storefront. The generated `0002_portal_auth.sql` now creates those tables
   with `customers: true` (the `account.password` column the seam needs), the scaffolded
   `astroid.config.ts` persists the portal's `tablePrefix`/`signUp` so a later `astroid
@@ -817,8 +817,8 @@ generate` stays consistent, and the CI scaffold smoke test applies **every** mig
 ### Minor Changes
 
 - af0cb91: Scaffolded sites now ship a real Content-Security-Policy. `astro.config.mjs`
-  enables Astro's `security.csp`, so every on-demand (SSR) page—all of ours—
-  gets a hash-based `content-security-policy` response header. The generated
+  enables Astro's `security.csp`, so every on-demand (SSR) page—all of ours—gets
+  a hash-based `content-security-policy` response header. The generated
   `src/middleware.ts` (`createLouiseMiddleware`, `cspStyleSrc: "'self' 'unsafe-inline'"`)
   then rewrites `style-src` to permit Louise's data-driven `style=""` carriers and
   the editor's runtime-injected `<style>`, and auto-allows the inlined `data:` brand
@@ -837,15 +837,14 @@ generate` stays consistent, and the CI scaffold smoke test applies **every** mig
     that the now-static (hashable) boot script reads; edit-mode gating and the
     `astro:page-load` re-boot are preserved.
 
-  A site that loads **Square Web Payments** must allow its SDK host in `script-src`
-  —`security: { csp: { scriptDirective: { resources: ["'self'", "https://web.squarecdn.com"] } } }`
+  A site that loads **Square Web Payments** must allow its SDK host in `script-src`—`security: { csp: { scriptDirective: { resources: ["'self'", "https://web.squarecdn.com"] } } }`
   —documented in the scaffolded `astro.config.mjs` rather than allowed by default.
 
 - 561775e: Scaffold the deploy paths (#104). The generated README now leads with two
   low-friction options—a **Deploy to Cloudflare** button (zero-CLI: Cloudflare
   clones the repo, provisions the bindings declared in `wrangler.jsonc`, and deploys)
-  and **`astroid deploy`** (one command: provision + migrate + secrets + deploy)—
-  with the by-hand `wrangler` steps kept as the fallback.
+  and **`astroid deploy`** (one command: provision + migrate + secrets + deploy)—with
+  the by-hand `wrangler` steps kept as the fallback.
 - 910a5dc: New package: `create-astroid`—the one-command scaffold for a new Astroid site
   (#104). `npm create astroid@latest my-site` writes the floor: the typed
   `defineAstroid` config, the generated schema/worker/middleware trio +

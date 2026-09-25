@@ -99,8 +99,8 @@
 
 - b35d566: fix(worker): the generated media route never matched, 404-ing every uploaded asset
 
-  `mediaAssetRoute` guarded with `url.pathname.startsWith(\`${MEDIA_BASE}/\`)`—
-  a pathname compared against an origin, which is false for every request that
+  `mediaAssetRoute` guarded with `url.pathname.startsWith(\`${MEDIA_BASE}/\`)`—a
+  pathname compared against an origin, which is false for every request that
   can exist. The route therefore never ran on any generated site: requests to the
   media host fell through to the SSR handler and every uploaded image, on every
   page, answered with the site's own 404 page.
@@ -205,8 +205,8 @@
   whether or not any tenant does.
 
   An app label is **implicitly reserved**: `tenantLabel` never offers it to
-  `resolveTenant`, and listing it in `reserved` too is refused at config time—
-  one list per fact, or the two drift. The generated middleware checks the
+  `resolveTenant`, and listing it in `reserved` too is refused at config time—one
+  list per fact, or the two drift. The generated middleware checks the
   static map first, inside the same `rewrite` hook the tenant dispatch uses, so
   ordering guarantees (after `guard`, outside `extend`'s try/catch) carry over
   unchanged.
@@ -296,8 +296,8 @@
 
   The message is **enqueued, never run inline**, so the work takes the same retry
   and DLQ path as everything else and a slow job can't hold the scheduled handler
-  open. It is typed `unknown` because the consumer owns the message vocabulary—
-  whatever you put there arrives at your `handleQueueMessage`'s `onMessage`.
+  open. It is typed `unknown` because the consumer owns the message vocabulary—whatever
+  you put there arrives at your `handleQueueMessage`'s `onMessage`.
 
   **Two config-time refusals**, both for failures that are otherwise silent:
 
@@ -355,8 +355,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
 
   Two additive changes, no break:
 
-  - **`refreshCatalog` now receives the message that triggered it**—
-    `(message: AstroidQueueMessage) => void | Promise<void>`. A zero-argument seam
+  - **`refreshCatalog` now receives the message that triggered it**—`(message: AstroidQueueMessage) => void | Promise<void>`.
+    A zero-argument seam
     stays valid, so existing consumers compile and behave identically.
   - **`catalogProvider`** scopes the dispatch. Set it and only that provider's
     webhooks trigger a refresh; leave it unset and any catalog-affecting webhook
@@ -747,8 +747,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
   field go through `sanitizeRichHtml` on write.
 
   Wired into both write paths—the collection's `beforeChange` hook (the
-  `versionsRoute` path) and `astroidPagesWriteHooks` (the raw `pagesRoute` path)—
-  so the two keep enforcing one contract.
+  `versionsRoute` path) and `astroidPagesWriteHooks` (the raw `pagesRoute` path)—so
+  the two keep enforcing one contract.
 
   Sites using the block layer must now set it:
 
@@ -796,8 +796,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
   The access token and webhook secret are unchanged, and other providers are
   untouched.
 
-  A `commerce.square` block with no role assigned to Square is now a config error—
-  otherwise a typo'd config looks like it opted into multi-location while nothing
+  A `commerce.square` block with no role assigned to Square is now a config error—otherwise
+  a typo'd config looks like it opted into multi-location while nothing
   reads the setting.
 
   **New exports:** `hasPos(commerce)`, `hasMultiLocation(commerce)`, and
@@ -1398,8 +1398,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
   `SESSION_SECRET`, and deploys.
 
   Plan-first + safe: it prints the exact commands it will run; `--dry-run` stops
-  there, and the irreversible steps only proceed on an interactive `y` (or `--yes`)—
-  non-interactively it refuses unless `--yes` is passed. `--local` targets the local
+  there, and the irreversible steps only proceed on an interactive `y` (or `--yes`)—non-interactively
+  it refuses unless `--yes` is passed. `--local` targets the local
   D1 for migrations. Replaces the previous "coming soon" stub.
 
 - 43a31f0: Fix `<Editable>` so it type-checks in a real consumer, and add its section-field
@@ -1415,8 +1415,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
   site's `FeatureGrid` section now stamps its inline-edit markers through `<Editable>`
   instead of by hand, verified to compile + build with `astro check` + `astro build`.
 
-- 1711a45: Add the `<Editable>` component primitive (ADR 0003, checklist item 1)—
-  `astroidjs/components/Editable.astro`. It owns the `data-louise-*` inline-edit
+- 1711a45: Add the `<Editable>` component primitive (ADR 0003, checklist item 1)—`astroidjs/components/Editable.astro`.
+  It owns the `data-louise-*` inline-edit
   marker contract so sites stop hand-stamping it: a typed, polymorphic prop surface
   (`as` + typed `...rest`, `collection`/`key`/`field`/`type`) that emits the markers
   the Louise client turns into in-place editors—but only in edit mode, so public
@@ -1435,8 +1435,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
   that invites and removes editors. Slotted after `mediaRoute`; no ordering
   constraint (it doesn't share the `/pages/:id` matcher).
 - af0cb91: Scaffolded sites now ship a real Content-Security-Policy. `astro.config.mjs`
-  enables Astro's `security.csp`, so every on-demand (SSR) page—all of ours—
-  gets a hash-based `content-security-policy` response header. The generated
+  enables Astro's `security.csp`, so every on-demand (SSR) page—all of ours—gets
+  a hash-based `content-security-policy` response header. The generated
   `src/middleware.ts` (`createLouiseMiddleware`, `cspStyleSrc: "'self' 'unsafe-inline'"`)
   then rewrites `style-src` to permit Louise's data-driven `style=""` carriers and
   the editor's runtime-injected `<style>`, and auto-allows the inlined `data:` brand
@@ -1455,8 +1455,7 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
     that the now-static (hashable) boot script reads; edit-mode gating and the
     `astro:page-load` re-boot are preserved.
 
-  A site that loads **Square Web Payments** must allow its SDK host in `script-src`
-  —`security: { csp: { scriptDirective: { resources: ["'self'", "https://web.squarecdn.com"] } } }`
+  A site that loads **Square Web Payments** must allow its SDK host in `script-src`—`security: { csp: { scriptDirective: { resources: ["'self'", "https://web.squarecdn.com"] } } }`
   —documented in the scaffolded `astro.config.mjs` rather than allowed by default.
 
 - 5383051: Add the `<Section>` dispatcher + a starter section library (ADR 0003, items 2 &
@@ -1469,8 +1468,8 @@ no-store`, so either nothing is cached and the offline fallback is empty, or a
   those unions derive from the token maps via `keyof typeof` so type and
   implementation can't drift.
 
-  Remaining ADR 0003 items: `<Collection>` (item 3) needs a Solid render-prop—
-  Astro slots can't type a per-item `{item}`—and the reference-site proving
+  Remaining ADR 0003 items: `<Collection>` (item 3) needs a Solid render-prop—Astro
+  slots can't type a per-item `{item}`—and the reference-site proving
   conversion (item 5) needs a local `astro build` to verify the components compile;
   both are deferred rather than shipped unverified.
 

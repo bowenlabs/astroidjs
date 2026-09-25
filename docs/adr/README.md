@@ -23,8 +23,8 @@ both indexes before claiming one.
 
 ## What stayed in louise-toolkit
 
-[ADR 0001](https://github.com/bowenlabs/louise-toolkit/blob/main/docs/adr/0001-opinionated-astro-cloudflare.md)
-—_opinionated Astro-on-Cloudflare, fully typed_—reads like an Astroid decision
+[ADR 0001](https://github.com/bowenlabs/louise-toolkit/blob/main/docs/adr/0001-opinionated-astro-cloudflare.md)—_opinionated
+Astro-on-Cloudflare, fully typed_—reads like an Astroid decision
 and is not one. Its rule is "framework-agnostic where it's free; opinionated where
 it's expensive", and the split is that rule being **applied**: the core turned out
 to be free to keep agnostic, so it did, and the expensive opinions moved here. It
