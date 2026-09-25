@@ -70,7 +70,7 @@
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitest/coverage-v8": "4.1.11",
     "astro": "^7.2.9",
-    "louise-toolkit": "^0.31.0",
+    "louise-toolkit": "^0.31.1",
     "solid-js": "^1.9.15",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
