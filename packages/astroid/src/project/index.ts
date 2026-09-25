@@ -6,3 +6,4 @@
 export * from "./generate.js";
 export * from "./actions.js";
 export * from "./scaffold.js";
+export * from "./seed.js";

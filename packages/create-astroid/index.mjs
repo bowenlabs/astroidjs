@@ -23,6 +23,7 @@ import {
   ASTROID_MAP_DEPENDENCIES,
   defineAstroid,
   generateAstroidEnvBindings,
+  generateAstroidHomeSeed,
   generateAstroidPortalLocals,
   generateAstroidProject,
   generateAstroidCheckoutEnv,
@@ -445,6 +446,11 @@ async function main() {
   // 3. The generated trio + the scaffold-once wrangler.jsonc (astroidjs).
   for (const file of generateAstroidProject(config)) write(dir, file.path, file.contents);
   write(dir, "wrangler.jsonc", generateAstroidWrangler(config));
+
+  // 3a. The home page seed, built from the config's own `sections`. It used to be
+  //     a fixed template file that seeded the marketing sections for every
+  //     archetype, and token substitution can't escape a brand name for SQL.
+  write(dir, "seed/home.seed.sql", generateAstroidHomeSeed(config));
 
   // 3b. Every scaffold-once module file this config implies—the queue seam and
   //     webhook receivers, the portfolio gallery page, the PWA service worker +
