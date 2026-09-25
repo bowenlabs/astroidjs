@@ -139,13 +139,62 @@ export async function assertAstroidPageSections(
  *
  *   pagesRoute({ table: pages, resolveEditor, fields, ...astroidPagesWriteHooks(config) })
  */
-export function astroidPagesWriteHooks(config: AstroidConfig): {
-  sanitize: (html: string) => string;
-  transform: (data: Record<string, unknown>) => Record<string, unknown>;
-  validate: (
+/** The write context `pagesRoute` passes to a transform or validator. */
+export interface AstroidPagesWriteContext {
+  operation: "create" | "update";
+}
+
+/**
+ * A site's own `pagesRoute` hooks, exported as `pagesHooks` from the
+ * scaffold-once `src/pages-hooks.ts` when `pages.hooks` is on.
+ */
+export interface AstroidPagesHooks {
+  /**
+   * Clean a page write before Astroid's section sanitize and validate run, for
+   * example to normalize the slug, clamp a title, or fill a new page's defaults.
+   * It gets only the allowlisted fields of the write.
+   */
+  transform?: (
     data: Record<string, unknown>,
-    ctx: { operation: "create" | "update" },
-  ) => Promise<void>;
+    ctx: AstroidPagesWriteContext,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  /**
+   * Reject a write, after both transforms and before Astroid's own section
+   * validation. Throw a `LouiseValidationError` for a 422 with per-field
+   * violations, for example when a required field is empty.
+   */
+  validate?: (data: Record<string, unknown>, ctx: AstroidPagesWriteContext) => void | Promise<void>;
+  /** Slugs to refuse on top of {@link ASTROID_RESERVED_SLUGS}, such as a path
+   *  a site's own file route serves. */
+  reservedSlugs?: Iterable<string>;
+}
+
+/**
+ * Slugs no page may take, on any site. Each one is a path Astro, Cloudflare,
+ * or Astroid serves before the catch-all page route, so a page saved under it
+ * would be unreachable, and nothing would say why. `pagesRoute` refuses them
+ * with a 422 instead.
+ */
+export const ASTROID_RESERVED_SLUGS: readonly string[] = [
+  "404",
+  "_astro",
+  "api",
+  "cdn-cgi",
+  "robots.txt",
+  "sitemap.xml",
+];
+
+export function astroidPagesWriteHooks(
+  config: AstroidConfig,
+  site: AstroidPagesHooks = {},
+): {
+  sanitize: (html: string) => string;
+  transform: (
+    data: Record<string, unknown>,
+    ctx: AstroidPagesWriteContext,
+  ) => Promise<Record<string, unknown>>;
+  validate: (data: Record<string, unknown>, ctx: AstroidPagesWriteContext) => Promise<void>;
+  reservedSlugs: string[];
 } {
   const mediaBase = pageMediaBase(config);
   return {
@@ -155,9 +204,15 @@ export function astroidPagesWriteHooks(config: AstroidConfig): {
     sanitize: (html) => sanitizeRichHtml(html, { mediaBase }),
     // `sections` is not a richField, so it's sanitized here in the transform,
     // which pagesRoute runs BEFORE validate—the hook's sanitize-then-validate
-    // order.
-    transform: (data) => sanitizeAstroidPageSections(config, data),
-    validate: (data, ctx) => assertAstroidPageSections(config, data, ctx.operation),
+    // order. The site's own transform runs first, so Astroid's sanitize sees
+    // the value the site is about to store.
+    transform: async (data, ctx) =>
+      sanitizeAstroidPageSections(config, site.transform ? await site.transform(data, ctx) : data),
+    validate: async (data, ctx) => {
+      await site.validate?.(data, ctx);
+      await assertAstroidPageSections(config, data, ctx.operation);
+    },
+    reservedSlugs: [...ASTROID_RESERVED_SLUGS, ...(site.reservedSlugs ?? [])],
   };
 }
 

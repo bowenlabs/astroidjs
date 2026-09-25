@@ -599,6 +599,54 @@ describe("site settings customKeys (FW-3)", () => {
   });
 });
 
+describe("pages route wiring", () => {
+  it("cascades deletes to version snapshots and reindexes search after a write", () => {
+    const line = routeLine(generateAstroidWorker(base), "pagesRoute");
+    expect(line).toContain("versionsTable: pagesVersions");
+    expect(line).toContain("afterWrite: reindexPagesSearch");
+  });
+
+  it("uses Astroid's hooks alone without pages.hooks", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).not.toContain("pages-hooks");
+    expect(worker).toContain("const pagesWriteHooks = astroidPagesWriteHooks(astroidConfig);");
+  });
+
+  it("passes the site's pages hooks to astroidPagesWriteHooks", () => {
+    const worker = generateAstroidWorker({ ...base, pages: { hooks: true } });
+    expect(worker).toContain('import { pagesHooks } from "./pages-hooks.js";');
+    expect(worker).toContain(
+      "const pagesWriteHooks = astroidPagesWriteHooks(astroidConfig, pagesHooks);",
+    );
+  });
+
+  it("scans site_settings.custom for media references", () => {
+    expect(generateAstroidWorker(base)).toContain(
+      'columns: ["logo_url", "favicon_url", "default_og_image_url", "custom"]',
+    );
+  });
+});
+
+describe("site settings hooks", () => {
+  it("stock config imports no hooks — the route call is unchanged", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).not.toContain("settings-hooks");
+    expect(routeLine(worker, "settingsRoute")).not.toContain("settingsHooks");
+  });
+
+  it("spreads the site's hooks into the settings route", () => {
+    const worker = generateAstroidWorker({
+      ...base,
+      settings: { columns: [], customKeys: ["nav"], hooks: true },
+    });
+    expect(worker).toContain('import { settingsHooks } from "./settings-hooks.js";');
+    // Spread last, so the hooks add to the call instead of replacing any of it.
+    expect(routeLine(worker, "settingsRoute")).toMatch(
+      /customKeys: SETTINGS_CUSTOM_KEYS, \.\.\.settingsHooks \}\)/,
+    );
+  });
+});
+
 describe("inquiry-capture override", () => {
   it("`inquiries: true` forces the inquiries table + form/inquiries routes on", () => {
     // A bespoke `contactForm` section Astroid can't see still needs the table.

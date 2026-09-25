@@ -70,6 +70,53 @@ export interface ScaffoldFile {
   marker?: string;
 }
 
+/** `src/pages-hooks.ts`—the site's pages-route hooks, scaffolded once. */
+function generateAstroidPagesHooks(): string {
+  return [
+    "// The pages route's site-owned hooks. The generated worker passes",
+    "// `pagesHooks` to astroidPagesWriteHooks, which runs your `transform` before",
+    "// Astroid's own section sanitize and validate. Scaffolded once and yours to",
+    "// edit.",
+    "//",
+    "// `transform` gets the allowlisted fields of a write and returns what to",
+    "// store: normalize the slug, clamp a title, fill a new page's defaults.",
+    "// `validate` rejects a write by throwing a LouiseValidationError (a 422).",
+    "// `reservedSlugs` adds to the paths no page may take (ASTROID_RESERVED_SLUGS),",
+    "// such as one of your own file routes.",
+    'import type { AstroidPagesHooks } from "astroidjs";',
+    "",
+    "export const pagesHooks: AstroidPagesHooks = {",
+    "  reservedSlugs: [],",
+    "};",
+    "",
+  ].join("\n");
+}
+
+/** `src/settings-hooks.ts`—the site's settings sanitizers, scaffolded once. */
+function generateAstroidSettingsHooks(): string {
+  return [
+    "// The Settings panel's sanitize + read hooks. The generated worker spreads",
+    "// `settingsHooks` into its settingsRoute call, and src/actions/index.ts",
+    "// passes `sanitize` to the settings Action, so both write paths clean a value",
+    "// the same way. Scaffolded once and yours to edit.",
+    "//",
+    "// `sanitize` maps a settings key to a function that returns the value to",
+    "// store. It runs before the link-scheme and media-URL checks, and only on",
+    "// keys the allowlist (settings.columns + settings.customKeys) already accepts.",
+    "// `read` transforms the merged settings on GET, for example to fill keys an",
+    "// older row lacks from your defaults.",
+    'import type { SettingsRouteHooks } from "louise-toolkit/editor";',
+    "",
+    "export const settingsHooks: SettingsRouteHooks = {",
+    "  sanitize: {",
+    "    // For example, trim and cap a headline:",
+    '    // heroHeadline: (v) => (typeof v === "string" ? v.trim().slice(0, 120) : ""),',
+    "  },",
+    "};",
+    "",
+  ].join("\n");
+}
+
 /**
  * Every scaffold-once file this config implies.
  *
@@ -112,6 +159,19 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
       "",
     ].join("\n"),
   });
+
+  // --- pages: the transform + reserved-slugs seam ---------------------------
+  if (config.pages?.hooks) {
+    files.push({ path: "src/pages-hooks.ts", contents: generateAstroidPagesHooks() });
+  }
+
+  // --- settings: the sanitize + read seam ------------------------------------
+  // Only when asked for (settings.hooks): the generated worker and the Actions
+  // surface both import it, so it must exist whenever either does. Scaffolded
+  // empty, which leaves the route exactly as it is without hooks.
+  if (config.settings?.hooks) {
+    files.push({ path: "src/settings-hooks.ts", contents: generateAstroidSettingsHooks() });
+  }
 
   // --- the typed Astro Actions surface --------------------------------------
   // Always: every project has editable pages, and the routes alone leave the

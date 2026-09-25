@@ -264,9 +264,15 @@ async function cmdDoctor(cwd, flags) {
     }
   }
 
-  // 3. migrations directory (matches the generated wrangler `migrations_dir`).
-  if (existsSync(join(cwd, "migrations"))) ok("migrations/ directory present");
-  else warn("no migrations/ directory — create your D1 schema migrations there.");
+  // 3. migrations directory: the D1 `migrations_dir` wrangler.jsonc declares,
+  //    or `migrations/`, the generated default, when it names none. A site that
+  //    keeps its migrations under another name (drizzle/) isn't missing them.
+  const wranglerText = existsSync(wranglerPath) ? readFileSync(wranglerPath, "utf8") : "";
+  const migrationsDir =
+    wranglerText.match(/"migrations_dir"\s*:\s*"([^"]+)"/)?.[1]?.replace(/\/+$/, "") ??
+    "migrations";
+  if (existsSync(join(cwd, migrationsDir))) ok(`${migrationsDir}/ directory present`);
+  else warn(`no ${migrationsDir}/ directory — create your D1 schema migrations there.`);
 
   // 4. Local secret provisioning—which modules will run dormant under
   //    `astroid dev`, and what to set to wake them.
