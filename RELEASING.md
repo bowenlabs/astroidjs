@@ -117,6 +117,16 @@ previous release's toolkit ranges and mimics a broken version derivation exactly
 
 ## If something goes wrong
 
+- **`changeset version` or `publish` fails with "Your current pnpm is v11…".**
+  Changesets spawns a bare `pnpm` (`pnpm exec oxfmt` to format the CHANGELOG,
+  `pnpm publish` to publish), and puts Node's own `bin/` first on its `PATH`. A
+  pnpm installed globally into nvm's Node 26 wins there, over corepack's shim.
+  Launched under `corepack pnpm`, it sees corepack's environment and refuses to
+  switch to the pinned version. Check with `npm ls -g pnpm`, and remove it with
+  `npm rm -g pnpm`. Or run the changesets binary without corepack as its parent,
+  `./node_modules/.bin/changeset version`, and revert the `@pnpm/exe` entry that
+  pnpm's version switch adds to `pnpm-lock.yaml`.
+
 - **Interrupted mid-publish** (astroidjs published, create-astroid didn't): re-run
   `corepack pnpm release`. It skips versions already on npm and publishes the
   rest. This is a normal state, not a corrupt one.
