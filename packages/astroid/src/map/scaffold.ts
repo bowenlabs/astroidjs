@@ -5,8 +5,8 @@
 // GENERATED rather than shipped as a component, for a concrete reason. MapLibre
 // GL is ~1 MB and `pmtiles` is its companion; a `MapEmbed.astro` living in
 // astroid's own `src/components/` would make both a hard requirement of the
-// package — every project installing them, and the CI probe that type-checks
-// the component library needing them too — for a feature most sites never turn
+// package—every project installing them, and the CI probe that type-checks
+// the component library needing them too—for a feature most sites never turn
 // on. Generating the component into the projects that enable the module keeps
 // the dependency where the decision was made.
 //
@@ -24,7 +24,7 @@ export const ASTROID_PMTILES_PATH = "/map/basemap.pmtiles";
 export const usesMap = (config: AstroidConfig): boolean => (config.modules ?? []).includes("map");
 
 /**
- * `src/pages/map/basemap.pmtiles.ts` — the range-serving tile route.
+ * `src/pages/map/basemap.pmtiles.ts`—the range-serving tile route.
  *
  * Thin: `servePmtiles` owns range parsing, the 206/416 contract, and trusting
  * R2's clamped range over the requested one. What's here is which bucket and
@@ -74,7 +74,7 @@ export function generateMapTileRoute(config: AstroidConfig): string | null {
 }
 
 /**
- * `src/components/MapEmbed.astro` — the map itself.
+ * `src/components/MapEmbed.astro`—the map itself.
  *
  * The lazy load is not an optimisation detail, it's the reason this is usable:
  * MapLibre is ~1 MB, and a location map is almost always below the fold. The

@@ -31,7 +31,7 @@ corepack pnpm release      # ← the release. Sign in to npm when it prompts.
 **Use `pnpm release`, not a bare `changeset publish`.** It builds first, then
 publishes. `changeset publish` runs every package's `prepublishOnly`
 concurrently, so building there is a race whenever one package's build reads
-another's output — which is exactly how a louise-toolkit release once went out
+another's output—which is exactly how a louise-toolkit release once went out
 three-packages-of-four. `prepublishOnly` here asserts the build happened
 (`scripts/ci/checks/dist-present.mjs`) and only reads, so it cannot race.
 
@@ -59,7 +59,7 @@ corepack pnpm -C workers/docs run deploy
 ### Wiring it to Workers Builds (once)
 
 So the docs cannot drift from `main`. The connection is made in the Cloudflare
-dashboard — there is no repository-side file that establishes it:
+dashboard—there is no repository-side file that establishes it:
 
 **Workers & Pages** → **astroidjs-org** → **Settings** → **Builds** → **Connect**,
 authorize GitHub, pick `bowenlabs/astroidjs`, then:
@@ -73,7 +73,7 @@ authorize GitHub, pick `bowenlabs/astroidjs`, then:
 Three things about that build command, each of which will bite otherwise:
 
 - **It changes directory first.** The root directory is `workers/docs`, but this
-  is a pnpm workspace — `pnpm install` has to run at the workspace root or it
+  is a pnpm workspace—`pnpm install` has to run at the workspace root or it
   resolves nothing. The deploy command still runs from `workers/docs`, which is
   where `wrangler.jsonc` and its `assets.directory: "./dist"` are.
 - **The Worker name must match.** Cloudflare requires the dashboard Worker name
@@ -85,7 +85,7 @@ Three things about that build command, each of which will bite otherwise:
 - **Path filtering is a dashboard setting.** Workers Builds has "Build watch
   paths" (include / exclude) under the same Builds settings. Unless it is set,
   every push to `main` rebuilds and redeploys the docs, including pushes that
-  touch no documentation. That is cheap here — a static build — but it is why the
+  touch no documentation. That is cheap here—a static build—but it is why the
   docs Worker is separate from anything heavier.
 
 Verified from a clean shallow clone: the command above installs, builds 21 pages,
@@ -101,7 +101,7 @@ for p in packages/astroid packages/create-astroid; do
 done
 ```
 
-Then scaffold from the LIVE registry — the only check that exercises what a
+Then scaffold from the LIVE registry—the only check that exercises what a
 stranger actually gets, because CI's smoke test installs from local tarballs and
 therefore cannot catch a broken `files` entry or an export map that only resolves
 in-workspace:
@@ -131,7 +131,7 @@ previous release's toolkit ranges and mimics a broken version derivation exactly
   - A `403 ... cannot publish over the previously published versions` on retry
     means it **succeeded**. That error is the proof.
   - A git tag proves changesets _attempted_ the publish, not that npm accepted
-    it — `git push --follow-tags` pushes tags either way.
+    it—`git push --follow-tags` pushes tags either way.
 
 - **You cannot cleanly unpublish.** If a bad version ships, roll forward with a
   patch, don't unpublish.

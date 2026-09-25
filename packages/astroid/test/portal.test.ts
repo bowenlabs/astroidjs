@@ -30,7 +30,7 @@ describe("portal.gated", () => {
     // It was accepted, resolved onto ResolvedPortal, and then read by NOTHING:
     // the guard table comes from `portal.routes` and portalGuard allows any
     // unmatched path. A site setting it believed the whole site was behind a
-    // login while every page outside /portal was public — and it type-checked.
+    // login while every page outside /portal was public—and it type-checked.
     // A security control that silently does nothing is worse than none.
     expect(() => defineAstroid(withPortal({ enabled: true, gated: true }))).toThrow(
       AstroidConfigError,
@@ -54,8 +54,8 @@ describe("portal config", () => {
   });
 
   it("isolates the portal instance from the studio's defaults", () => {
-    // The studio MUST keep Better Auth's defaults — the Louise editor client
-    // hardcodes /api/auth — so the portal is the one that moves. Sharing a
+    // The studio MUST keep Better Auth's defaults—the Louise editor client
+    // hardcodes /api/auth—so the portal is the one that moves. Sharing a
     // cookie prefix means signing into one silently signs you out of the other.
     const p = astroidPortal(withPortal({ enabled: true }))!;
     expect(p.basePath).toBe("/api/portal-auth");
@@ -182,7 +182,7 @@ describe("portalGuard", () => {
 describe("resolvePortalSession", () => {
   it("resolves once per request, however many callers ask", async () => {
     // The middleware needs it to gate, the handler needs it to know who's
-    // asking — two D1 round-trips per authenticated request otherwise.
+    // asking—two D1 round-trips per authenticated request otherwise.
     const request = new Request("https://acme.test/portal");
     const resolve = vi.fn(async () => u("customer"));
     const [a, b] = await Promise.all([

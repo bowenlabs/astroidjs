@@ -4,7 +4,7 @@ Operating __BRAND_NAME__: local dev, migrations, secrets, deploy, and what to do
 when something breaks.
 
 > Scaffolded by `create-astroid`. The headings are the ones three production
-> Astroid sites arrived at independently — fill them in as you go. A heading with
+> Astroid sites arrived at independently—fill them in as you go. A heading with
 > nothing under it is a question you have not had to answer yet, which is useful
 > information on its own.
 
@@ -23,7 +23,7 @@ pnpm exec wrangler d1 migrations apply DB --local
 OWNER_EMAIL=you@example.com pnpm seed:editors
 ```
 
-Then open `/louise` and request the magic link — in local dev it is **printed to
+Then open `/louise` and request the magic link—in local dev it is **printed to
 the dev console**, since there is no email binding. Follow it to `/?louise` for
 edit mode.
 
@@ -49,7 +49,7 @@ wrangler deploy
 ```
 
 <!-- Who deploys, from where, and what gates it? If deploys are automatic on push
-     to main, say so here — that is the first thing a new person asks. -->
+     to main, say so here—that is the first thing a new person asks. -->
 
 ## D1 migrations
 
@@ -82,13 +82,13 @@ wrangler secret put SESSION_SECRET
 ## Editing the live site
 
 <!-- Who the editors are and how they are added. Astroid ships DB-managed editors
-     by default — `pnpm seed:editors` writes the first one — rather than an env
+     by default—`pnpm seed:editors` writes the first one—rather than an env
      allowlist. If you changed that, this is where it is written down. -->
 
 ## Common breakages
 
 <!-- The section that pays for the whole document. Add an entry every time
-     something surprises you, with the symptom FIRST — that is what someone
+     something surprises you, with the symptom FIRST—that is what someone
      searches for at the time.
 
      Format that works:

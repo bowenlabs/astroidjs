@@ -3,7 +3,7 @@
 // The portal's navigation, as data.
 //
 // Two things fall out of declaring it rather than writing markup per page.
-// Items can be filtered by the viewer's role in one place — so an item a user
+// Items can be filtered by the viewer's role in one place—so an item a user
 // can't reach is never rendered, instead of rendered-then-403'd, which reads as
 // a broken link. And "which item is active" is computed the same way the guard
 // matches prefixes, so the highlight can't disagree with the routing.
@@ -47,7 +47,7 @@ export function definePortalNav(items: PortalNavItem[]): PortalNav {
     },
     activeFor(path) {
       // Longest href first, so `/portal/orders` wins over `/portal` on a page
-      // both would match — otherwise the parent item is always the active one.
+      // both would match—otherwise the parent item is always the active one.
       return (
         [...items]
           .sort((a, b) => b.href.length - a.href.length)

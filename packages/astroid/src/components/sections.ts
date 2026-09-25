@@ -5,8 +5,8 @@
 //
 // This file used to define a parallel universe: a `SectionProps` union
 // discriminated on `kind`, with `colorway`/`align` as component props. Louise's
-// actual model — the one the on-canvas editor and the write-time validator both
-// read — is different in every particular, and it is the one that wins:
+// actual model—the one the on-canvas editor and the write-time validator both
+// read—is different in every particular, and it is the one that wins:
 //
 //   • a section is a stored `SectionItem`: `{ _type, blocks?, _layout?,
 //     _settings?, ...fields }`. The discriminant is `_type`, not `kind`.
@@ -16,7 +16,7 @@
 //     or validated-but-uneditable.
 //   • presentation choices are `_settings` / `_layout` **tokens**. Louise stores
 //     the token; the site maps it to CSS. That's why COLORWAY_CLASS below stays
-//     — it is exactly the site-owned half of that contract — while `colorway`
+//: it is exactly the site-owned half of that contract—while `colorway`
 //     stops being a prop and becomes a stored setting.
 //
 // ADR 0005 §2 names this file's job outright: "<Section> reads `_layout` /
@@ -26,7 +26,7 @@
 //
 // Self-contained on purpose: this module ships as SOURCE (the `.astro` files
 // beside it import it directly), so it must not reach back into astroid's built
-// `src/*` — only siblings and external packages. The `louise-toolkit/content`
+// `src/*`—only siblings and external packages. The `louise-toolkit/content`
 // import is TYPE-ONLY, so it erases at build and never drags the validator (or
 // drizzle, which that entry pulls in) into a page bundle.
 
@@ -87,7 +87,7 @@ const tokenOptions = (map: Record<string, string>) =>
  *
  * These are closed token sets, declared as `select` (#272) so the inspector
  * renders a picker and an unknown token is rejected on write. They used to be
- * `text` with the valid values stuffed into `placeholder` — which meant a typo
+ * `text` with the valid values stuffed into `placeholder`—which meant a typo
  * wasn't a validation error at all, just a silent fallback to the default
  * inside `colorwayClass` at render time.
  */
@@ -97,7 +97,7 @@ export const SECTION_SETTINGS: Record<string, SectionField> = {
     label: "Colorway",
     inline: false,
     options: tokenOptions(COLORWAY_CLASS),
-    // An opaque hint — the schema layer doesn't know what a swatch looks like;
+    // An opaque hint—the schema layer doesn't know what a swatch looks like;
     // a renderer that doesn't support it just shows a normal picker.
     display: "swatch",
   },
@@ -113,8 +113,8 @@ export const SECTION_SETTINGS: Record<string, SectionField> = {
  * What every section render component receives.
  *
  * `base` is the whole point. It is this item's path within the page's `sections`
- * array — `"2"` for a top-level section, `"2.blocks.0"` for a block inside it —
- * and every marker the component stamps is built from it. Passing it down (rather
+ * array—`"2"` for a top-level section, `"2.blocks.0"` for a block inside it—and
+ * every marker the component stamps is built from it. Passing it down (rather
  * than having each component work out its own depth) is what lets the exact same
  * component render as a section or as a block, and what keeps `data-louise-node`
  * paths correct at any nesting depth.
@@ -126,8 +126,8 @@ export interface SectionRenderProps {
   base: string;
   /** Whether to stamp edit markers. Defaults to `Astro.locals.editMode`. */
   edit?: boolean;
-  /** Alt/caption resolved from the media registry, keyed by public URL —
-   *  looked up once for the whole page by `<Sections>`. */
+  /** Alt/caption resolved from the media registry, keyed by public URL—*
+    looked up once for the whole page by `<Sections>`. */
   mediaMeta?: MediaMeta;
 }
 
@@ -169,7 +169,7 @@ export function itemField(row: Record<string, unknown>, key: string): string | u
  *
  * The precedence is the whole reason `<Sections>` does its media lookup: a
  * per-usage `alt` on the section wins, because the same photo means something
- * different in a hero than in a thumbnail strip — but when there isn't one, the
+ * different in a hero than in a thumbnail strip—but when there isn't one, the
  * alt an editor typed once in the media library is used. That's what makes
  * fixing alt text a single edit that propagates everywhere the asset appears,
  * instead of a hunt through every page that embeds it.
@@ -188,7 +188,7 @@ export function mediaAlt(
 }
 
 /** Caption for an image, same precedence as {@link mediaAlt}. Undefined when
- *  there is none — a missing caption renders nothing, unlike a missing alt. */
+ *  there is none—a missing caption renders nothing, unlike a missing alt. */
 export function mediaCaption(
   mediaMeta: MediaMeta | undefined,
   src: string | undefined,
@@ -208,7 +208,7 @@ export function mediaCaption(
  * `satisfies` rather than a `: SectionCatalog` annotation, and it matters:
  * `SectionCatalog` is `Record<string, SectionDef>`, so annotating would widen
  * `keyof typeof` to `string` and throw away the literal keys. Those keys are
- * the project's whole section vocabulary — `SectionKind` is derived from them
+ * the project's whole section vocabulary—`SectionKind` is derived from them
  * (config.ts), `isRenderableSection` narrows to them, and `<Section>` indexes
  * its component map with them. Annotate this and all three silently degrade to
  * "any string", which is how the dispatcher lost its type safety once already.
@@ -221,7 +221,7 @@ export const astroidSectionCatalog = {
       heading: { type: "text", label: "Heading", validation: (r) => r.required().max(120) },
       subheading: { type: "textarea", label: "Subheading" },
       // A link URL is something you can't point at on the page, so it is not
-      // inline — it belongs in the inspector, which is what `inline: false` says.
+      // inline—it belongs in the inspector, which is what `inline: false` says.
       ctaLabel: { type: "text", label: "Button label" },
       ctaHref: { type: "text", label: "Button link", inline: false },
     },
@@ -367,7 +367,7 @@ export const astroidSectionCatalog = {
           name: { type: "text", label: "Name", validation: (r) => r.required() },
           price: { type: "text", label: "Price" },
           period: { type: "text", label: "Period (e.g. /mo)" },
-          // A list of strings isn't expressible — array items are objects — so
+          // A list of strings isn't expressible—array items are objects—so
           // each feature is a one-field row. That also leaves room to add an
           // `included` flag later without a data migration.
           features: {
@@ -424,7 +424,7 @@ export const astroidSectionCatalog = {
       heading: { type: "text", label: "Heading" },
       // Deliberately hand-authored rows rather than a live catalog read. A
       // section is stored content, and the commerce mirror is a separate
-      // concern with its own loader — a site that wants the live catalog renders
+      // concern with its own loader—a site that wants the live catalog renders
       // `readCatalog` in its own page, not through the page-builder.
       items: {
         type: "array",
@@ -472,7 +472,7 @@ export const astroidSectionCatalog = {
   },
 } satisfies SectionCatalog;
 
-/** The `_type`s with a shipped render component — derived from the catalog, so
+/** The `_type`s with a shipped render component—derived from the catalog, so
  *  it can't drift from what `<Section>` actually dispatches. A literal union,
  *  not `string`, because the catalog is declared with `satisfies`. */
 export type RenderableSectionType = keyof typeof astroidSectionCatalog;

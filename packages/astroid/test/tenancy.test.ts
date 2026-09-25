@@ -69,15 +69,15 @@ describe("tenantLabel", () => {
 
 describe("generated wrangler routes", () => {
   it("emits the wildcard as a ZONE route, never a custom domain", () => {
-    // Cloudflare refuses `custom_domain: true` on a pattern containing `*` —
-    // the reason `hosts` cannot express this at all.
+    // Cloudflare refuses `custom_domain: true` on a pattern containing `*`—the
+    // reason `hosts` cannot express this at all.
     const out = generateAstroidWrangler(tenanted);
     expect(out).toContain('{ "pattern": "*.example.com/*", "zone_name": "example.com" }');
     expect(out).not.toContain('{ "pattern": "*.example.com/*", "custom_domain": true }');
   });
 
   it("keeps the apex as its own custom-domain route", () => {
-    // The wildcard does not match the apex, so dropping this 404s the main site.
+    // The wildcard does not match the apex, so dropping this makes the main site return 404.
     const out = generateAstroidWrangler(tenanted);
     expect(out).toContain('{ "pattern": "example.com", "custom_domain": true }');
   });
@@ -98,7 +98,7 @@ describe("generated middleware", () => {
       'import { astroidRateRules, isRewriteExcluded, tenantLabel } from "astroidjs";',
     );
     expect(out).toContain('import { resolveTenant } from "./tenancy.js";');
-    // One import per module — two statements for `astroidjs` reads as an
+    // One import per module—two statements for `astroidjs` reads as an
     // oversight in a file nobody is meant to hand-edit.
     expect(out.match(/from "astroidjs";/g)).toHaveLength(1);
     expect(out).toContain("const label = tenantLabel(context.url.hostname, TENANCY);");
@@ -152,8 +152,8 @@ describe("defineAstroid — tenancy validation", () => {
   });
 
   it("requires the apex in `hosts`, because the wildcard doesn't match it", () => {
-    // Without this the marketing site 404s the moment tenancy is switched on —
-    // a symptom that reads as unrelated to the feature that caused it.
+    // Without this the marketing site returns 404 the moment tenancy is switched on—a
+    // symptom that reads as unrelated to the feature that caused it.
     expect(() => defineAstroid({ ...base, tenancy: { hostPattern: "*.example.com" } })).toThrow(
       /"example.com" is not in `hosts`/,
     );
@@ -264,13 +264,13 @@ describe("tenancy.unknown — what a failed tenant lookup means", () => {
       "if (tenantLabel(context.url.hostname, TENANCY) && !context.locals.tenant) {",
     );
     expect(out).toContain('return new Response("Not found", { status: 404 });');
-    // The guard must run against locals.tenant, which `extend` sets — so both
+    // The guard must run against locals.tenant, which `extend` sets—so both
     // hooks have to be present in the same emission.
     expect(out).toContain("context.locals.tenant = label ? await resolveTenant(label) : null;");
   });
 
   it("emits no guard at all under the fallthrough default", () => {
-    // `tenanted` has tenancy but no `unknown` — the pre-existing behaviour
+    // `tenanted` has tenancy but no `unknown`—the pre-existing behaviour
     // (stranger's subdomain renders the ordinary site) must be unchanged.
     expect(generateAstroidMiddleware(tenanted)).not.toContain("guard:");
   });
@@ -280,7 +280,7 @@ describe("tenancy.unknown — what a failed tenant lookup means", () => {
       ...with404,
       portal: { enabled: true },
     });
-    // One `guard:` key — a second would silently shadow the first in the
+    // One `guard:` key—a second would silently shadow the first in the
     // object literal, which is the exact bug composition exists to prevent.
     expect(out.match(/guard: \(context\) => \{/g)).toHaveLength(1);
     // Tenant refusal first, then the portal's prefix table.
@@ -358,7 +358,7 @@ describe("generated middleware — host-agnostic paths are never rewritten", () 
 describe("the rewrite preserves the query string", () => {
   // The rewrite chooses which PAGE renders; it does not get to edit what was
   // asked of it. Dropping `search` silently loses filters, pagination,
-  // campaign tags — and every typed search param a routed island reads, which
+  // campaign tags—and every typed search param a routed island reads, which
   // on an app host is the whole point of using a router.
   it("carries search through the tenant branch", () => {
     const out = generateAstroidMiddleware(tenanted);

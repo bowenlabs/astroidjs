@@ -35,12 +35,12 @@ const COMMERCE_ORIGINS: Record<string, CspOrigins> = {
 
 // Turnstile. Always allowed, not gated on the captcha being configured: the
 // scaffold ships the widget dormant (see the dormant-until-provisioned
-// convention) and it must not need a rebuild to switch on — CSP is baked at
+// convention) and it must not need a rebuild to switch on—CSP is baked at
 // build time, the secret is a runtime value.
 const TURNSTILE: CspOrigins = turnstileCsp();
 
 // The map module. MapLibre spins its tile-decoding workers up from blob: URLs,
-// so `worker-src blob:` is not optional — without it the map renders an empty
+// so `worker-src blob:` is not optional—without it the map renders an empty
 // canvas and the console fills with worker-construction errors.
 //
 // Nothing else is needed, and that's the whole argument for the self-hosted
@@ -82,7 +82,7 @@ export function astroidCspOrigins(config: AstroidConfig): Required<CspOrigins> {
  * `'unsafe-inline'` is required (Louise's data-driven `style=""` carriers and
  * the editor's runtime `<style>`), which is why Astro can't own this directive:
  * per spec a single hash here voids `'unsafe-inline'`. Module and config
- * `style` origins ride along, e.g. the Square SDK's own stylesheet.
+ * `style` origins ride along, for example, the Square SDK's own stylesheet.
  */
 export function astroidCspStyleSrc(config: AstroidConfig): string {
   return ["'self'", "'unsafe-inline'", ...astroidCspOrigins(config).style].join(" ");

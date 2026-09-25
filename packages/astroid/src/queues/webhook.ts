@@ -4,7 +4,7 @@
 //
 // All three sites wrote this route the same way, and the ordering is the part
 // worth encoding. **Verify the HMAC over the raw body before parsing anything.**
-// Not for style — parsing first means an unauthenticated caller can reach the
+// Not for style—parsing first means an unauthenticated caller can reach the
 // JSON parser and everything downstream of it, and re-serializing a parsed body
 // to check the signature is how signature checks quietly stop checking anything.
 // So the raw text is read once, verified, and only then parsed.
@@ -18,7 +18,7 @@
 import type { AstroidQueueMessage } from "./messages.js";
 
 /**
- * The queue producer surface used here — structural, so a real `Queue<T>`
+ * The queue producer surface used here—structural, so a real `Queue<T>`
  * binding satisfies it without astroid depending on the Workers types.
  *
  * `Promise<unknown>` rather than `Promise<void>`: Cloudflare's `Queue.send`
@@ -34,19 +34,19 @@ export interface WebhookVerifyInput {
   raw: string;
   headers: Headers;
   url: URL;
-  /** The signing secret — already checked to be real by the caller. */
+  /** The signing secret—already checked to be real by the caller. */
   secret: string;
 }
 
 export interface WebhookRouteOptions {
-  /** Which integration this endpoint serves — carried into the message. */
+  /** Which integration this endpoint serves—carried into the message. */
   provider: string;
   /**
    * The signing secret, or `null` when unprovisioned. Read it with
    * `readModuleSecret` so a placeholder counts as absent.
    */
   secret: string | null;
-  /** Signature check over the raw body — e.g. `verifySquareSignature`. */
+  /** Signature check over the raw body—for example, `verifySquareSignature`. */
   verify: (input: WebhookVerifyInput) => boolean | Promise<boolean>;
   /** The queue binding, or null/undefined when Queues aren't provisioned. */
   queue?: QueueProducer | null;
@@ -58,7 +58,7 @@ export interface WebhookRouteOptions {
   eventType?: (payload: unknown) => string;
   /**
    * Decide whether an event is worth queueing at all. Returning false acks the
-   * delivery without enqueuing — the provider is satisfied and the consumer
+   * delivery without enqueuing—the provider is satisfied and the consumer
    * isn't woken for an event nothing acts on.
    */
   accept?: (type: string, payload: unknown) => boolean;
@@ -114,7 +114,7 @@ export async function handleWebhook(
   try {
     payload = JSON.parse(raw);
   } catch {
-    // Also terminal — a body that isn't JSON now won't become JSON later.
+    // Also terminal—a body that isn't JSON now won't become JSON later.
     return text("Invalid JSON", 400);
   }
 
@@ -134,6 +134,6 @@ export async function handleWebhook(
   }
 
   // 202, not 200: the work hasn't happened yet, it's been accepted. That's the
-  // entire point of enqueuing — the response returns before the consumer runs.
+  // entire point of enqueuing—the response returns before the consumer runs.
   return text("Accepted", 202);
 }

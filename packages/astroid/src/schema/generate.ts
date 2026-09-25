@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// generateAstroidSchema — emit the Drizzle schema source (a site's `schema.ts`)
+// generateAstroidSchema—emit the Drizzle schema source (a site's `schema.ts`)
 // from an Astroid config. This is the boilerplate every Louise site hand-writes:
 // compose the framework `pagesColumns` into a `pages` table, add the versions
 // table + publish pointer, and re-export the ready-made framework tables. Astroid
@@ -27,7 +27,7 @@ export function generateAstroidSchema(config: AstroidConfig): string {
   // One import brings them all in (matching the site) so nothing is unused.
   const dbImports = [...framework, "pagesColumns"].sort();
   const catalog = generateCatalogTable(config);
-  // Only import the column builders the emitted source actually uses — an
+  // Only import the column builders the emitted source actually uses—an
   // unused import is a lint error in the project we're generating into, and a
   // missing one (`real`, from the catalog's price/sortOrder) is a type error.
   const drizzleImports = ["integer", "sqliteTable", "text"];

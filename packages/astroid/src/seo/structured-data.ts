@@ -1,10 +1,10 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// JSON-LD structured data — the `@graph` that describes the business to rich
+// JSON-LD structured data—the `@graph` that describes the business to rich
 // results and AI answer surfaces.
 //
 // Everything here is generic except the business `@type`, which is the one thing
-// that genuinely differs per site — so it comes from the archetype, with a
+// that genuinely differs per site—so it comes from the archetype, with a
 // config escape hatch for the many cases where schema.org has a more specific
 // subtype (a coffee shop is a `CafeOrCoffeeShop`, not a bare `Store`).
 
@@ -18,7 +18,7 @@ export type JsonLdNode = Record<string, unknown>;
  * The schema.org `@type` each archetype describes its owner with. These are
  * intentionally the broad parent types: pick a subtype (`CafeOrCoffeeShop`,
  * `ArtGallery`, `HomeAndConstructionBusiness`) via `seo.businessType` when you
- * know one — a more specific type is strictly better for rich results.
+ * know one—a more specific type is strictly better for rich results.
  */
 export const ARCHETYPE_BUSINESS_TYPE: Record<Archetype, string> = {
   marketing: "Organization",
@@ -41,7 +41,7 @@ export interface StructuredDataInput {
   /** Absolute origin serving this page (the canonical host). */
   siteUrl: string;
   /**
-   * An extra node for the thing this page is *about* — a Product, a
+   * An extra node for the thing this page is *about*—a Product, a
    * VisualArtwork, an Article. Joined into the same `@graph` so crawlers see
    * one connected description rather than three unrelated blobs.
    */
@@ -77,8 +77,8 @@ function sameAs(links: unknown): string[] {
  * Build the JSON-LD `@graph` for a page: the business node, a `WebSite` node,
  * and the page's own entity when there is one.
  *
- * The business gets a stable `@id` (`<origin>/#business`) so other nodes — a
- * product's `seller`, a future `Article` author — can reference it by id
+ * The business gets a stable `@id` (`<origin>/#business`) so other nodes—a
+ * product's `seller`, a future `Article` author—can reference it by id
  * instead of restating it.
  */
 export function astroidStructuredData(input: StructuredDataInput): JsonLdNode {
@@ -124,8 +124,8 @@ export function astroidStructuredData(input: StructuredDataInput): JsonLdNode {
  *
  * `application/ld+json` is data, not executable script, so `script-src` doesn't
  * govern it and no CSP hash is needed. But `JSON.stringify` does **not** escape
- * `<`, so any value folded into the graph that contains a literal `</script>` —
- * a product description, an artist statement, anything editor-authored — would
+ * `<`, so any value folded into the graph that contains a literal `</script>`—a
+ * product description, an artist statement, anything editor-authored—would
  * close the tag early and inject markup straight into `<head>`. Escaping the
  * HTML-significant characters as `\uXXXX` keeps the payload valid JSON while
  * making it impossible to break out of the element.

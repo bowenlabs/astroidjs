@@ -4,13 +4,13 @@
 //
 // This is the file the whole module exists for. themidwestartist.com's loader
 // says it outright: coracle runs the same helper over Square, "only the
-// content/repo reads differ — issue: repo drift." Two sites, one intent, two
+// content/repo reads differ—issue: repo drift." Two sites, one intent, two
 // hand-written translations that drifted apart. The translation is mechanical,
 // so it belongs here once.
 //
 // Each provider's client already returns a normalized-for-that-provider shape
 // (`SquareCatalogItem`, `FwProduct`); these functions take that last step to the
-// shape the mirror stores. Deliberately pure — they take the provider's objects,
+// shape the mirror stores. Deliberately pure—they take the provider's objects,
 // not credentials or an `env`, so they're trivially testable and the caller
 // keeps control of how the fetch happens (cached, paged, rate-limited).
 
@@ -54,7 +54,7 @@ export interface SquareItemLike extends SquarePresenceLike {
  * Is this object sold at `locationId`?
  *
  * Mirrors `presentAt` in `louise-toolkit/commerce/square`, but tolerant of the
- * fields being absent. The two lists are NOT symmetric — `presentAtLocationIds`
+ * fields being absent. The two lists are NOT symmetric—`presentAtLocationIds`
  * is a whitelist consulted when `presentAtAllLocations` is false,
  * `absentAtLocationIds` a blacklist consulted when it is true. Reading them the
  * other way round shows a merchant products they do not carry.
@@ -108,7 +108,7 @@ const toMajor = (cents: number) => Math.round(cents) / 100;
  * Is this item sold at `locationId` at all?
  *
  * Exported because a location-scoped sync needs to SKIP items the merchant
- * doesn't carry, and `squareToCatalogItem` can't do that for you — it returns
+ * doesn't carry, and `squareToCatalogItem` can't do that for you—it returns
  * one item, and "don't store this row" isn't a `CatalogItem`. Without the guard
  * an unstocked item mirrors as a $0 card with no variants, which looks like a
  * pricing bug rather than a catalog decision.
@@ -129,7 +129,7 @@ export function squareItemSoldAt(item: SquareItemLike, locationId: string): bool
  *
  * `price` is the LOWEST variation price. A Square item is a family ("Bag of
  * beans" with 12oz and 2lb variations), so a single headline number has to mean
- * "from" — taking the first variation's price instead would change with Square's
+ * "from"—taking the first variation's price instead would change with Square's
  * ordering and quietly misprice the card.
  *
  * ## Scoping to one merchant
@@ -140,15 +140,15 @@ export function squareItemSoldAt(item: SquareItemLike, locationId: string): bool
  *
  * The headline number has to be scoped for the same reason the variants are.
  * "From $8" computed over the whole catalog, on a page where the $8 size isn't
- * stocked, advertises a price this merchant will never honour — and because the
+ * stocked, advertises a price this merchant will never honour—and because the
  * dropped variation is usually the cheap one, the error runs in the direction a
  * customer notices at the till.
  *
  * Unscoped behaviour is unchanged: no `locationId` means base prices and every
  * variation, which is correct for a single-location account.
  *
- * An item sold nowhere at `locationId` yields no variants and a price of 0 —
- * filter with {@link squareItemSoldAt} before calling rather than storing that.
+ * An item sold nowhere at `locationId` yields no variants and a price of 0—filter
+ * with {@link squareItemSoldAt} before calling rather than storing that.
  */
 export function squareToCatalogItem(
   item: SquareItemLike,
@@ -195,7 +195,7 @@ export function squareToCatalogItem(
  * Fourthwall product → `CatalogItem`. Same "lowest variant wins" rule as Square,
  * for the same reason.
  *
- * Fourthwall already prices in major units, so there's no conversion — mirroring
+ * Fourthwall already prices in major units, so there's no conversion—mirroring
  * `lowestPrice` in `louise-toolkit/commerce/fourthwall`.
  */
 export function fourthwallToCatalogItem(product: FourthwallProductLike): CatalogItem {

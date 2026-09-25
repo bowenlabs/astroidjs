@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The checkout SEAM — the piece that made `archetype: "storefront"` a storefront
+// The checkout SEAM—the piece that made `archetype: "storefront"` a storefront
 // that couldn't take a card.
 //
 // Everything around this already existed: `verifyCheckout` re-prices server-side,
@@ -10,7 +10,7 @@
 // missing was the route in the middle, so none of it was reachable.
 //
 // SCOPE, deliberately narrow. This generates the server-authoritative PAYMENT
-// path and a card input — not a cart, not a checkout page, not shipping or tax.
+// path and a card input—not a cart, not a checkout page, not shipping or tax.
 // Where a cart lives (localStorage, D1, a portal session), what it holds, and how
 // it renders are project decisions Astroid has no business making, and a
 // half-opinionated cart is worse than none. What is NOT a project decision is the
@@ -30,7 +30,7 @@ export function usesCardCheckout(config: AstroidConfig): boolean {
 }
 
 /**
- * `src/pages/api/checkout.ts` — the server-authoritative payment route.
+ * `src/pages/api/checkout.ts`—the server-authoritative payment route.
  *
  * Scaffold-once: a real store adds shipping, tax, an order record, a receipt
  * email. What Astroid fixes is the sequence, because every step of it is a place
@@ -324,7 +324,7 @@ export function generateAstroidCheckoutRoute(config: AstroidConfig): string | nu
 }
 
 /**
- * `src/components/SquareCard.astro` — the card input.
+ * `src/components/SquareCard.astro`—the card input.
  *
  * Square's Web Payments SDK renders the field in an iframe from their CDN and
  * hands back a single-use token, so the raw card number never touches the Worker
@@ -423,7 +423,7 @@ export function generateAstroidSquareCard(config: AstroidConfig): string | null 
     .join("\n");
 }
 
-/** Does this project talk to Square in ANY role — storefront, invoicing, or
+/** Does this project talk to Square in ANY role—storefront, invoicing, or
  *  otherwise? Distinct from {@link usesCardCheckout}, which asks the narrower
  *  question of whether the in-page card field renders. */
 function usesSquare(config: AstroidConfig): boolean {
@@ -437,13 +437,13 @@ function usesSquare(config: AstroidConfig): boolean {
  * application id is shipped to the browser by design, and the environment is a
  * choice, not a credential. Putting them in `credentials` would also fold them
  * into the dormancy gate, which is about whether the module can safely CALL
- * Square — a different question from whether the card field can render.
+ * Square—a different question from whether the card field can render.
  *
  * The two vars are gated SEPARATELY, and that split is load-bearing.
  * `SQUARE_ENVIRONMENT` selects the API HOST for every Square call, so it belongs
  * to any project that talks to Square at all; `SQUARE_APP_ID` only mounts the
- * browser card field. Gating both on card checkout — as this did until
- * `invoicing: "square"` became expressible — left a site that runs Square for
+ * browser card field. Gating both on card checkout—as this did until
+ * `invoicing: "square"` became expressible—left a site that runs Square for
  * invoicing alone with no `SQUARE_ENVIRONMENT`, and `SquareConfig.environment`
  * defaults to "sandbox". Every production invoice would have been created
  * against the sandbox: no error, no warning, just money that never arrives.
@@ -467,7 +467,7 @@ export function astroidCheckoutVars(config: AstroidConfig): { name: string; valu
  * substitutes into `src/env.d.ts`. Empty without card checkout.
  */
 export function generateAstroidCheckoutEnv(config: AstroidConfig): string {
-  // Mirrors the gating in `astroidCheckoutVars` — the app id is card-checkout
+  // Mirrors the gating in `astroidCheckoutVars`—the app id is card-checkout
   // only, the environment belongs to any project that calls Square at all.
   const lines: string[] = [];
   if (usesCardCheckout(config)) {

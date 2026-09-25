@@ -20,7 +20,7 @@ describe("astroidRateRules", () => {
   });
 
   it("puts the specific magic-link rule ahead of the auth catch-all", () => {
-    // First match wins, so the tighter budget has to come first — otherwise the
+    // First match wins, so the tighter budget has to come first—otherwise the
     // catch-all would swallow the one surface that most needs a low cap.
     const rules = astroidRateRules(base);
     const magic = rules.find((r) => r.name === "magic-link");

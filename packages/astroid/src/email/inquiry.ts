@@ -7,7 +7,7 @@
 // the submission is already durable, so mail is a notification of something that
 // already happened and can fail without the visitor ever knowing.
 //
-// Two messages, not one — every site converged on the pair. The owner needs the
+// Two messages, not one—every site converged on the pair. The owner needs the
 // message; the visitor needs to know it arrived, because a contact form with no
 // acknowledgement is indistinguishable from one that's broken.
 
@@ -18,7 +18,7 @@ import { type DeliveryResult, resolveMailer, sendTransactional } from "./send.js
 import { inquiryConfirmationEmail, inquiryNotificationEmail } from "./templates.js";
 import { astroidMailTheme, type MailThemeOverrides } from "./theme.js";
 
-/** The bindings the inquiry hook reads. All optional — an unprovisioned mail
+/** The bindings the inquiry hook reads. All optional—an unprovisioned mail
  *  setup logs instead of sending, per the dormant-until-provisioned convention. */
 export interface AstroidMailEnv {
   /** Cloudflare Email Sending binding. */
@@ -26,7 +26,7 @@ export interface AstroidMailEnv {
   /**
    * Envelope sender; its domain must be onboarded for Email Sending. A
    * `SecretSource` rather than a plain string so a Secrets Store binding works
-   * here too — and so the placeholder sentinel reads as unconfigured.
+   * here too—and so the placeholder sentinel reads as unconfigured.
    */
   MAIL_FROM?: SecretSource;
   /** Where owner notifications go. Also the first editor's address. */

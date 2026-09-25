@@ -96,7 +96,7 @@ describe("astroidQueueHandler", () => {
   });
 
   it("propagates a refresh failure so the message retries", async () => {
-    // A failed refresh means the site is serving stale data — retry is right.
+    // A failed refresh means the site is serving stale data—retry is right.
     const handle = astroidQueueHandler({
       refreshCatalog: () => {
         throw new Error("upstream down");
@@ -166,7 +166,7 @@ describe("astroidQueueHandler", () => {
     await handle(msg({ provider: "fourthwall", type: "product.updated" } as never));
     expect(refreshCatalog).toHaveBeenCalledTimes(1);
 
-    // The periodic re-sync is never provider-scoped — it IS the safety net.
+    // The periodic re-sync is never provider-scoped—it IS the safety net.
     await handle({ kind: "catalog_refresh" });
     expect(refreshCatalog).toHaveBeenCalledTimes(2);
   });
@@ -331,7 +331,7 @@ describe("generated worker", () => {
     expect(out).not.toContain("queue:");
     expect(out).not.toContain("processBatch");
     expect(out).not.toContain("./queue.js");
-    // `scheduled:` IS present — the daily health scan runs on every project,
+    // `scheduled:` IS present—the daily health scan runs on every project,
     // queues or not. What must be absent is the catalog dispatch.
     expect(out).toContain("scheduled:");
     expect(out).not.toContain("catalog_refresh");
@@ -362,13 +362,13 @@ describe("generated wrangler", () => {
     const out = generateAstroidWrangler(base);
     expect(out).not.toContain('"queues"');
     // Every project schedules the daily health scan, so `triggers` always
-    // exists — with exactly one entry when there's no catalog to re-sync.
+    // exists—with exactly one entry when there's no catalog to re-sync.
     expect(out).toContain('"triggers": { "crons": ["17 4 * * *"] }');
   });
 
   it("emits the producer, consumer, DLQ, and cron", () => {
     const out = generateAstroidWrangler(shop);
-    // Health first, then the catalog re-sync — the order `astroidCrons` emits.
+    // Health first, then the catalog re-sync—the order `astroidCrons` emits.
     expect(out).toContain('"triggers": { "crons": ["17 4 * * *","0 * * * *"] }');
     expect(out).toContain('"queue": "acme-commerce", "binding": "COMMERCE_QUEUE"');
     expect(out).toContain('"dead_letter_queue": "acme-commerce-dlq"');

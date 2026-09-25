@@ -1,11 +1,11 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The generated worker's route WIRING — not that a route is mounted, but that
+// The generated worker's route WIRING—not that a route is mounted, but that
 // it's handed the options it needs to actually do its job.
 //
 // This is the gap these tests exist for: every route below was already mounted
 // and already worked, in the sense that it returned 200. Each was also missing
-// one option, and in each case the failure was invisible — a dashboard that
+// one option, and in each case the failure was invisible—a dashboard that
 // renders empty, a KV namespace nothing writes to, a delete-safety scan with
 // nothing to scan. "The route is in the plan" was never the property worth
 // asserting.
@@ -27,7 +27,7 @@ import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/work
  *
  * Line-based rather than a braces regex: every option we care about here is an
  * arrow function, so `\(\{[^)]*\}\)` terminates on the `)` of `(env)` and
- * silently matches nothing — which reads as a passing assertion against "".
+ * silently matches nothing—which reads as a passing assertion against "".
  */
 function routeLine(worker: string, factory: string): string {
   const line = worker.split("\n").find((l) => l.trim().startsWith(`${factory}({`));
@@ -52,8 +52,8 @@ describe("overview route", () => {
   });
 
   it("supplies a content resolver, not just the route", () => {
-    // An overviewRoute with no resolvers returns `{}` and every card hides —
-    // indistinguishable from the route being absent.
+    // An overviewRoute with no resolvers returns `{}` and every card hides—indistinguishable
+    // from the route being absent.
     const worker = generateAstroidWorker(base);
     expect(worker).toContain("content: overviewContent");
     expect(worker).toContain("const overviewContent = async");
@@ -89,7 +89,7 @@ describe("overview route", () => {
 describe("autosave draft buffer", () => {
   it("passes DRAFTS to versionsRoute, which stages the drafts", () => {
     // wrangler.jsonc provisions a DRAFTS KV and the setup instructions tell you
-    // to create it, but the route was never given `bufferKv` — so every autosave
+    // to create it, but the route was never given `bufferKv`—so every autosave
     // keystroke went straight to D1 and the namespace was never written to.
     expect(routeLine(generateAstroidWorker(base), "versionsRoute")).toContain(
       "bufferKv: (env) => env.DRAFTS",
@@ -97,7 +97,7 @@ describe("autosave draft buffer", () => {
   });
 
   it("does NOT pass it to saveRoute, which has no such option", () => {
-    // `SaveRouteConfig` has no `bufferKv` — saveRoute writes live field saves
+    // `SaveRouteConfig` has no `bufferKv`—saveRoute writes live field saves
     // (title, SEO) straight through, and only the versioned body is buffered.
     // Passing it anyway is a type error in the SCAFFOLD, not in this package,
     // so nothing here would catch it; that's what the clean-room `astro check`
@@ -109,7 +109,7 @@ describe("autosave draft buffer", () => {
 describe("pages route write integrity", () => {
   it("gives pagesRoute the section sanitize + validate hooks", () => {
     // pagesRoute takes NO collection config, so unlike versionsRoute it runs no
-    // beforeChange hook. Without the spread it mounted bare — a direct POST/PATCH
+    // beforeChange hook. Without the spread it mounted bare—a direct POST/PATCH
     // persisted an unknown section `_type`, a setting outside its options, or
     // unsanitized section rich text, and `<Sections>` then dropped the bad
     // section with no error. "The route is mounted" was true and useless.
@@ -130,7 +130,7 @@ describe("pages route write integrity", () => {
 describe("media delete-safety", () => {
   it("gives mediaRoute somewhere to look for references", () => {
     // Without `referenceSources` the scan reads nothing and every delete reports
-    // "no references" — an editor can remove an image that's live on the home
+    // "no references"—an editor can remove an image that's live on the home
     // page with no warning.
     const worker = generateAstroidWorker(base);
     expect(routeLine(worker, "mediaRoute")).toContain("referenceSources: MEDIA_REFERENCE_SOURCES");
@@ -140,7 +140,7 @@ describe("media delete-safety", () => {
   it("scans the columns a media URL can actually be embedded in", () => {
     const worker = generateAstroidWorker(base);
     // `body` is rich-text HTML, `sections` is the structured JSON, `og_image` is
-    // a direct reference. All three are SQL names — the scan is raw SQL.
+    // a direct reference. All three are SQL names—the scan is raw SQL.
     for (const column of ["body", "sections", "og_image"]) {
       expect(worker).toContain(`"${column}"`);
     }
@@ -154,7 +154,7 @@ describe("media asset route", () => {
   // `url.pathname.startsWith(`${MEDIA_BASE}/`)`, comparing a pathname against
   // an ORIGIN. That is false for every request that has ever existed, so the
   // route never ran and every uploaded image 404'd to the site's own error
-  // page — while a `toContain("mediaAssetRoute")` test stayed green.
+  // page—while a `toContain("mediaAssetRoute")` test stayed green.
   const MEDIA_BASE = "https://media.acme.com";
 
   /** Lift `mediaAssetRoute` out of the generated worker and make it callable. */
@@ -208,7 +208,7 @@ describe("media asset route", () => {
 
   it("passes on requests to any other host, so the site still renders", async () => {
     const route = emittedRoute(generateAstroidWorker(base));
-    // Same PATH, different origin — the site's own /web/photo.jpg must fall
+    // Same PATH, different origin—the site's own /web/photo.jpg must fall
     // through to the SSR handler rather than being answered out of the bucket.
     const res = await route({ url: `https://acme.com/web/photo.jpg` }, stubEnv(["web/photo.jpg"]));
     expect(res).toBeUndefined();
@@ -223,7 +223,7 @@ describe("media asset route", () => {
 describe("AI assists", () => {
   it("mounts the AI routes and hands them the runner", () => {
     // The rewrite and SEO-suggest buttons ship in the editor drawer already.
-    // Without these routes they 404; without a runner they 503 — either way the
+    // Without these routes they 404; without a runner they 503—either way the
     // client hides them, so they were permanently invisible.
     //
     // `aiRunner`, not `(env) => env.AI`: it reads the binding AND the LOUISE_AI
@@ -239,8 +239,8 @@ describe("AI assists", () => {
   it("mounts seoFixRoute BEFORE pagesRoute", () => {
     // seoFixRoute lives at /api/louise/pages/generate-seo, and pagesRoute claims
     // EVERY path under /api/louise/pages/ as an item id (`path.startsWith`).
-    // Mounted after, it is unreachable and the request 400s on the non-integer
-    // id "generate-seo" — the same collision the versions/search ordering exists
+    // Mounted after, it is unreachable and the request returns 400 on the non-integer
+    // id "generate-seo"—the same collision the versions/search ordering exists
     // to prevent, and invisible until someone clicks the button.
     const names = astroidEditorRoutePlan(base).map((r) => r.name);
     expect(names.indexOf("seoFix")).toBeGreaterThanOrEqual(0);
@@ -287,7 +287,7 @@ describe("site health", () => {
   it("dispatches on controller.cron, and the strings match wrangler's list", () => {
     // Cloudflare fires ONE scheduled handler for every trigger and identifies
     // which by `controller.cron`. If wrangler.jsonc and this dispatch disagree,
-    // the job silently never runs — so both must come from `astroidCrons`.
+    // the job silently never runs—so both must come from `astroidCrons`.
     const config: AstroidConfig = { ...base, commerce: { provider: "square" } };
     const worker = generateAstroidWorker(config);
     const wrangler = generateAstroidWrangler(config);
@@ -302,7 +302,7 @@ describe("site health", () => {
   });
 
   it("degrades each part of the scan independently", () => {
-    // A failed crawl or a missing table must not abort the whole scan — a
+    // A failed crawl or a missing table must not abort the whole scan—a
     // partial health report is worth strictly more than none.
     const worker = generateAstroidWorker(base);
     expect(worker).toContain('checkLinks({ base: origin, paths: ["/"] }).catch(() => [])');
@@ -338,7 +338,7 @@ describe("API gate (ADR 0012)", () => {
 
   it("scaffolds new projects with global_fetch_strictly_public", () => {
     // Scaffold-once: existing projects keep their wrangler.jsonc, so this
-    // reaches new sites only — deliberately, since the flag reroutes a site's
+    // reaches new sites only—deliberately, since the flag reroutes a site's
     // own health-scan crawl.
     expect(generateAstroidWrangler(base)).toContain(
       '"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"]',
@@ -358,7 +358,7 @@ describe("edge cache (ADR 0004)", () => {
   it("bypasses on an edit request, using the shipped predicate", () => {
     // Not a hand-rolled cookie check: `isEditRequest` reads the same constant
     // `createLouiseMiddleware` uses to SET the cookie, so the two can't drift.
-    // Drift here means an editor served a cached public page — the exact bug
+    // Drift here means an editor served a cached public page—the exact bug
     // that got this feature reverted twice (#163, #165).
     expect(generateAstroidWorker(base)).toContain("bypass: isEditRequest");
   });
@@ -400,7 +400,7 @@ describe("realtime (ADR 0002)", () => {
   it("imports realtimeRoute from /realtime, not /editor", () => {
     // It is the one factory in the route plan that is not an editor route.
     // Bundling it into the editor import block type-checks in THIS package (the
-    // plan is only strings) and fails in the scaffold — clean-room `astro check`
+    // plan is only strings) and fails in the scaffold—clean-room `astro check`
     // is the only thing that sees it.
     const worker = generateAstroidWorker(rt);
     expect(worker).toContain('import { realtimeRoute } from "louise-toolkit/realtime";');
@@ -424,7 +424,7 @@ describe("realtime (ADR 0002)", () => {
     // A DO class with no migration tag is a deploy error. And it must be
     // `new_sqlite_classes`, not `new_classes`: the session keeps authoritative
     // state in `ctx.storage`, and the storage backend cannot be changed after
-    // the class is first deployed — so getting this wrong is not fixable later.
+    // the class is first deployed—so getting this wrong is not fixable later.
     expect(wrangler).toContain('"tag": "v1", "new_sqlite_classes": ["EditSessionDO"]');
     expect(wrangler).not.toContain('"new_classes"');
   });
@@ -455,7 +455,7 @@ describe("realtime (ADR 0002)", () => {
     expect(src).toContain("applySaveDraft");
     // The DO's alarm IS the coalescer for the page, so routing through the KV
     // write-buffer as well would be two layers of coalescing over one stream.
-    // Assert on the deps object actually passed, not the file text — the comment
+    // Assert on the deps object actually passed, not the file text—the comment
     // above it in the generated source legitimately names `bufferKv`.
     expect(src).toContain(
       "{ table: pages, versionsTable: pagesVersions, config: pagesCollection }",
@@ -533,7 +533,7 @@ describe("card checkout", () => {
 describe("core web vitals", () => {
   it("closes the loop: ingest, store, and read back", () => {
     // `HealthSummary.cwv` existed and the Health panel rendered a "not measured
-    // yet" badge for it — permanently accurate and permanently useless, because
+    // yet" badge for it—permanently accurate and permanently useless, because
     // nothing collected the data. All three parts are needed for the badge to
     // ever change.
     const worker = generateAstroidWorker(base);
@@ -544,7 +544,7 @@ describe("core web vitals", () => {
   });
 
   it("imports vitalsRoute from /analytics, not /editor", () => {
-    // Same trap as realtimeRoute — it isn't an editor route, and bundling it
+    // Same trap as realtimeRoute—it isn't an editor route, and bundling it
     // into that import block only fails in a scaffolded project.
     const worker = generateAstroidWorker(base);
     expect(worker).toContain('} from "louise-toolkit/analytics";');

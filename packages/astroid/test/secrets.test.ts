@@ -48,7 +48,7 @@ describe("resolveModuleSecrets", () => {
     // than at boot, which is the failure mode this convention exists to avoid.
     expect(status.configured).toBe(false);
     expect(status.missing).toEqual(["SQUARE_WEBHOOK_SECRET", "SQUARE_LOCATION_ID"]);
-    // The real value is still resolved — callers may use it on a partial path.
+    // The real value is still resolved—callers may use it on a partial path.
     expect(status.values.SQUARE_ACCESS_TOKEN).toBe("sq0atp-real");
     expect(status.values.SQUARE_WEBHOOK_SECRET).toBeNull();
   });

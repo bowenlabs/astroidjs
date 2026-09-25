@@ -1,7 +1,7 @@
 # create-astroid
 
-Scaffold a new **Astroid** site — an editable, multi-editor Astro app on
-Cloudflare Workers — in one command.
+Scaffold a new **Astroid** site—an editable, multi-editor Astro app on
+Cloudflare Workers—in one command.
 
 ```sh
 pnpm create astroid my-site
@@ -14,8 +14,8 @@ pnpm create astroid my-site
 
 A working floor, not a blank page:
 
-- `astroid.config.ts` — the one typed config the rest is generated from
-- The generated trio — `src/schema.ts`, `src/worker.ts`, `src/middleware.ts`
+- `astroid.config.ts`—the one typed config the rest is generated from
+- The generated trio—`src/schema.ts`, `src/worker.ts`, `src/middleware.ts`
   (Drizzle schema, editor routes in collision-free order, the shared middleware)
 - `wrangler.jsonc` with every binding stubbed and clearly marked for you to fill
 - A baseline Astro app with an **inline-editable home page**, magic-link editor
@@ -74,9 +74,9 @@ Astro        →  renderer / router / build
 ```
 
 - [`astroidjs`](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/astroid)
-  — the meta-framework and the `astroid` CLI this scaffold writes a project for
+  —the meta-framework and the `astroid` CLI this scaffold writes a project for
 - [`louise-toolkit`](https://github.com/bowenlabs/louise-toolkit/tree/main/packages/louise)
-  — the underlying toolkit
+  —the underlying toolkit
 
 ## License
 

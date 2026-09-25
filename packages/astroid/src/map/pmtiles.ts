@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// Byte-range serving from R2 — the plumbing under the self-hosted basemap.
+// Byte-range serving from R2—the plumbing under the self-hosted basemap.
 //
 // A PMTiles archive is one immutable blob, often hundreds of megabytes, and the
 // client reads a few kilobytes at a time: a header, then directory pages, then
@@ -13,7 +13,7 @@
 //
 // The range parsing is deliberately complete. The implementation this
 // generalizes matched only `bytes=<start>-<end?>`, so a SUFFIX range
-// (`bytes=-20000`, "the last 20 KB" — how a client reads a footer without
+// (`bytes=-20000`, "the last 20 KB"—how a client reads a footer without
 // knowing the length) fell through to serving the ENTIRE archive. That is a
 // correct-looking response and a catastrophic one.
 
@@ -29,7 +29,7 @@ export type RangeSpec = { offset: number; length?: number } | { suffix: number }
 /**
  * How the archive is read. A function rather than a bucket interface, and
  * deliberately so: `R2Bucket.get` is overloaded, and its first overload
- * *requires* an options argument — which means no structural interface with an
+ * *requires* an options argument—which means no structural interface with an
  * optional second parameter can accept a real `R2Bucket`. Taking a reader lets
  * the call site use R2's own types and resolves the mismatch at the source, and
  * incidentally makes this work over any storage rather than only R2.
@@ -45,7 +45,7 @@ export interface RangeObject {
   body?: ReadableStream | null;
   /** Size of the WHOLE object, not the returned slice. */
   size: number;
-  /** What R2 actually returned — it clamps a range that runs past the end. */
+  /** What R2 actually returned—it clamps a range that runs past the end. */
   range?: { offset?: number; length?: number; suffix?: number };
 }
 
@@ -65,7 +65,7 @@ export type ParsedRange =
  * Handles the three forms that matter:
  *   `bytes=0-1023`   a bounded window
  *   `bytes=1024-`    open-ended, to the end
- *   `bytes=-20000`   the LAST n bytes — the one the reference dropped
+ *   `bytes=-20000`   the LAST n bytes—the one the reference dropped
  *
  * Multi-range (`bytes=0-99,200-299`) returns null: it requires a multipart
  * response no PMTiles client asks for, and serving the whole object is the
@@ -98,7 +98,7 @@ export function parseRangeHeader(header: string | null, size: number): ParsedRan
 
   const end = Number(bounded[2]);
   if (end < start) return { kind: "unsatisfiable" };
-  // An end past the object is clamped, not an error — a client asking for more
+  // An end past the object is clamped, not an error—a client asking for more
   // than exists gets what exists.
   return { kind: "range", offset: start, length: Math.min(end, size - 1) - start + 1 };
 }
@@ -107,8 +107,8 @@ export interface PmtilesHandlerOptions {
   /** Reads the archive, whole or by range. See {@link RangeReader}. */
   read: RangeReader;
   /**
-   * `Cache-Control` for the response. An archive is immutable — a re-clip
-   * overwrites the object wholesale — so the byte ranges cache hard at the
+   * `Cache-Control` for the response. An archive is immutable—a re-clip
+   * overwrites the object wholesale—so the byte ranges cache hard at the
    * edge. Default one day.
    */
   cacheControl?: string;
@@ -170,7 +170,7 @@ export async function servePmtiles(
     );
     if (!object) return new Response("Basemap not found", { status: 404 });
 
-    // Trust what R2 says it returned rather than what was asked for — it clamps
+    // Trust what R2 says it returned rather than what was asked for—it clamps
     // ranges, and a Content-Range that disagrees with the body corrupts the
     // client's view of the archive.
     const got = object.range ?? {};

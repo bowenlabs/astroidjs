@@ -10,8 +10,8 @@
 // (`toolkitRanges()`); this asserts the derivation actually happened and produced
 // the right answer, so re-hardcoding a literal fails here rather than on npm.
 //
-// Resolution deliberately mirrors `toolkitRanges()` — `createRequire` from the
-// installed create-astroid's own directory — rather than reading
+// Resolution deliberately mirrors `toolkitRanges()`—`createRequire` from the
+// installed create-astroid's own directory—rather than reading
 // `./node_modules/<name>`. Under pnpm's isolated layout a transitive dependency
 // is not hoisted to the installing project's top level, so the naive path exists
 // only by luck of hoisting and the check would compare against the wrong copy, or
@@ -33,7 +33,7 @@ if (!scaffold || !creator) {
 const pkg = JSON.parse(fs.readFileSync(path.join(scaffold, "package.json"), "utf8"));
 // realpath, not resolve: pnpm links `node_modules/create-astroid` into `.pnpm`,
 // and a require rooted at the SYMLINK cannot see the sibling packages that only
-// exist beside its real location. Same reason `toolkitRanges()` works — it uses
+// exist beside its real location. Same reason `toolkitRanges()` works—it uses
 // `import.meta.url`, which is already the real path.
 const req = createRequire(path.join(fs.realpathSync(creator), "index.mjs"));
 

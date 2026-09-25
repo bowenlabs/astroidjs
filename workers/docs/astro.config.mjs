@@ -3,8 +3,8 @@ import starlight from "@astrojs/starlight";
 import { defineConfig, passthroughImageService } from "astro/config";
 
 // The Astroid documentation, as a standalone STATIC Astro app. `astro build`
-// emits a plain static site to dist/ — no adapter, default `output: "static"` —
-// so it can be served by any static host or folded into a Worker's assets.
+// emits a plain static site to dist/—no adapter, default `output: "static"`—so
+// it can be served by any static host or folded into a Worker's assets.
 //
 // Deliberately separate from the Louise docs rather than a section inside them.
 // The two projects release independently now, and a shared docs site would mean a

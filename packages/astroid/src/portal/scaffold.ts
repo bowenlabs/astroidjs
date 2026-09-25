@@ -3,8 +3,8 @@
 // The portal's SCAFFOLD-ONCE pieces: the second Better Auth instance, and the
 // `App.Locals` / `CloudflareEnv` additions that come with it.
 //
-// The auth instance is scaffolded rather than generated because a site edits it
-// — the reset email, the role a new account gets, extra user columns. What
+// The auth instance is scaffolded rather than generated because a site edits it—the
+// reset email, the role a new account gets, extra user columns. What
 // Astroid fixes are the three things that must not drift: the mount, the cookie
 // prefix, and the table prefix. Get any of those wrong and the two instances
 // fight over one origin's cookies, which fails intermittently and looks like a
@@ -14,7 +14,7 @@ import type { AstroidConfig } from "../config.js";
 import { astroidPortal } from "./config.js";
 
 /**
- * `src/portal-auth.ts` — the portal Better Auth instance and its session
+ * `src/portal-auth.ts`—the portal Better Auth instance and its session
  * resolver.
  *
  * Returns null when the project has no portal.
@@ -101,14 +101,14 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
 }
 
 /**
- * `src/pages/api/portal-auth/[...all].ts` — the portal's Better Auth catch-all,
+ * `src/pages/api/portal-auth/[...all].ts`—the portal's Better Auth catch-all,
  * mounted at its own basePath so it never collides with the studio's
  * `/api/auth`.
  *
  * Lives here rather than as a literal in `create-astroid` for the same reason
  * the archetype sections moved (#277): the scaffolder is plain JS, so a drifted
  * import path there is invisible until a user's build fails. It is also the half
- * `generateAstroidPortalAuth` is useless without — `src/portal-auth.ts` exports
+ * `generateAstroidPortalAuth` is useless without—`src/portal-auth.ts` exports
  * `handlePortalAuth`, and nothing calls it unless this route exists.
  *
  * Returns null when the project has no portal.
@@ -130,7 +130,7 @@ export function generateAstroidPortalAuthRoute(config: AstroidConfig): string | 
 
 /**
  * The `App.Locals` member the portal adds, as a block `create-astroid`
- * substitutes into `src/env.d.ts`. Empty without a portal — a project that
+ * substitutes into `src/env.d.ts`. Empty without a portal—a project that
  * types `portalUser` it never sets is inviting a null-check nobody needs.
  */
 export function generateAstroidPortalLocals(config: AstroidConfig): string {

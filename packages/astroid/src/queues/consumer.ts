@@ -9,20 +9,20 @@
 // acks as a no-op.
 //
 // That last part matters more than it looks. Order, payment, and subscription
-// events are read live from the provider, so there is nothing local to update —
-// but they still arrive, in volume. A consumer that treats every event as
+// events are read live from the provider, so there is nothing local to
+// update—but they still arrive, in volume. A consumer that treats every event as
 // actionable turns a busy sales day into a catalog-refresh storm.
 
 import { affectsCatalog, type AstroidQueueMessage } from "./messages.js";
 
 export interface QueueHandlerOptions {
   /**
-   * Re-sync whatever the provider owns — the catalog mirror, a cache. Called
+   * Re-sync whatever the provider owns—the catalog mirror, a cache. Called
    * for a periodic refresh and for webhooks that touched the catalog.
    *
    * Receives the message that triggered it, so a site running more than one
    * commerce provider can branch on `message.provider` rather than refreshing
-   * everything for everything. A zero-argument seam stays valid — the parameter
+   * everything for everything. A zero-argument seam stays valid—the parameter
    * is there to be ignored until it's needed.
    *
    * Throwing marks the message for retry, which is usually right: a failed
@@ -40,7 +40,7 @@ export interface QueueHandlerOptions {
    * storefront and Square as its POS, at which point `refreshCatalog` means
    * "re-pull Fourthwall" while Square emits `inventory.count.updated` on every
    * single sale. Unscoped, a good Saturday becomes a sync storm against an
-   * unrelated provider's rate limit — and the periodic refresh is unaffected, so
+   * unrelated provider's rate limit—and the periodic refresh is unaffected, so
    * the site looks fine until the day it's busy.
    */
   catalogProvider?: string;

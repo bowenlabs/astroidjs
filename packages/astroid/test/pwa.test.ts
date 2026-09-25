@@ -42,7 +42,7 @@ describe("resolvePwa", () => {
 
   it("normalizes the scope to a leading slash and no trailing one", () => {
     // Scope comparison is a string prefix test, so "/order/" would fail to
-    // match the scope root itself — a subtle way to exclude the app's own
+    // match the scope root itself—a subtle way to exclude the app's own
     // landing page from its own worker.
     expect(resolvePwa(withPwa({ scope: "order" })).scope).toBe("/order");
     expect(resolvePwa(withPwa({ scope: "/order/" })).scope).toBe("/order");
@@ -68,7 +68,7 @@ describe("generateServiceWorker", () => {
 
   it("never caches the editor or an edit-mode request", () => {
     // A Louise site is CMS-edited. Serving an editor a stale copy of the page
-    // they're editing presents as "my changes don't save" — about as far from
+    // they're editing presents as "my changes don't save"—about as far from
     // the cause as a bug report gets.
     const source = sw();
     expect(source).toContain("url.searchParams.has('louise')");
@@ -132,7 +132,7 @@ describe("generateWebManifest", () => {
 
   it("declares both `any` and `maskable` icons as separate assets", () => {
     // The platform crops a maskable icon to its own shape, so the artwork needs
-    // padding the `any` icon shouldn't have — they can't be the same file.
+    // padding the `any` icon shouldn't have—they can't be the same file.
     const manifest = JSON.parse(generateWebManifest(withPwa()) as string);
     const purposes = manifest.icons.map((i: { purpose: string }) => i.purpose);
     expect(purposes).toContain("any");
@@ -154,7 +154,7 @@ describe("generateWebManifest", () => {
 
 describe("generatePwaHeaders", () => {
   it("makes the worker itself revalidate every load", () => {
-    // A bad worker otherwise sticks around until its cache entry expires — and
+    // A bad worker otherwise sticks around until its cache entry expires—and
     // it controls every page in scope.
     const headers = generatePwaHeaders(withPwa()) as string;
     expect(headers).toContain("/sw.js");
@@ -167,7 +167,7 @@ describe("generatePwaHeaders", () => {
 
   it("does NOT emit Service-Worker-Allowed", () => {
     // That header is only needed for a scope BROADER than the script's own
-    // location, and sw.js sits at the root — so every scope is narrower.
+    // location, and sw.js sits at the root—so every scope is narrower.
     // Emitting it anyway (as the reference does) implies a requirement that
     // isn't there, which misleads whoever later moves the script.
     expect(generatePwaHeaders(withPwa({ scope: "/order" }))).not.toContain(
@@ -208,7 +208,7 @@ describe("emitDir (#309)", () => {
 
   it("moves the manifest reference and the headers stanza together", () => {
     // A stanza for /sw.js while the worker lives at /studio/sw.js sets headers
-    // on nothing — and the no-cache rule is what stops a bad worker sticking.
+    // on nothing—and the no-cache rule is what stops a bad worker sticking.
     const pwa = withPwa({ scope: "/studio", emitDir: "studio" });
     expect(resolvePwa(pwa).shell).toContain("/studio/manifest.webmanifest");
     const headers = generatePwaHeaders(pwa)!;

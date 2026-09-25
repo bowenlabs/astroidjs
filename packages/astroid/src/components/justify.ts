@@ -4,9 +4,9 @@
 //
 // The layout every photo grid actually wants: images keep their aspect ratios,
 // each row is exactly as wide as the container, and rows land near a target
-// height. CSS can't express it — `grid` needs uniform tracks, and `columns`
+// height. CSS can't express it—`grid` needs uniform tracks, and `columns`
 // gives you a masonry *column* flow where reading order runs down instead of
-// across — so it's arithmetic, done once here rather than re-derived per site.
+// across—so it's arithmetic, done once here rather than re-derived per site.
 //
 // Pure and synchronous on purpose. It's called twice for the same gallery:
 // once during SSR with the aspect ratios the media library recorded, and again
@@ -28,14 +28,14 @@ export interface JustifyItem {
  * One image in a `<JustifiedGallery>`.
  *
  * Declared here rather than in the `.astro` component so consumers can import
- * the type from a plain module — an `.astro` file's non-`Props` exports are
+ * the type from a plain module—an `.astro` file's non-`Props` exports are
  * awkward to reach from TypeScript, and a scaffolded page shouldn't have to.
  */
 export interface GalleryItem {
   src: string;
   /**
    * Alternative text. Required, and `""` is a legitimate value for a purely
-   * decorative tile — what must not happen is the attribute going missing.
+   * decorative tile—what must not happen is the attribute going missing.
    */
   alt: string;
   /** Intrinsic dimensions, when the media library recorded them. Used for the
@@ -49,7 +49,7 @@ export interface GalleryItem {
 
 /** A laid-out item: its position in the input, at a concrete pixel size. */
 export interface JustifiedBox {
-  /** Index into the input array — the caller maps this back to its own data. */
+  /** Index into the input array—the caller maps this back to its own data. */
   index: number;
   width: number;
   height: number;
@@ -80,8 +80,8 @@ export interface JustifyOptions {
   lastRowSlack?: number;
 }
 
-/** Aspect used for an item whose real ratio isn't known yet (3:2 landscape —
- *  the most common photographic frame, so first paint is usually close). */
+/** Aspect used for an item whose real ratio isn't known yet (3:2 landscape—*
+  the most common photographic frame, so first paint is usually close). */
 export const DEFAULT_ASPECT = 1.5;
 
 /** Clamp a caller-supplied aspect into something layout-safe. A zero or NaN
@@ -97,7 +97,7 @@ function safeAspect(aspect: number): number {
  * The rule per row: with n items of total aspect A and n−1 gaps, the height
  * that makes the row exactly fill is `(containerWidth − gap·(n−1)) / A`. Adding
  * items only ever *lowers* that height, so items are appended until it drops to
- * `targetHeight` and the row closes — which is why rows come out near, but
+ * `targetHeight` and the row closes—which is why rows come out near, but
  * never exactly at, the target.
  *
  * ```ts
@@ -135,7 +135,7 @@ export function justifyRows(items: JustifyItem[], options: JustifyOptions): Just
       // Every box but the last takes its proportional share; the last takes
       // whatever is left, so the row's widths sum to `available` exactly and the
       // right edge stays flush. An un-stretched trailing row keeps natural
-      // widths instead — it isn't meant to reach the edge.
+      // widths instead—it isn't meant to reach the edge.
       const width =
         stretch && last
           ? available - used

@@ -9,8 +9,8 @@
 //   src/worker.ts      → import { handleQueueMessage } from "./queue.js"
 //   src/middleware.ts  → import { resolvePortalUser } from "./portal-auth.js"
 //
-// The files behind those imports were written in exactly one place —
-// `create-astroid`'s CLI — and nothing else could produce them. So turning a
+// The files behind those imports were written in exactly one
+// place—`create-astroid`'s CLI—and nothing else could produce them. So turning a
 // module on AFTER scaffold, by editing the one typed config the framework is
 // built around, regenerated a trio importing files that did not exist. `astroid
 // doctor` reported "healthy" and the project failed in Vite.
@@ -54,7 +54,7 @@ import { generateAstroidQueueSeam, generateAstroidWebhookRoutes } from "../queue
  *
  * `apply` is the whole contract. `"skip"` (the default) leaves an existing file
  * alone. `"append-once"` is for the files a project accumulates into rather than
- * owns outright — `public/_headers` gets a stanza per module, and a second
+ * owns outright—`public/_headers` gets a stanza per module, and a second
  * module must not erase the first one's.
  */
 export interface ScaffoldFile {
@@ -74,7 +74,7 @@ export interface ScaffoldFile {
  * Every scaffold-once file this config implies.
  *
  * Ordered by module so a `generate` that writes several prints them in a stable
- * sequence. Returns `[]` for a plain marketing site with no modules — the
+ * sequence. Returns `[]` for a plain marketing site with no modules—the
  * baseline floor is entirely the regenerated trio plus the static template.
  */
 export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFile[] {
@@ -90,7 +90,7 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
 
   // --- the CWV beacon -------------------------------------------------------
   // A static file under public/, so it is same-origin and covered by
-  // `script-src 'self'` — an inline script carrying generated content could not
+  // `script-src 'self'`—an inline script carrying generated content could not
   // be hashed into the CSP and would be blocked.
   const beacon = generateAstroidVitalsBeacon(config, cwvBeaconScript());
   files.push({ path: beacon.path, contents: beacon.contents });
@@ -132,7 +132,7 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // is why `astroid generate` must never rewrite them.
   if (astroidUsesQueues(config)) {
     files.push({ path: "src/queue.ts", contents: generateAstroidQueueSeam(config) });
-    // One receiver per provider — a site can run two (invoicing + storefront).
+    // One receiver per provider—a site can run two (invoicing + storefront).
     for (const route of generateAstroidWebhookRoutes(config)) {
       files.push({ path: route.path, contents: route.contents });
     }
@@ -144,14 +144,14 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   if (gallery) files.push({ path: "src/pages/work.astro", contents: gallery });
 
   // --- pwa: the service worker, manifest, and its headers -------------------
-  // Static files under public/, not generated source — a service worker is not
+  // Static files under public/, not generated source—a service worker is not
   // bundled, and `_headers` is shared with whatever else writes to it.
   const sw = generateServiceWorker(config);
   if (sw) {
     // `emitDir` puts them where the BROWSER will ask for them. A PWA on its own
     // subdomain that rewrites to a path prefix (studio.example.com/ → /studio/)
-    // fetches /sw.js at its own origin root, which rewrites to /studio/sw.js —
-    // so a worker emitted at the public root is a 404 nothing explains.
+    // fetches /sw.js at its own origin root, which rewrites to /studio/sw.js—so
+    // a worker emitted at the public root is a 404 nothing explains.
     const pwaDir = resolvePwa(config).emitDir;
     const publicBase = pwaDir ? `public/${pwaDir}` : "public";
     files.push({ path: `${publicBase}/sw.js`, contents: sw });
@@ -162,7 +162,7 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
     const headers = generatePwaHeaders(config);
     if (headers) {
       files.push({
-        // `_headers` stays at the public root wherever the worker lives — it is
+        // `_headers` stays at the public root wherever the worker lives—it is
         // one file for the whole site, and Cloudflare only reads it there.
         path: "public/_headers",
         contents: headers,
@@ -191,7 +191,7 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
 
   // --- tenancy: what a subdomain maps to ------------------------------------
   // Astroid owns the wildcard route and the middleware wiring; this file owns
-  // every decision — the lookup, its caching, and what an unknown host means.
+  // every decision—the lookup, its caching, and what an unknown host means.
   const tenancy = generateAstroidTenancy(config);
   if (tenancy) files.push({ path: "src/tenancy.ts", contents: tenancy });
 
@@ -204,7 +204,7 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
     const route = generateAstroidPortalAuthRoute(config);
     // Always non-null alongside portalAuth (same `astroidPortal` gate), but the
     // types don't know that and a silent drop here is a portal that cannot
-    // authenticate — so assert it rather than `?.`-ing it away.
+    // authenticate—so assert it rather than `?.`-ing it away.
     //
     // The route file lives at the mount path, because Astro routing is
     // file-path-based: a portal mounted at `/api/shop-auth` needs its catch-all

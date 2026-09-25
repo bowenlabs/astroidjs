@@ -59,7 +59,7 @@ describe("resolveCommerceStatus", () => {
 
     expect(status.enabled).toBe(true);
     expect(status.configured).toBe(false);
-    // Every declared name is named back — this is the "why not" list.
+    // Every declared name is named back—this is the "why not" list.
     expect(status.missing).toEqual([
       "SQUARE_ACCESS_TOKEN",
       "SQUARE_LOCATION_ID",
@@ -93,7 +93,7 @@ describe("resolveCommerceStatus", () => {
     );
     expect(status.configured).toBe(false);
     expect(status.missing).toEqual(["SQUARE_LOCATION_ID"]);
-    // The webhook half is independently live — it can verify events already.
+    // The webhook half is independently live—it can verify events already.
     expect(status.providers[0].webhook.configured).toBe(true);
     expect(status.providers[0].credentials.configured).toBe(false);
   });
@@ -221,7 +221,7 @@ describe("scaffold seeding", () => {
     const wrangler = generateAstroidWrangler(base({ commerce: { provider: "stripe" } }));
     expect(wrangler).toContain("STRIPE_SECRET_KEY");
     expect(wrangler).toContain("wrangler secret put");
-    // As a COMMENT — a committed file must never carry a secret's value, not
+    // As a COMMENT—a committed file must never carry a secret's value, not
     // even the placeholder. (The prose mentions the sentinel by name, which is
     // fine; what must not appear is an assignment of one.)
     expect(wrangler).not.toContain(`"STRIPE_SECRET_KEY":`);

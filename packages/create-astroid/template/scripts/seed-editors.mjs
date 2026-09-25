@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Seed the first editor(s) — an admin `louise_user` row per OWNER_EMAIL / ENGINEER_EMAIL.
+// Seed the first editors—an admin `louise_user` row per OWNER_EMAIL / ENGINEER_EMAIL.
 // A row here IS an editor and IS the magic-link allowlist, so this bootstraps
 // access before anyone can sign in. Idempotent (INSERT OR IGNORE on unique email).
 // After this, add more editors from the Users panel (never by editing env).
@@ -37,7 +37,7 @@ const now = new Date().toISOString();
 /**
  * Quote a value as a SQL string literal, doubling any embedded single quote.
  * `wrangler d1 execute` takes raw SQL via `--command` with no parameter binding,
- * so values have to be escaped rather than bound — and an apostrophe is legal in
+ * so values have to be escaped rather than bound—and an apostrophe is legal in
  * an email local part, so this is a correctness fix as much as a safety one.
  */
 const q = (value) => `'${String(value).replace(/'/g, "''")}'`;

@@ -4,7 +4,7 @@
 // inquiry pair (notify the owner, confirm to the sender).
 //
 // All three consuming sites wrote these four, with the same structure and
-// near-identical copy — only the brand name differed, which is exactly what
+// near-identical copy—only the brand name differed, which is exactly what
 // makes them first-party rather than site-side. The brand-agnostic *frame*
 // (card, colour band, CTA button, paste-this-link fallback) already lives in
 // `louise-toolkit/email`; this file owns the wording and the layout inside it.
@@ -45,7 +45,7 @@ const quote = (theme: MailTheme, text: string) =>
   `<div style="font-family:${theme.fonts.sans};font-size:15px;line-height:1.65;color:${theme.palette.ink};padding:16px 18px;background:${theme.palette.bgSoft};border:1px solid ${theme.palette.rule};border-radius:6px;">${escapeMultiline(text)}</div>`;
 
 /**
- * A one-time link email — the shared shape behind sign-in and password reset.
+ * A one-time link email—the shared shape behind sign-in and password reset.
  * Both are "here is a URL, it expires, ignore this if it wasn't you", and the
  * only differences are the words.
  */
@@ -212,7 +212,7 @@ ${i.regarding?.trim() ? row("Regarding", escapeHtml(i.regarding.trim())) : ""}
 /** Confirmation back to whoever submitted the contact form. */
 export function inquiryConfirmationEmail(theme: MailTheme, i: InquiryDetails): MailContent {
   const brand = theme.brand.name;
-  // Only the given name — "Hi Jane Smith" reads like a form letter, which is
+  // Only the given name—"Hi Jane Smith" reads like a form letter, which is
   // precisely what this is trying not to.
   const first = i.name.trim().split(/\s+/)[0] || "there";
 

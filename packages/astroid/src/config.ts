@@ -1,28 +1,28 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// `defineAstroid` — the Astroid project configuration surface.
+// `defineAstroid`—the Astroid project configuration surface.
 //
 // Astroid is the opinionated layer over Louise Toolkit + Astro. A site's whole
-// shape — its brand + theme + editable home, its commerce backend, its optional
-// modules — collapses into ONE typed config here. Astroid consumes it to generate
+// shape—its brand + theme + editable home, its commerce backend, its optional
+// modules—collapses into ONE typed config here. Astroid consumes it to generate
 // the Louise wiring (worker routes, middleware, Drizzle schema, theme tokens) a
 // site would otherwise hand-write per repo.
 //
 // ONE brand per project. Every site Astroid targets (coracle.coffee,
 // ghostfire.coffee, themidwestartist.com, louise-web) serves a single brand from a
 // single deploy. The axis that genuinely multiplexes is *editors* (Louise's org
-// plugin, #100) and *audiences* — a gated portal alongside the public site, or a
-// per-merchant storefront on its own subdomain (`tenancy`) — not brands. So all
+// plugin, #100) and *audiences*—a gated portal alongside the public site, or a
+// per-merchant storefront on its own subdomain (`tenancy`)—not brands. So all
 // of them live here as options on the one brand, not as a `brands[]` array.
 //
 // `tenancy` is worth being precise about, because "serves many hosts" sounds like
 // the thing this paragraph rules out and isn't. It serves scoped VIEWS OF ONE
-// BRAND'S DATA — the same theme, the same catalog, the same editors — narrowed by
+// BRAND'S DATA—the same theme, the same catalog, the same editors—narrowed by
 // host. It is the portal's axis, one step further out. A second brand still means
 // a second project.
 //
 // The vocabulary below is not invented: `Archetype`, `SectionKind`, and
-// `ModuleKind` are extracted from the real sites Astroid targets — a storefront
+// `ModuleKind` are extracted from the real sites Astroid targets—a storefront
 // (coracle), a wholesale front (ghostfire), an artist portfolio (megbowen), and a
 // plain marketing baseline (louise-web).
 
@@ -43,7 +43,7 @@ import type { PortalRoute } from "./portal/guard.js";
 import type { PwaConfig } from "./pwa/generate.js";
 
 /**
- * The starting shape the front-end takes. Not a fork — each archetype is a preset
+ * The starting shape the front-end takes. Not a fork—each archetype is a preset
  * of defaults (which sections/modules are on, nav shape) that the site then tunes.
  * `marketing` = the lean brochure floor (louise-web, no commerce); `storefront` =
  * DTC shop (coracle); `wholesale` = B2B/private-label (ghostfire); `portfolio` =
@@ -52,7 +52,7 @@ import type { PwaConfig } from "./pwa/generate.js";
 export type Archetype = "marketing" | "storefront" | "wholesale" | "portfolio";
 
 /**
- * The section vocabulary — the editable home page is an ordered list of these,
+ * The section vocabulary—the editable home page is an ordered list of these,
  * top to bottom.
  *
  * DERIVED from the section catalog, not hand-written (#277). It used to be its
@@ -70,14 +70,14 @@ export type SectionKind = keyof typeof astroidSectionCatalog;
 /**
  * Each archetype's default home-page sections.
  *
- * Lives here, in TypeScript, rather than in `create-astroid`'s plain JS — the
+ * Lives here, in TypeScript, rather than in `create-astroid`'s plain JS—the
  * other half of #277. As a JS object literal it could name a section that
  * didn't exist and nothing would say so; typed against {@link SectionKind}
  * (itself derived from the catalog) a stale name is a compile error, and CI
  * type-checks this package.
  *
- * The four kinds this used to name — `marquee`, `featured`, `story`, `visit` —
- * had no catalog entry or component and could never render. Each is replaced by
+ * The four kinds this used to name—`marquee`, `featured`, `story`, `visit`—had
+ * no catalog entry or component and could never render. Each is replaced by
  * the real section that does its job: a marquee is a `banner`, curated picks
  * are a `productGrid`, a brand-origin block is `aboutIntro`, and "visit" is
  * exactly `locationHours`.
@@ -90,30 +90,30 @@ export const ASTROID_ARCHETYPE_SECTIONS: Record<Archetype, SectionKind[]> = {
 };
 
 /**
- * Optional capabilities the site switches on. Pluggable, not core — a portfolio
+ * Optional capabilities the site switches on. Pluggable, not core—a portfolio
  * site runs none of the commerce ones.
  *
  * **Every value here is read by something.** The union used to also name
  * `orderTracking`, `subscriptions`, `giftCards`, and `privateLabel`, none of
  * which had a single consumer anywhere in the package: setting one type-checked,
- * passed validation, and did nothing at all — no scaffold, no CSP origin, no
+ * passed validation, and did nothing at all—no scaffold, no CSP origin, no
  * rate rule, no table. A config surface that accepts a setting it ignores is
  * worse than a smaller one, because the only way to discover the truth is to
  * deploy and notice the absence.
  *
  * They are removed rather than left as TODOs. `orderTracking` in particular has
- * a real implementation waiting — `src/workflow/` is the ghostfire order tracker,
- * generalized — but it is reached through `defineWorkflow`, not this flag, and
+ * a real implementation waiting—`src/workflow/` is the ghostfire order tracker,
+ * generalized—but it is reached through `defineWorkflow`, not this flag, and
  * pretending otherwise is what made the flag misleading. Re-add each one in the
  * change that wires it.
  */
 export type ModuleKind = "map" | "pwa" | "realtime" | "wholesaleInquiry";
 
-/** Commerce backend — mirrors Louise's provider set (louise-toolkit/commerce). */
+/** Commerce backend—mirrors Louise's provider set (louise-toolkit/commerce). */
 export type CommerceProvider = "stripe" | "square" | "fourthwall";
 
 export interface Theme {
-  /** Display name — the brand, used in nav, `<title>`, OG cards. */
+  /** Display name—the brand, used in nav, `<title>`, OG cards. */
   name: string;
   /** Path to the primary logo (media-library asset or a `/brand/*` file). */
   logo?: string;
@@ -130,21 +130,21 @@ export interface Theme {
 export interface Portal {
   enabled: boolean;
   /**
-   * @deprecated NOT IMPLEMENTED — `defineAstroid` throws if this is set.
+   * @deprecated NOT IMPLEMENTED—`defineAstroid` throws if this is set.
    *
    * It was meant to require a session for the whole site (a pre-launch client
    * gallery), not just the account area, but nothing ever read it: the guard
    * table is built from {@link Portal.routes} and `portalGuard` allows any
    * unmatched path. Until it's wired, gate the site by naming the prefixes in
-   * `routes` — that is the mechanism this would have been sugar for.
+   * `routes`—that is the mechanism this would have been sugar for.
    */
   gated?: boolean;
-  /** Modules exposed inside the account area (e.g. `wholesaleInquiry`, which
+  /** Modules exposed inside the account area (for example, `wholesaleInquiry`, which
    *  adds the inquiries table even on an archetype that wouldn't have one). */
   features?: ModuleKind[];
   /**
    * Roles a portal account can hold, first being the default for a new account.
-   * Default `["customer"]`. These are the portal's OWN roles — entirely separate
+   * Default `["customer"]`. These are the portal's OWN roles—entirely separate
    * from the editor's `admin`, because the two auth instances don't share a
    * user table.
    */
@@ -156,7 +156,7 @@ export interface Portal {
    */
   routes?: PortalRoute[];
   /**
-   * Where a portal user lands, per role — used to bounce someone who reached an
+   * Where a portal user lands, per role—used to bounce someone who reached an
    * area they don't belong in. Default `/portal` for everyone.
    */
   home?: Record<string, string>;
@@ -166,14 +166,14 @@ export interface Portal {
    */
   signUp?: boolean;
   /**
-   * Where the portal's Better Auth instance mounts — its own handler, separate
+   * Where the portal's Better Auth instance mounts—its own handler, separate
    * from the editor's `/api/auth`. Default `/api/portal-auth`. Override when a
-   * site already ships a second instance at a different path (e.g. a shop
+   * site already ships a second instance at a different path (for example, a shop
    * account at `/api/shop-auth`) whose live cookies must not change.
    */
   basePath?: string;
   /**
-   * Cookie prefix for the portal instance — MUST differ from the editor's
+   * Cookie prefix for the portal instance—MUST differ from the editor's
    * (Better Auth's default), or signing into one instance signs you out of the
    * other. Default `"portal"`. `defineAstroid` rejects a colliding value.
    */
@@ -190,14 +190,14 @@ export interface Portal {
 export interface CommerceConfig {
   /**
    * Shorthand for a single-provider site. Assigns the provider to a role it can
-   * actually serve — `square`/`fourthwall` become the storefront, `stripe`
+   * actually serve—`square`/`fourthwall` become the storefront, `stripe`
    * becomes invoicing (its client has no catalog API).
    */
   provider?: CommerceProvider;
   /** Catalog, cart, checkout. Needs a provider with a catalog API. */
   storefront?: CommerceProvider;
   /**
-   * Invoices for work that isn't a catalog item — commissions, originals.
+   * Invoices for work that isn't a catalog item—commissions, originals.
    * Independent of `storefront`: themidwestartist.com runs Stripe here and
    * Fourthwall as the storefront, because neither can do the other's job.
    */
@@ -209,14 +209,14 @@ export interface CommerceConfig {
    * Separate from `storefront` because they are genuinely different jobs and a
    * site commonly runs both. themidwestartist.com sells print-on-demand merch
    * through Fourthwall (`storefront`) while originals and self-stocked prints
-   * live in Square (`pos`) across several shops and galleries — one catalog per
+   * live in Square (`pos`) across several shops and galleries—one catalog per
    * rail, neither able to do the other's job.
    *
    * What `pos` turns on that `storefront` does not: locations, per-location
    * pricing, and per-location inventory.
    */
   pos?: CommerceProvider;
-  /** The catalog mirror's shape — its mode, table name, and owned columns. */
+  /** The catalog mirror's shape—its mode, table name, and owned columns. */
   catalog?: CatalogMirrorConfig;
   /** Square-specific options. Only meaningful when Square fills some role. */
   square?: SquareCommerceConfig;
@@ -229,7 +229,7 @@ export interface SquareCommerceConfig {
    * `"single"` (the default) is the ordinary case: one location, its id supplied
    * once as `SQUARE_LOCATION_ID`, and every order placed against it.
    *
-   * `"multi"` is the multi-merchant model — each merchant is a Location, and the
+   * `"multi"` is the multi-merchant model—each merchant is a Location, and the
    * id comes from the *request* (which merchant's storefront is this?) rather
    * than from the environment. Setting it stops Astroid requiring
    * `SQUARE_LOCATION_ID`: a single ambient location id is not merely unnecessary
@@ -247,8 +247,8 @@ export interface QueuesConfig {
    */
   enabled?: boolean;
   /**
-   * Cron for the safety-net re-sync, or `false` for none. Webhooks get missed —
-   * a provider outage, a deploy mid-delivery, a DLQ'd message — and without a
+   * Cron for the safety-net re-sync, or `false` for none. Webhooks get missed—a
+   * provider outage, a deploy mid-delivery, a DLQ'd message—and without a
    * periodic re-sync the site serves stale data until someone notices. Default
    * hourly.
    */
@@ -267,13 +267,13 @@ export interface QueuesConfig {
  *
  * Declaring it here rather than by hand is what keeps `wrangler.jsonc` and the
  * generated `scheduled` dispatch in agreement. Adding a cron to `triggers.crons`
- * alone produces a trigger Cloudflare fires and the dispatch never matches —
- * unreachable code that costs an invocation and does nothing, with no error
+ * alone produces a trigger Cloudflare fires and the dispatch never matches—unreachable
+ * code that costs an invocation and does nothing, with no error
  * anywhere. Adding it in the dashboard instead drifts from the config that is
  * supposed to describe the deploy.
  */
 /**
- * Serve `*.example.com` from this one Worker — scoped views of **this brand's**
+ * Serve `*.example.com` from this one Worker—scoped views of **this brand's**
  * data, narrowed by host. A per-merchant storefront, a per-client gallery.
  *
  * Not multi-brand: see the note at the top of this file. Same theme, same
@@ -281,26 +281,26 @@ export interface QueuesConfig {
  *
  * Astroid provides only the plumbing that cannot live in a site: the wildcard
  * Worker route (which `hosts` cannot express) and the one middleware file Astro
- * permits. **Everything that decides anything stays yours** — what a label maps
+ * permits. **Everything that decides anything stays yours**—what a label maps
  * to, whether the lookup is cached, and what an unknown host should do. Those
  * live in the scaffolded `src/tenancy.ts`, which is yours to edit.
  */
 export interface TenancyConfig {
   /**
-   * The wildcard host, e.g. `"*.example.com"`. Emitted as a **zone route**
-   * (`{ pattern, zone_name }`), never `custom_domain: true` — a wildcard cannot
+   * The wildcard host, for example, `"*.example.com"`. Emitted as a **zone route**
+   * (`{ pattern, zone_name }`), never `custom_domain: true`—a wildcard cannot
    * be a custom domain, which is exactly why `hosts` cannot express this.
    */
   hostPattern: string;
   /**
    * The Cloudflare zone the pattern belongs to. Defaults to `hostPattern` minus
    * its leading `*.`, which is right whenever the wildcard sits directly under
-   * the zone apex. Set it explicitly for a deeper pattern — `*.shop.example.com`
+   * the zone apex. Set it explicitly for a deeper pattern—`*.shop.example.com`
    * is served by the `example.com` zone, not a `shop.example.com` one.
    */
   zone?: string;
   /**
-   * Labels that are **not** tenants — `www`, `admin`, `studio`, `api`. These
+   * Labels that are **not** tenants—`www`, `admin`, `studio`, `api`. These
    * skip the tenant lookup entirely and render the ordinary site.
    *
    * Declared here rather than in the seam because the generated middleware needs
@@ -313,27 +313,27 @@ export interface TenancyConfig {
    * Internal path prefix a tenant request is rewritten to. Default `"/t"`, so
    * `acme.example.com/prints` renders `/t/acme/prints`.
    *
-   * The visitor's URL never changes — this is an internal rewrite, so links
+   * The visitor's URL never changes—this is an internal rewrite, so links
    * built from `Astro.url` stay public and correct.
    */
   rewritePrefix?: string;
   /**
    * First-party apps on their own labels, mapped to the internal path prefix
-   * each serves from — `{ studio: "/studio" }` serves
+   * each serves from—`{ studio: "/studio" }` serves
    * `studio.example.com/<path>` from `src/pages/studio/<path>`.
    *
    * This is the missing half of {@link PwaConfig.emitDir}'s subdomain story:
-   * an app label is not a tenant (there is no lookup — the studio exists
+   * an app label is not a tenant (there is no lookup—the studio exists
    * whether or not any tenant does) and not merely reserved (a reserved label
    * renders the ordinary site, which turns the admin host into a second copy
    * of the marketing homepage). It is a static rewrite, decided at config time.
    *
    * An app label is implicitly reserved: `tenantLabel` never offers it to
-   * `resolveTenant`, and listing it in `reserved` too is refused — one list
+   * `resolveTenant`, and listing it in `reserved` too is refused—one list
    * per fact, or the two drift.
    *
    * Same internal-rewrite semantics as tenants: the visitor's URL never
-   * changes, and the path form stays reachable on the apex — which is what
+   * changes, and the path form stays reachable on the apex—which is what
    * makes local dev work, since `wrangler dev` cannot serve subdomains.
    */
   apps?: Record<string, string>;
@@ -341,7 +341,7 @@ export interface TenancyConfig {
    * What a syntactically-valid tenant host whose label resolves to NOTHING
    * (`resolveTenant` returned `null`) should get.
    *
-   * `"fallthrough"` (the default) renders the ordinary site — which means a
+   * `"fallthrough"` (the default) renders the ordinary site—which means a
    * stranger who points a CNAME at your zone gets your homepage. `"404"` emits
    * a guard that refuses the request instead, which is the right answer the
    * moment tenant hosts are commercial surfaces: an unknown storefront must be
@@ -351,7 +351,7 @@ export interface TenancyConfig {
    * Either way the decision stays visible in config rather than buried in the
    * seam: `resolveTenant` decides *what exists*; this decides what not-existing
    * means. Reserved labels, app labels, the apex, and off-pattern hosts are
-   * never affected — they aren't tenant candidates at all.
+   * never affected—they aren't tenant candidates at all.
    */
   unknown?: "fallthrough" | "404";
   /**
@@ -360,13 +360,13 @@ export interface TenancyConfig {
    * The rewrite exists to choose which PAGE renders for a host. An API route
    * is not a page: its address is absolute, chosen by the client that calls
    * it, and it reads the host from `locals.tenant` rather than from its own
-   * path. Rewriting it moves it somewhere no route matches — and on an app
+   * path. Rewriting it moves it somewhere no route matches—and on an app
    * host with a catch-all page, somewhere much worse than a 404: the page
    * catch-all answers, so `fetch("/api/…")` gets HTML (or a redirect to a
    * sign-in) instead of JSON, and every data load on that host silently fails
    * while the same code works on the apex.
    *
-   * That is not hypothetical — it is why this default exists (found on
+   * That is not hypothetical—it is why this default exists (found on
    * themidwestartist.com's studio, where the whole admin app loaded and then
    * fetched nothing).
    *
@@ -378,7 +378,7 @@ export interface TenancyConfig {
 }
 
 export interface AstroidCron {
-  /** Standard 5-field cron, UTC — e.g. `"*&#47;15 * * * *"`. */
+  /** Standard 5-field cron, UTC—for example, `"*&#47;15 * * * *"`. */
   expression: string;
   /**
    * The queue message this trigger sends. **Enqueued, never run inline**, so the
@@ -401,14 +401,14 @@ export interface SeoConfig {
   /**
    * schema.org `@type` for the business node in the JSON-LD graph. Defaults to
    * the archetype's broad type (see `ARCHETYPE_BUSINESS_TYPE`); set a more
-   * specific subtype whenever you know one — `"CafeOrCoffeeShop"`,
-   * `"ArtGallery"`, `"HomeAndConstructionBusiness"` — since a narrower type is
+   * specific subtype whenever you know one—`"CafeOrCoffeeShop"`,
+   * `"ArtGallery"`, `"HomeAndConstructionBusiness"`—since a narrower type is
    * strictly better for rich results.
    */
   businessType?: string;
   /** `@handle` for Twitter/X card attribution. */
   twitterHandle?: string;
-  /** Open Graph locale, e.g. `"en_US"`. */
+  /** Open Graph locale, for example, `"en_US"`. */
   locale?: string;
 }
 
@@ -445,8 +445,8 @@ export interface SettingsConfig {
    * Override the editable base `site_settings` columns. Defaults to Astroid's
    * standard set (`ASTROID_SETTINGS_COLUMNS`). A **custom-heavy** site whose
    * settings shape doesn't align with the base column names keeps everything in
-   * `custom` by passing `[]` — otherwise a key that happens to match a base
-   * column name (e.g. `contactEmail`) would route to that column instead of
+   * `custom` by passing `[]`—otherwise a key that happens to match a base
+   * column name (for example, `contactEmail`) would route to that column instead of
    * `custom`, where the site's render reads it.
    */
   columns?: string[];
@@ -459,8 +459,8 @@ export interface SettingsConfig {
    * hours table, ui strings, shop/order config) lists their top-level keys here.
    */
   customKeys?: string[];
-  /** Extra media-library image keys beyond the base logo/favicon/OG defaults —
-   *  settings values validated as media-library URLs on write. */
+  /** Extra media-library image keys beyond the base logo/favicon/OG defaults—*
+    settings values validated as media-library URLs on write. */
   imageKeys?: string[];
 }
 
@@ -470,7 +470,7 @@ export interface MediaConfig {
    * Largest accepted upload, in bytes. Default 10 MB (louise-toolkit's
    * `DEFAULT_MAX_BYTES`).
    *
-   * Raise it when the masters ARE the product — a photographer's or painter's
+   * Raise it when the masters ARE the product—a photographer's or painter's
    * portfolio uploads 40 MB camera files and only ever serves Cloudflare-
    * resized derivatives, so the master's size costs storage, not page weight.
    *
@@ -484,22 +484,22 @@ export interface MediaConfig {
 
 export interface DeployConfig {
   platform: "cloudflare";
-  /** Media base for R2 + `cf-image` resizing — matches Louise's media route
+  /** Media base for R2 + `cf-image` resizing—matches Louise's media route
    *  (`media.<brand>/cdn-cgi/image`). Default `"/media"`. */
   mediaBase?: string;
 }
 
 export interface AstroidConfig {
   /**
-   * Stable project slug — the worker/D1/R2 base name and default subdomain (e.g.
+   * Stable project slug—the worker/D1/R2 base name and default subdomain (for example,
    * `"coracle"`). Required and non-empty; it drives the generated binding names.
    */
   key: string;
-  /** Hostname(s) this site serves (prod + preview), for custom-domain routes. */
+  /** Hostnames this site serves (prod + preview), for custom-domain routes. */
   hosts?: string[];
   /**
    * Serve a wildcard host from this Worker, mapping each subdomain to an
-   * internal path prefix. See {@link TenancyConfig} — and note it is an
+   * internal path prefix. See {@link TenancyConfig}—and note it is an
    * *audiences* axis, not multi-brand.
    */
   tenancy?: TenancyConfig;
@@ -512,8 +512,8 @@ export interface AstroidConfig {
   /**
    * A site-provided section catalog that REPLACES the built-in one for
    * SERVER-side validation + sanitization of `pages.sections` (the generated
-   * pages route + versions route). A site with bespoke section designs — its own
-   * `.astro` components and field defs (coracle's 13 sections) — registers them
+   * pages route + versions route). A site with bespoke section designs—its own
+   * `.astro` components and field defs (coracle's 13 sections)—registers them
    * here so writes to its custom `_type`s validate instead of 422-ing against the
    * built-in vocabulary. The on-canvas editor already uses the site's catalog
    * (its `mountSections` call passes it); this closes the server half so both
@@ -521,13 +521,13 @@ export interface AstroidConfig {
    */
   sectionCatalog?: SectionCatalog;
   /**
-   * The site's catalog of BLOCK types (ADR 0005) — the block-level analogue of
+   * The site's catalog of BLOCK types (ADR 0005)—the block-level analogue of
    * {@link sectionCatalog}, and required for any section whose def declares a
    * `blocks` policy.
    *
    * Without it the server has no field shape to check a block against, so
    * `validateSections` rejects every block `_type` as unknown and a block-bearing
-   * write 422s — the on-canvas block toolbar appears to work and then nothing
+   * write returns 422—the on-canvas block toolbar appears to work and then nothing
    * saves. It also gates block rich-text **sanitization**: block fields are only
    * scrubbed when their def is resolvable here.
    *
@@ -556,10 +556,10 @@ export interface AstroidConfig {
   seo?: SeoConfig;
   /** Additions to the rate-limit rules + CSP origins Astroid derives. */
   security?: SecurityConfig;
-  /** Site-specific editable settings — extra `custom` keys + image keys on top
+  /** Site-specific editable settings—extra `custom` keys + image keys on top
    *  of Astroid's base `site_settings` columns. */
   settings?: SettingsConfig;
-  /** Media-library upload policy (e.g. a larger `maxUploadBytes`). */
+  /** Media-library upload policy (for example, a larger `maxUploadBytes`). */
   media?: MediaConfig;
   /**
    * Force the contact form + `inquiries` table on or off. Omit to detect from
@@ -597,8 +597,8 @@ export interface AstroidConfig {
  * A duplicate expression is the sharper one: the generated dispatch matches on
  * `controller.cron` in order, so a custom trigger colliding with a derived one
  * (or another custom one) never reaches its own branch. Cloudflare fires it, the
- * first branch handles it, and the config reads as though both are live —
- * exactly the unreachable-trigger failure `config.crons` exists to prevent.
+ * first branch handles it, and the config reads as though both are live—exactly
+ * the unreachable-trigger failure `config.crons` exists to prevent.
  */
 function assertCrons(config: AstroidConfig): void {
   const crons = config.crons ?? [];
@@ -638,7 +638,7 @@ function assertCrons(config: AstroidConfig): void {
  *
  * All three are cheap to state and expensive to discover: two surface as a
  * wrangler deploy error naming a zone or a pattern rather than the config that
- * produced it, and the third never surfaces at all — it just serves the wrong
+ * produced it, and the third never surfaces at all—it just serves the wrong
  * page.
  */
 function assertTenancy(config: AstroidConfig): void {
@@ -664,7 +664,7 @@ function assertTenancy(config: AstroidConfig): void {
   }
 
   // A wildcard does NOT match its own apex, so the apex needs its own route.
-  // Without one it 404s — and the symptom is "the marketing site is down"
+  // Without one it returns 404—and the symptom is "the marketing site is down"
   // immediately after enabling a feature that reads like it only adds hosts.
   if (!(config.hosts ?? []).some((host) => host.toLowerCase() === apex.toLowerCase())) {
     throw new AstroidConfigError(
@@ -701,7 +701,7 @@ function assertTenancy(config: AstroidConfig): void {
 }
 
 /** Cloudflare rejects a request body over 100 MB at the edge, before any Worker
- *  handler runs — so an upload limit above it can never be honoured, and the
+ *  handler runs—so an upload limit above it can never be honoured, and the
  *  failure arrives as an opaque edge error rather than the route's own 413. */
 const WORKERS_MAX_REQUEST_BODY_BYTES = 100 * 1024 * 1024;
 
@@ -741,17 +741,17 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   // the first invoice, as a missing function.
   assertCommerceRoles(config.commerce);
 
-  // A media limit above the platform's own body cap is unhonourable — reject it
+  // A media limit above the platform's own body cap is unhonourable—reject it
   // here rather than let an editor watch a 120 MB upload die at the edge.
   assertMediaConfig(config.media);
 
   // A portal is a SECOND Better Auth instance beside the editor's. Reject any
   // isolation that would collide with the editor on the same origin (a shared
   // cookie prefix silently cross-signs-out; a shared table prefix merges the two
-  // user tables) — the intermittent-prod failure the fixed defaults prevent.
+  // user tables)—the intermittent-prod failure the fixed defaults prevent.
   assertAuthIsolation(config);
 
-  // `portal.gated` is declared and resolved but read by NOTHING — the guard
+  // `portal.gated` is declared and resolved but read by NOTHING—the guard
   // table is built from `portal.routes` alone, and `portalGuard` allows any
   // unmatched path. So a site that set it believed the whole site sat behind a
   // login (a pre-launch client gallery) while every page outside /portal was

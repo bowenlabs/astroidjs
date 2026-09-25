@@ -1,12 +1,12 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The module status report — "what is actually switched on right now".
+// The module status report—"what is actually switched on right now".
 //
 // `secrets.ts` gives one module its gate. This composes every enabled module's
 // gate into one answer, which is what the dormant-until-provisioned convention
 // needs to be usable rather than merely available: a fresh scaffold boots with
 // nothing provisioned, and the failure mode that convention exists to avoid is
-// not a crash — it's a developer wondering for twenty minutes why the contact
+// not a crash—it's a developer wondering for twenty minutes why the contact
 // form "works" but no mail arrives.
 //
 // So the deal is: dormant is fine, dormant AND SILENT is not. Two consumers of
@@ -26,7 +26,7 @@ import type { SecretSource } from "./secrets.js";
 /**
  * Secrets every Astroid site has, independent of which modules are on.
  *
- * `SESSION_SECRET` is here but is NOT a dormancy gate — it fails closed off
+ * `SESSION_SECRET` is here but is NOT a dormancy gate—it fails closed off
  * localhost (see `getSessionSecret`), because an unsigned session isn't a
  * feature to switch off. It's listed so the scaffold seeds and types it.
  */
@@ -46,7 +46,7 @@ export interface AstroidModuleReport {
   configured: boolean;
   /** Unprovisioned secret/binding names, in declaration order. */
   missing: string[];
-  /** What the module does in this state — the sentence a banner prints. */
+  /** What the module does in this state—the sentence a banner prints. */
   detail: string;
 }
 
@@ -55,7 +55,7 @@ export interface AstroidModuleReport {
  *
  * The scaffold uses this twice: to seed `.dev.vars`/`.env.example` with the
  * placeholder sentinel, and to type the matching `CloudflareEnv` members. A
- * module that isn't enabled contributes nothing — a declaration is a promise,
+ * module that isn't enabled contributes nothing—a declaration is a promise,
  * and a marketing site shouldn't be told to provision a Square token.
  */
 export function astroidSecretNames(config: AstroidConfig): Record<string, string[]> {
@@ -65,7 +65,7 @@ export function astroidSecretNames(config: AstroidConfig): Record<string, string
   };
   const commerce = commerceSecretNames(config.commerce);
   if (commerce.length > 0) groups.commerce = commerce;
-  // The CWV read-back's API credentials. Collection needs none of this — only
+  // The CWV read-back's API credentials. Collection needs none of this—only
   // querying the p75 back out does, because the Analytics Engine SQL API is
   // account-scoped and has no binding.
   groups.vitals = [...ASTROID_VITALS_SECRET_NAMES];
@@ -126,8 +126,8 @@ export async function astroidModuleStatus(
 
 /**
  * The report as a printable block. One line per module, missing names spelled
- * out — "commerce is off" sends someone reading source; "commerce is dormant —
- * set SQUARE_ACCESS_TOKEN" does not.
+ * out—"commerce is off" sends someone reading source; "commerce is dormant—set
+ * SQUARE_ACCESS_TOKEN" does not.
  */
 export function describeAstroidStatus(reports: AstroidModuleReport[]): string {
   if (reports.length === 0) return "[astroid] no optional modules enabled";

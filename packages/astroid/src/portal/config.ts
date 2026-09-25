@@ -1,13 +1,13 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// Portal defaults derived from the project config — the single place that knows
+// Portal defaults derived from the project config—the single place that knows
 // the portal's mount, cookie prefix, table prefix, and guard table.
 //
 // The isolation constants are fixed rather than configurable, and that's the
 // point: the studio instance MUST keep Better Auth's defaults (`/api/auth`, the
 // unprefixed tables) because the Louise editor client hardcodes them, so the
 // portal is the one that moves. Leaving that to a project invites the one
-// mistake that matters — two instances sharing a cookie prefix, where signing
+// mistake that matters—two instances sharing a cookie prefix, where signing
 // into one silently signs you out of the other, intermittently, in production.
 
 import type { AstroidConfig, Portal } from "../config.js";
@@ -18,7 +18,7 @@ import type { PortalGuardConfig, PortalRoute } from "./guard.js";
  *  (`better-auth`) so the two sessions can coexist on one origin. */
 export const ASTROID_PORTAL_COOKIE_PREFIX = "portal";
 
-/** Table-name prefix for the portal's Better Auth tables — `portal_user`,
+/** Table-name prefix for the portal's Better Auth tables—`portal_user`,
  *  `portal_session`, … The studio owns the unprefixed names. */
 export const ASTROID_PORTAL_TABLE_PREFIX = "portal_";
 
@@ -32,7 +32,7 @@ export interface ResolvedPortal {
   cookiePrefix: string;
   tablePrefix: string;
   roles: string[];
-  /** First role in `roles` — what a newly created account gets. */
+  /** First role in `roles`—what a newly created account gets. */
   defaultRole: string;
   routes: PortalRoute[];
   home: Record<string, string>;

@@ -3,20 +3,20 @@
 // The `portfolio` archetype's scaffold-once page: a justified gallery over the
 // media library.
 //
-// Scaffold-once, not regenerated, for the usual reason — this is the first file
+// Scaffold-once, not regenerated, for the usual reason—this is the first file
 // a portfolio site edits (which assets appear, in what order, whether tiles link
 // to a detail page), so `astroid generate` must never rewrite it.
 //
 // It exists because the primitives alone don't finish the job. `<MediaSlot>` and
 // `<JustifiedGallery>` are archetype-agnostic, but the wiring between them and
-// the media registry — the public URL shape, filtering to images, carrying
+// the media registry—the public URL shape, filtering to images, carrying
 // alt/caption and intrinsic dimensions through so the first paint isn't a guess
-// — is identical every time, and is exactly what the consuming sites hand-wrote.
+//—is identical every time, and is exactly what the consuming sites hand-wrote.
 
 import type { AstroidConfig } from "../config.js";
 
 /**
- * `src/pages/work.astro` — the portfolio gallery. Null for any other archetype.
+ * `src/pages/work.astro`—the portfolio gallery. Null for any other archetype.
  *
  * Intrinsic `width`/`height` are carried through deliberately: they feed the
  * pre-decode layout, so a library with dimensions recorded lays out correctly on

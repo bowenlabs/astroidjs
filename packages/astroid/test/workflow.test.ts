@@ -14,7 +14,7 @@ import { generateWorkflowRoute, generateWorkflowSchema } from "../src/workflow/g
 import { AstroidConfigError } from "../src/errors.js";
 
 /**
- * A D1 stub backed by one row, honouring the `WHERE stage = ?` guard — which is
+ * A D1 stub backed by one row, honouring the `WHERE stage = ?` guard—which is
  * the only behaviour these tests actually depend on. `calls` records the SQL so
  * a test can assert ORDER, which is where the reference implementation went
  * wrong.
@@ -131,7 +131,7 @@ describe("advanceWorkflowStage", () => {
   it("guards the UPDATE itself rather than checking first", async () => {
     const stub = db({ id: "GF-1", stage: 0 });
     await advanceWorkflowStage({ ...base(), db: stub });
-    // The very first statement must be the guarded write — a SELECT-then-UPDATE
+    // The very first statement must be the guarded write—a SELECT-then-UPDATE
     // leaves a window between the two.
     expect(stub.calls[0].sql).toMatch(
       /^UPDATE orders SET stage = \? WHERE id = \? AND stage = \?$/,
@@ -211,7 +211,7 @@ describe("overrideWorkflowStage", () => {
     });
 
     expect(result).toMatchObject({ ok: true, stage: 2 });
-    // The sign-off for the reopened stage is gone — otherwise the audit trail
+    // The sign-off for the reopened stage is gone—otherwise the audit trail
     // would claim work that was undone.
     expect(stub.audit).toEqual([]);
     expect(stub.overrides).toEqual([{ id: "GF-1", action: "back", initials: "BB" }]);
@@ -275,7 +275,7 @@ describe("defineWorkflow", () => {
   });
 
   it("rejects a pipeline with fewer than two stages", () => {
-    // One stage is an integer that only ever holds 0 — there is nothing to advance to.
+    // One stage is an integer that only ever holds 0—there is nothing to advance to.
     expect(() => defineWorkflow({ ...ok, stages: ["only"] })).toThrow(/at least 2 stages/);
   });
 
@@ -313,7 +313,7 @@ describe("generateWorkflowSchema", () => {
   });
 
   it("hands back the stage column rather than generating the project's table", () => {
-    // Astroid doesn't own the entity table — inventing one would collide with
+    // Astroid doesn't own the entity table—inventing one would collide with
     // whatever the project already has.
     const { source, stageColumn } = generateWorkflowSchema(wf);
     expect(stageColumn).toContain('integer("stage")');

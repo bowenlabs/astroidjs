@@ -1,7 +1,7 @@
 # Working in this repo
 
 Conventions CI or a reviewer enforces, written down so you meet them before they
-meet you. Deliberately short — a long file rots, and a rotted one is worse than
+meet you. Deliberately short—a long file rots, and a rotted one is worse than
 none.
 
 ## The one rule everything else serves
@@ -9,7 +9,7 @@ none.
 **Dependencies flow one way: `astroidjs → louise-toolkit`, never the reverse.**
 Louise is the unopinionated toolkit; the opinions live here. If you find yourself
 wanting a change in Louise to make something here easier, ask first whether the
-opinion belongs here instead — usually it does.
+opinion belongs here instead—usually it does.
 
 `louise-toolkit` enforces the other half of this in its own CI: the string
 "astro" may not appear anywhere in its source, code or prose. That is why these
@@ -17,7 +17,7 @@ are separate repos.
 
 ## Toolchain
 
-- **Node 26** — `.nvmrc` and `engines`, matching the CI runner.
+- **Node 26**—`.nvmrc` and `engines`, matching the CI runner.
 - **Installs go through `corepack pnpm`**, against the pinned `packageManager`
   version. A globally-installed pnpm of a different major produces a store error
   rather than a clear message.
@@ -36,7 +36,7 @@ valid TypeScript standalone. Formatting one produces
 Its toolkit versions are **derived**, never written. `toolkitRanges()` in
 `index.mjs` reads create-astroid's own resolved dependencies;
 `scripts/ci/checks/scaffold-versions.mjs` fails the build if they become
-literals — which is exactly what a well-meaning edit writes.
+literals—which is exactly what a well-meaning edit writes.
 
 **Nothing type-checks the template until it is scaffolded.** So:
 
@@ -51,13 +51,13 @@ Flags after the workdir go to create-astroid, and that matters for anything
 flag-gated: the commerce files (`checkout.ts`, `SquareCard.astro`, the webhook
 receiver) exist only in a `--commerce square` scaffold, so a change to the
 commerce generators needs `scaffold-smoke.sh storefront /tmp/smoke --commerce
-square` — and `--square-locations multi` as well for the checkout route. CI runs
+square`, and `--square-locations multi` as well for the checkout route. CI runs
 both legs.
 
 ## Verifying a change
 
 Run the full set, not just the tests, and **check exit codes** rather than
-grepping a summary line — a suite can report success while the run fails.
+grepping a summary line—a suite can report success while the run fails.
 
 ```sh
 corepack pnpm run lint
@@ -72,7 +72,7 @@ scripts/ci/scaffold-smoke.sh marketing /tmp/smoke
 ```
 
 `lint:release` loads the changesets stack. Nothing else does, so a dependency
-resolution that breaks releasing is otherwise invisible until you try to ship —
+resolution that breaks releasing is otherwise invisible until you try to ship—
 which is how it was found.
 
 ## Tests resolve the PUBLISHED toolkit
@@ -86,7 +86,7 @@ aliases back.
 
 ## Decisions get an ADR
 
-`docs/adr/`. Numbers are shared with louise-toolkit rather than restarted — see
+`docs/adr/`. Numbers are shared with louise-toolkit rather than restarted—see
 the index there for why, and check both repos before claiming a number.
 
 An ADR that has stopped being true gets **amended**, not quietly outdated. A
@@ -94,7 +94,7 @@ stale ADR is worse than none, because people trust it.
 
 ## Changesets
 
-Pre-1.0, so a **breaking change ships as `minor`** — there is no deprecation
+Pre-1.0, so a **breaking change ships as `minor`**—there is no deprecation
 cycle to lean on. Write the changeset for someone upgrading blind: what changed,
 why, and what they have to do about it.
 

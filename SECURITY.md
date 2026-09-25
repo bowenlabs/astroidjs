@@ -23,7 +23,7 @@ site through here.
 Please report privately rather than opening a public issue:
 **[Report a vulnerability](https://github.com/bowenlabs/astroidjs/security/advisories/new)**.
 
-Include what makes it reproducible — affected version, a minimal case, and what
+Include what makes it reproducible—affected version, a minimal case, and what
 an attacker gets. You'll get an acknowledgement within a few days. This is a
 small project with a single maintainer, so please allow reasonable time before
 disclosing publicly.
@@ -37,7 +37,7 @@ its size suggests. The sharp edges:
 
 - **Generated worker and middleware.** `astroid generate` writes the route table,
   the session handling and the rate rules. A gap there is a gap in every site.
-- **The scaffolded auth seam.** `src/auth.ts` and the editor gate — DB-managed
+- **The scaffolded auth seam.** `src/auth.ts` and the editor gate—DB-managed
   editors, magic links, and the first-editor seeding script.
 - **Checkout and money paths.** `verifyCheckout`, idempotency keys, and anything
   that decides a price server-side.

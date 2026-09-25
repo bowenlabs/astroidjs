@@ -22,14 +22,14 @@ export default defineConfig({
     build: { ...ASTROID_VITE_BUILD },
   },
   // Route caching (ADR 0004). This provider is what turns `Astro.cache.set(...)`
-  // into a `Cloudflare-CDN-Cache-Control` header — which the generated worker's
+  // into a `Cloudflare-CDN-Cache-Control` header—which the generated worker's
   // `withEdgeCache` layer reads as its "store this" signal and then STRIPS, so
   // Cloudflare's own cookie-blind edge cache never sees it.
   //
   // Opt-in per response: a route that never calls `Astro.cache.set` (or calls
   // `set(false)`, as an edit-mode render does) goes out `no-store`. Nothing
   // personalized is ever cached. Published pages opt in from index.astro, gated
-  // on the ASTROID_EDGE_CACHE var — which is "false" until you have walked the
+  // on the ASTROID_EDGE_CACHE var—which is "false" until you have walked the
   // activation runbook on a preview deploy.
   cache: { provider: cacheCloudflare() },
   // Content-Security-Policy, composed by Astroid from your config: it derives the
@@ -41,7 +41,7 @@ export default defineConfig({
   // 'unsafe-inline' and a hash in that directive would void it.
   //
   // This is why the inline scripts here (login.astro, LouiseEdit.astro) avoid
-  // is:inline/define:vars — those can't be hashed and would be blocked. Need
+  // is:inline/define:vars—those can't be hashed and would be blocked. Need
   // another origin? Add it to `security.cspOrigins` in astroid.config.ts.
   security: astroidSecurity(astroidConfig),
 });

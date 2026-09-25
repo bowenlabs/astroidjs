@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// generateAstroidWorker / generateAstroidMiddleware — emit the Cloudflare Worker
+// generateAstroidWorker / generateAstroidMiddleware—emit the Cloudflare Worker
 // entrypoint and the Astro middleware a Louise site would otherwise hand-write.
 // The worker's editor routes are composed in the fixed order from the route plan
 // (routes.ts), so the "versionsRoute/searchRoute before pagesRoute" collision is
@@ -8,7 +8,7 @@
 //
 // One seam is marked with TODO(astroid) and filled by the auth slice: the
 // `resolveEditor` session resolver. The section-catalog validate + sanitize on
-// the pages routes is wired here — versionsRoute runs it through the collection's
+// the pages routes is wired here—versionsRoute runs it through the collection's
 // beforeChange hook, and pagesRoute (which takes no collection config) through
 // the `astroidPagesWriteHooks` spread, so both write paths enforce one contract.
 
@@ -27,7 +27,7 @@ import { astroidCspStyleSrc } from "../security/csp-origins.js";
 import { ASTROID_REWRITE_EXCLUDE, ASTROID_TENANT_PREFIX } from "../tenancy/index.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "./routes.js";
 
-// Astroid's default editable site_settings surface — the columns the Settings
+// Astroid's default editable site_settings surface—the columns the Settings
 // panel may write, and which of them hold a media-library image URL.
 //
 // EXPORTED because the generated worker is not the only consumer: the scaffolded
@@ -67,7 +67,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const seedName = config.theme.name;
   const plan = astroidEditorRoutePlan(config);
 
-  // `realtimeRoute` lives in `louise-toolkit/realtime`, not `/editor` — it is the
+  // `realtimeRoute` lives in `louise-toolkit/realtime`, not `/editor`—it is the
   // one factory in the plan that isn't an editor route. Importing it with the
   // rest type-checks fine HERE (the plan is just strings) and fails only in the
   // scaffold, which is exactly how it got caught.
@@ -90,7 +90,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const routeCall = (name: AstroidEditorRouteName): string => {
     switch (name) {
       case "overview":
-        // `inbox` only when this project captures inquiries — an absent slice
+        // `inbox` only when this project captures inquiries—an absent slice
         // hides its card, which is right for an archetype with no contact form.
         return inquiries
           ? "overviewRoute({ resolveEditor, content: overviewContent, inbox: overviewInbox, health: overviewHealth })"
@@ -115,7 +115,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
       case "save":
         // No `bufferKv` here, deliberately: `saveRoute` has no such option. It
         // writes live field saves (title, SEO) straight through, and the draft
-        // buffer belongs to the versioned body — i.e. to versionsRoute.
+        // buffer belongs to the versioned body—that is, to versionsRoute.
         return 'saveRoute({ resolveEditor, collections: { pages: { table: pages, fields: ["title", "seoTitle", "seoDescription"] } } })';
       case "settings": {
         // Site-specific keys (config.settings.customKeys) are merged into
@@ -129,15 +129,15 @@ export function generateAstroidWorker(config: AstroidConfig): string {
       // `aiRunner` rather than `(env) => env.AI`: it reads the binding AND the
       // LOUISE_AI kill switch, so all three assists share one definition of
       // "is generation on?" instead of each re-deriving it. Embeddings keep
-      // binding-presence as their switch — see the helper's comment.
+      // binding-presence as their switch—see the helper's comment.
       case "ai":
         return "aiRoute({ resolveEditor, ai: aiRunner })";
       case "seoFix":
         return "seoFixRoute({ table: pages, resolveEditor, ai: aiRunner })";
       case "media": {
         // `altText` fills a new upload's alt from the image itself. Best-effort
-        // by contract — a model error or a missing binding never fails the
-        // upload — so it costs nothing on a project that doesn't want it.
+        // by contract—a model error or a missing binding never fails the
+        // upload—so it costs nothing on a project that doesn't want it.
         //
         // `maxBytes` is emitted only when the site raised it: omitted, the
         // route keeps louise-toolkit's DEFAULT_MAX_BYTES, so the generated
@@ -148,7 +148,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
       }
       case "editors":
         // The editor instance's user table is `louise_`-prefixed (the editor
-        // convention — the unprefixed `user` table is left for a second/portal
+        // convention—the unprefixed `user` table is left for a second/portal
         // instance). This route takes the table NAME, matching the
         // `tablePrefix` the scaffolded `src/auth.ts` passes to `getLouiseAuth`.
         return `editorsRoute({ table: ${JSON.stringify(astroidEditorTable("user"))}, resolveEditor })`;
@@ -184,7 +184,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   );
   if (inquiries) p('import { defineForm } from "louise-toolkit/forms";');
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
-  // Only when a route actually takes a runner — a project with no AI assists
+  // Only when a route actually takes a runner—a project with no AI assists
   // should not import one, and knip would flag it if it did.
   if (plan.some((route) => AI_ROUTES.has(route.name))) {
     p('import { aiRunner } from "louise-toolkit/ai";');
@@ -434,7 +434,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   }
   // ONE scheduled handler for every cron, dispatching on `controller.cron`.
   // Cloudflare gives no other way to tell them apart, and the strings here have
-  // to match `astroidCrons` exactly — which is why both read the same constants
+  // to match `astroidCrons` exactly—which is why both read the same constants
   // rather than repeating a literal.
   p("  // Cron. Cloudflare fires this for EVERY trigger in wrangler.jsonc and");
   p("  // identifies which by `controller.cron`, so dispatch on it.");
@@ -470,7 +470,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p();
   if (usesRealtime(config)) {
     // Re-exported from the ENTRY because wrangler resolves a Durable Object
-    // binding's `class_name` against the worker's exports — the class living in
+    // binding's `class_name` against the worker's exports—the class living in
     // src/edit-session.ts is not enough on its own, and the failure is a deploy
     // error about an unresolvable class rather than anything pointing here.
     p("// The realtime edit-session Durable Object. Re-exported so wrangler can");
@@ -488,7 +488,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
  * session + sticky `?louise` edit mode → content-freshness + security headers) via
  * `createLouiseMiddleware`.
  *
- * The rate rules are NOT emitted as literals here — the file calls
+ * The rate rules are NOT emitted as literals here—the file calls
  * `astroidRateRules(astroidConfig)`, so the set stays real data in the package
  * (testable, and a `match` predicate survives, which a serialized literal could
  * not). Enabling a portal or commerce in the config adds that surface's rules
@@ -498,7 +498,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
  * Astro emits a hash-based `content-security-policy` response header on every SSR
  * page and owns `script-src`. The `cspStyleSrc` below tells
  * `createLouiseMiddleware` to rewrite that header's `style-src` to
- * `'self' 'unsafe-inline'` — a hash-based `style-src` would, per spec, void the
+ * `'self' 'unsafe-inline'`—a hash-based `style-src` would, per spec, void the
  * `'unsafe-inline'` that Louise's data-driven `style=""` carriers and the
  * editor's runtime-injected `<style>` require. Script hashes are left verbatim,
  * and the inlined `data:` brand font is auto-allowed.
@@ -523,8 +523,8 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "// styles + inlined data: brand font are allowed.",
     'import { env } from "cloudflare:workers";',
     'import { createLouiseMiddleware } from "@louise-toolkit/astro";',
-    // One `astroidjs` import, composed from what this config actually uses —
-    // two import statements for the same module is legal and reads as an
+    // One `astroidjs` import, composed from what this config actually uses—two
+    // import statements for the same module is legal and reads as an
     // oversight in a file nobody is supposed to hand-edit.
     `import { ${[
       ...(tenancy && Object.keys(tenancy.apps ?? {}).length ? ["appPrefix"] : []),
@@ -543,7 +543,7 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "// TODO(astroid): your AUTH seam — same resolveEditor as the generated worker.ts.",
     'import { resolveEditor } from "./auth.js";',
     // The portal's resolver lives in its OWN module, not the editor's auth
-    // seam — they're separate Better Auth instances and must not share a file.
+    // seam—they're separate Better Auth instances and must not share a file.
     ...(portal ? ['import { resolvePortalUser } from "./portal-auth.js";'] : []),
     "",
     "// Rate-limit the public, unauthenticated POST surface, keyed by client IP",
@@ -580,7 +580,7 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "  // anything the worker's routes didn't answer. A second check behind the",
     "  // worker's gate, and free: the editor is resolved here on every request.",
     "  apiGate: true,",
-    // `extend` runs once and may need to populate BOTH — a tenanted site with a
+    // `extend` runs once and may need to populate BOTH—a tenanted site with a
     // portal resolves a tenant and a customer on the same request.
     ...(portal || tenancy
       ? [

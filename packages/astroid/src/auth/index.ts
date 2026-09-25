@@ -3,12 +3,12 @@
 // Editor-auth convention + the two-instance isolation guard.
 //
 // Astroid runs up to TWO Better Auth instances on one origin: the EDITOR (the
-// studio — magic-link + passkey, a DB-managed admin allowlist) and, optionally, a
-// second PORTAL instance (customers/members/a shop account — see `portal/`). The
+// studio—magic-link + passkey, a DB-managed admin allowlist) and, optionally, a
+// second PORTAL instance (customers/members/a shop account—see `portal/`). The
 // editor owns Better Auth's default mount (`/api/auth`) and cookie because the
 // Louise editor client hardcodes them; its tables are namespaced with the
 // `louise_` prefix so a second instance can take the unprefixed `user`/`session`
-// tables without collision. The portal is the one that MOVES — a distinct mount,
+// tables without collision. The portal is the one that MOVES—a distinct mount,
 // cookie prefix, and (by default) table prefix.
 //
 // The failure this guards against is subtle and intermittent: two instances that
@@ -21,7 +21,7 @@ import { AstroidConfigError } from "../errors.js";
 import { astroidPortal } from "../portal/config.js";
 
 /**
- * The editor Better Auth instance's table prefix — `louise_user`,
+ * The editor Better Auth instance's table prefix—`louise_user`,
  * `louise_session`, … The unprefixed names are left free for a second (portal)
  * instance. Consumed by the generated `editorsRoute` and mirrored by the
  * scaffolded `src/auth.ts` (`getLouiseAuth({ tablePrefix })`) + its migration.
@@ -35,7 +35,7 @@ export const ASTROID_EDITOR_TABLE_PREFIX = "louise_";
  */
 export const ASTROID_EDITOR_COOKIE_PREFIX = "better-auth";
 
-/** The editor's Better Auth table name for a given model (e.g. `louise_user`). */
+/** The editor's Better Auth table name for a given model (for example, `louise_user`). */
 export function astroidEditorTable(model: string): string {
   return `${ASTROID_EDITOR_TABLE_PREFIX}${model}`;
 }

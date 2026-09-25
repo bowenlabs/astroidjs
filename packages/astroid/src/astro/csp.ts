@@ -9,14 +9,14 @@
 //   - **Astro owns `script-src`.** Its `security.csp` hashes every script it
 //     processes, so the policy can be `'self'` with no `'unsafe-inline'`. What it
 //     does NOT hash is Solid's hydration bootstrap, which `@astrojs/solid-js`
-//     injects on every page carrying an island — Astro only tracks its own inline
+//     injects on every page carrying an island—Astro only tracks its own inline
 //     scripts. So we compute that hash from the very function the renderer calls,
 //     which means it follows solid-js upgrades instead of going stale as a
 //     copy-pasted literal.
 //   - **The middleware owns `style-src`.** Louise's data-driven `style=""`
 //     carriers and the editor's runtime-injected `<style>` need
 //     `'unsafe-inline'`, and per spec a single hash in `style-src` VOIDS
-//     `'unsafe-inline'` — so the two cannot coexist in one directive. The
+//     `'unsafe-inline'`—so the two cannot coexist in one directive. The
 //     generated middleware rewrites that one directive after the fact
 //     (`cspStyleSrc`), leaving Astro's script hashes verbatim.
 //
@@ -38,7 +38,7 @@ export type CspHash = `${"sha256" | "sha384" | "sha512"}-${string}`;
 
 /**
  * The directives Astro lets a config own. `script-src` and `style-src` are
- * absent by design — Astro owns the first (it hashes what it processes) and the
+ * absent by design—Astro owns the first (it hashes what it processes) and the
  * middleware owns the second.
  *
  * Mirrored from Astro's own union rather than imported, so `astroidjs/astro`
@@ -70,7 +70,7 @@ type CspDirectiveName =
   | "upgrade-insecure-requests"
   | "worker-src";
 
-/** One rendered directive line, e.g. `"default-src 'self'"`. */
+/** One rendered directive line, for example, `"default-src 'self'"`. */
 export type CspDirective = `${CspDirectiveName}${string}`;
 
 /** The `security` block for `astro.config.mjs`, structurally typed so Astroid
@@ -87,7 +87,7 @@ export interface AstroidSecurityConfig {
  * Hash of Solid's inline hydration bootstrap.
  *
  * `@astrojs/solid-js` injects this script on every page with an island, but
- * Astro's CSP tracker only hashes scripts it processed itself — so without this
+ * Astro's CSP tracker only hashes scripts it processed itself—so without this
  * the bootstrap is blocked under `script-src 'self'` and every island silently
  * fails to hydrate. Computed from `generateHydrationScript()` (the same call the
  * renderer makes), so a solid-js upgrade that changes the bootstrap updates the
@@ -100,7 +100,7 @@ export function solidHydrationHash(): CspHash {
 
 /**
  * Render one directive. The name is a literal from the union above, so the
- * concatenation is a valid `CspDirective` by construction — which is what the
+ * concatenation is a valid `CspDirective` by construction—which is what the
  * assertion is standing in for (TS widens template concatenation to `string`).
  */
 function directive(name: CspDirectiveName, ...sources: (string | string[])[]): CspDirective {
@@ -109,7 +109,7 @@ function directive(name: CspDirectiveName, ...sources: (string | string[])[]): C
 }
 
 /**
- * The `security` block for `astro.config.mjs` — Astro's half of the split.
+ * The `security` block for `astro.config.mjs`—Astro's half of the split.
  *
  * `style-src` is deliberately absent: the generated middleware rewrites it per
  * response, and declaring it here would be the hash-vs-`'unsafe-inline'`
@@ -150,7 +150,7 @@ export function astroidSecurity(config: AstroidConfig): AstroidSecurityConfig {
 
 /**
  * Vite build options the CSP depends on. `assetsInlineLimit: 0` stops Vite from
- * inlining small assets as `data:` URLs — an inlined script would be inline, and
+ * inlining small assets as `data:` URLs—an inlined script would be inline, and
  * therefore unhashed, and therefore blocked by `script-src 'self'`. Spread this
  * into `vite.build` rather than remembering why the number is zero.
  */

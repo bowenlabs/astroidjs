@@ -5,7 +5,7 @@
 //
 // The package description has claimed "multi-editor sites" since 0.1.0, and this
 // is the half that makes it true for two people on the SAME page. (The other
-// axis — multi-EDITOR, i.e. an org of accounts — was always real.) Without it
+// axis—multi-EDITOR, that is, an org of accounts—was always real.) Without it
 // two editors on one page clobber each other; the server-side draft merge
 // narrows the window but there is no live channel, no presence, and no signal
 // that someone else is in the same field.
@@ -13,15 +13,15 @@
 // What Astroid generates and what it deliberately does NOT:
 //
 //   - The DO SUBCLASS is scaffold-once (`src/edit-session.ts`), because it must
-//     import `cloudflare:workers` — a runtime-only specifier the toolkit can't
-//     carry — and because its `persist` is the seam a project tunes. Louise
+//     import `cloudflare:workers`—a runtime-only specifier the toolkit can't
+//     carry—and because its `persist` is the seam a project tunes. Louise
 //     ships the session LOGIC it delegates to; this is the boilerplate around it.
 //   - The wrangler `durable_objects` binding + `migrations` block, which is the
 //     part nobody gets right from memory: a DO class needs a migration tag, and
 //     a SQLite-backed one needs `new_sqlite_classes` rather than `new_classes`.
 //   - The `realtimeRoute` upgrade endpoint, in the generated worker.
 //
-// Persistence goes through `applySaveDraft` — the SAME path the fetch auto-save
+// Persistence goes through `applySaveDraft`—the SAME path the fetch auto-save
 // uses. One write path, per the ADR: the DO is a new front end to it, not a
 // parallel store, so drafts, version history, publish, and read-your-writes all
 // stay intact.
@@ -45,12 +45,12 @@ export function usesRealtime(config: AstroidConfig): boolean {
 }
 
 /**
- * `src/edit-session.ts` — the site-owned Durable Object subclass.
+ * `src/edit-session.ts`—the site-owned Durable Object subclass.
  *
  * Scaffold-once: `persist` is where a project decides what a flush means, and
  * the lock/field sets are tuning. What Astroid fixes is the delegation shape,
  * because getting it wrong fails in ways that look like anything but a bug in
- * this file — a missing `webSocketClose` leaks presence forever, a non-lazy
+ * this file—a missing `webSocketClose` leaks presence forever, a non-lazy
  * session breaks after the first hibernation wake.
  *
  * Returns null when the project has no realtime module.
@@ -151,8 +151,8 @@ export function generateAstroidEditSession(config: AstroidConfig): string | null
 
 /**
  * The `CloudflareEnv` member the realtime module adds, as a block
- * `create-astroid` substitutes into `src/env.d.ts`. Empty without the module —
- * a project that types a binding its wrangler.jsonc never creates is making a
+ * `create-astroid` substitutes into `src/env.d.ts`. Empty without the module—a
+ * project that types a binding its wrangler.jsonc never creates is making a
  * promise it doesn't keep.
  */
 export function generateAstroidRealtimeEnv(config: AstroidConfig): string {

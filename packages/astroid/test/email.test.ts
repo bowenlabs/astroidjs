@@ -177,8 +177,8 @@ describe("sendTransactional", () => {
     expect(results).toEqual([
       { to: "x@y.z", subject: "To x@y.z", delivered: false, reason: "not-configured" },
     ]);
-    // The plaintext body is logged because that's where a sign-in link lives —
-    // "click the magic link" is the whole local dev loop.
+    // The plaintext body is logged because that's where a sign-in link lives—"click
+    // the magic link" is the whole local dev loop.
     expect(log.mock.calls[0][0]).toContain("https://link");
     expect(log.mock.calls[0][0]).toContain("not-configured");
   });
@@ -232,7 +232,7 @@ describe("sendTransactional", () => {
   it("WITHHOLDS the body when this isn't a dev environment", async () => {
     // `logOnly` turns on whenever MAIL_FROM is unset, which can happen in
     // production (an unset secret, a failed Secrets Store read). The body then
-    // went to console.info — i.e. `wrangler tail` and Logpush — carrying live
+    // went to console.info—that is, `wrangler tail` and Logpush—carrying live
     // single-use magic links. Anyone with observability access could take over
     // an editor account.
     const log = vi.fn();

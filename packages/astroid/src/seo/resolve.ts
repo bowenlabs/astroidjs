@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// SEO resolution — settings defaults + per-page overrides, collapsed into the
+// SEO resolution—settings defaults + per-page overrides, collapsed into the
 // exact set of values a `<head>` needs.
 //
 // Both sites that hand-built this layer converged on the same three-level
@@ -25,7 +25,7 @@ export interface AstroidSeoSettings {
   tagline?: string | null;
   metaDescription?: string | null;
   defaultOgImageUrl?: string | null;
-  /** Site-wide kill switch — noindex every page (staging, pre-launch). */
+  /** Site-wide kill switch—noindex every page (staging, pre-launch). */
   disableIndexing?: boolean | null;
 }
 
@@ -43,7 +43,7 @@ export interface PageSeoInput {
 }
 
 export interface AstroidSeoOptions {
-  /** Canonical URL of the page being rendered — absolute. */
+  /** Canonical URL of the page being rendered—absolute. */
   canonical: string;
   /**
    * Title template, `%s` standing in for the page title. Applied ONLY when the
@@ -52,16 +52,16 @@ export interface AstroidSeoOptions {
   titleTemplate?: string;
   /** `@<handle>` for Twitter/X card attribution. */
   twitterHandle?: string;
-  /** OG locale, e.g. `"en_US"`. */
+  /** OG locale, for example, `"en_US"`. */
   locale?: string;
 }
 
 /** Everything a `<head>` needs, fully resolved and absolute. */
 export interface ResolvedSeo {
-  /** Final `<title>` — templated when the page supplied one. */
+  /** Final `<title>`—templated when the page supplied one. */
   title: string;
   /** Untemplated page title, for OG/Twitter (which shouldn't carry the site
-   *  suffix twice — the OG `site_name` already says it). */
+   *  suffix twice—the OG `site_name` already says it). */
   bareTitle: string;
   description?: string;
   canonical: string;
@@ -74,7 +74,7 @@ export interface ResolvedSeo {
   noindex: boolean;
 }
 
-/** Trimmed value, or undefined — an empty/whitespace string counts as unset. */
+/** Trimmed value, or undefined—an empty/whitespace string counts as unset. */
 const clean = (value: string | null | undefined): string | undefined => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;

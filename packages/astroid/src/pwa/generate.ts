@@ -1,21 +1,21 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The PWA scaffold — a scoped service worker, a manifest, and the headers they
+// The PWA scaffold—a scoped service worker, a manifest, and the headers they
 // need.
 //
 // The scoping is the whole design, not a detail. A Louise site is CMS-edited:
 // an editor signs in, flips edit mode on, and edits the live page in place. A
 // service worker that cached HTML across the whole origin would serve that
-// editor a stale copy of the page they are trying to change — and the bug would
+// editor a stale copy of the page they are trying to change—and the bug would
 // present as "my edits don't save", which is about as far from the cause as a
 // report can get.
 //
 // So the generated worker is scoped, and inside its scope it still refuses to
 // touch anything dynamic:
 //
-//   • `/api/*`        never cached — checkout, auth, and every Louise write
-//   • editor routes   never cached — the studio must always be live
-//   • edit-mode URLs  never cached — `?louise` marks a request as an editing
+//   • `/api/*`        never cached—checkout, auth, and every Louise write
+//   • editor routes   never cached—the studio must always be live
+//   • edit-mode URLs  never cached—`?louise` marks a request as an editing
 //                     session, and caching one poisons it for everyone
 //
 // Everything else is the ordinary split: navigations network-first with a
@@ -46,31 +46,31 @@ export interface PwaConfig {
   /** Extra paths to precache alongside the scope root. */
   shell?: string[];
   /**
-   * A prerendered page to serve when a navigation fails offline, e.g.
+   * A prerendered page to serve when a navigation fails offline, for example,
    * `"/offline"`.
    *
-   * Without it the fallback is the scope root — the *dynamic* app shell, which
+   * Without it the fallback is the scope root—the *dynamic* app shell, which
    * is exactly the wrong thing to precache when the app is auth-gated: that
    * response carries `Cache-Control: no-store`, so either nothing is cached and
    * the fallback is empty, or a signed-in shell is stored and later served to
    * whoever opens the app next.
    *
    * Point it at a page with no session-specific markup. It is precached with the
-   * shell, so it must be prerendered — a dynamic route here fails at exactly the
+   * shell, so it must be prerendered—a dynamic route here fails at exactly the
    * moment it is needed.
    */
   offlineFallback?: string;
   /**
-   * Subdirectory under `public/` to emit `sw.js` and the manifest into, e.g.
+   * Subdirectory under `public/` to emit `sw.js` and the manifest into, for example,
    * `"studio"`. Default: the public root.
    *
-   * For a PWA served from its own subdomain that rewrites to a path prefix —
-   * `studio.example.com/` → `/studio/` — the browser fetches `/sw.js` at *its*
+   * For a PWA served from its own subdomain that rewrites to a path prefix—`studio.example.com/`
+   * → `/studio/`—the browser fetches `/sw.js` at *its*
    * origin root, which rewrites to `/studio/sw.js`. Emitting at the public root
    * puts the file where nothing will ask for it.
    *
    * Set this to the same prefix the host rewrites to. With `scope` equal to the
-   * serving path, no `Service-Worker-Allowed` header is needed — a worker may
+   * serving path, no `Service-Worker-Allowed` header is needed—a worker may
    * always control its own directory and below.
    */
   emitDir?: string;
@@ -79,7 +79,7 @@ export interface PwaConfig {
 /** True when this project switched the PWA on. */
 export const usesPwa = (config: AstroidConfig): boolean => (config.modules ?? []).includes("pwa");
 
-/** Resolved PWA settings — config over derivation over default. */
+/** Resolved PWA settings—config over derivation over default. */
 export function resolvePwa(config: AstroidConfig): Required<
   Omit<PwaConfig, "shell" | "offlineFallback" | "emitDir">
 > & {
@@ -105,7 +105,7 @@ export function resolvePwa(config: AstroidConfig): Required<
     themeColor: pwa.themeColor ?? config.theme.colors.brand,
     offlineFallback: pwa.offlineFallback ?? null,
     emitDir: (pwa.emitDir ?? "").replace(/^\/+|\/+$/g, ""),
-    // The offline page is precached with the shell — a fallback fetched on
+    // The offline page is precached with the shell—a fallback fetched on
     // demand is a fallback that isn't there when the network is.
     shell: [
       scope,
@@ -116,7 +116,7 @@ export function resolvePwa(config: AstroidConfig): Required<
   };
 }
 
-/** URL prefix the emitted `sw.js` + manifest are served from — `""` at the
+/** URL prefix the emitted `sw.js` + manifest are served from—`""` at the
  *  public root, `"/studio"` under an `emitDir`. */
 function assetBase(emitDir: string | undefined): string {
   const dir = (emitDir ?? "").replace(/^\/+|\/+$/g, "");
@@ -126,7 +126,7 @@ function assetBase(emitDir: string | undefined): string {
 /**
  * `public/manifest.webmanifest`.
  *
- * Icons are declared but NOT generated — a brand's icon is not something a
+ * Icons are declared but NOT generated—a brand's icon is not something a
  * scaffold can invent, and emitting placeholders would produce an installable
  * app with a grey square for a face. The generated README step says to add them.
  */
@@ -171,7 +171,7 @@ export function generateWebManifest(config: AstroidConfig): string | null {
   )}\n`;
 }
 
-/** `public/sw.js`. Plain JS — a service worker is not bundled. */
+/** `public/sw.js`. Plain JS—a service worker is not bundled. */
 export function generateServiceWorker(config: AstroidConfig): string | null {
   if (!usesPwa(config)) return null;
   const pwa = resolvePwa(config);
@@ -302,7 +302,7 @@ export function generateServiceWorker(config: AstroidConfig): string | null {
  * The `public/_headers` block the PWA needs.
  *
  * `Service-Worker-Allowed` is emitted ONLY when the scope is broader than the
- * script's own location — which, with `sw.js` at the root, never is. Emitting it
+ * script's own location—which, with `sw.js` at the root, never is. Emitting it
  * unconditionally (as the reference does) is harmless but misleading: it implies
  * a requirement that isn't there, and someone later moving the script will trust
  * a header that no longer says what they need.
@@ -310,7 +310,7 @@ export function generateServiceWorker(config: AstroidConfig): string | null {
 export function generatePwaHeaders(config: AstroidConfig): string | null {
   if (!usesPwa(config)) return null;
 
-  // Paths must match where the files are actually emitted — a stanza for
+  // Paths must match where the files are actually emitted—a stanza for
   // `/sw.js` while the worker lives at `/studio/sw.js` sets headers on nothing,
   // and the no-cache rule is what stops a bad worker sticking around.
   const base = assetBase(config.pwa?.emitDir);
