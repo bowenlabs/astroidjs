@@ -32,6 +32,9 @@ export function generateAstroidActions(config: AstroidConfig): string {
       ? `        columns: ${JSON.stringify(columnsOverride)},`
       : "        columns: ASTROID_SETTINGS_COLUMNS,",
     ...(customKeys.length ? [`        customKeys: ${JSON.stringify(customKeys)},`] : []),
+    // The same sanitizers the generated settingsRoute spreads in. An Action
+    // writes no GET, so `read` has nothing to do here.
+    ...(config.settings?.hooks ? ["        sanitize: settingsHooks.sanitize,"] : []),
     extraImageKeys.length
       ? `        imageKeys: [...ASTROID_SETTINGS_IMAGE_KEYS, ...${JSON.stringify(extraImageKeys)}],`
       : "        imageKeys: ASTROID_SETTINGS_IMAGE_KEYS,",
@@ -57,12 +60,15 @@ export function generateAstroidActions(config: AstroidConfig): string {
     "  louiseSettingsAction,",
     '} from "@louise-toolkit/astro";',
     "import {",
-    "  ASTROID_SETTINGS_COLUMNS,",
+    // Only when the Action uses it: a site that overrides the columns gets them
+    // as a literal, and an unused import is a lint error in its own file.
+    ...(columnsOverride ? [] : ["  ASTROID_SETTINGS_COLUMNS,"]),
     "  ASTROID_SETTINGS_IMAGE_KEYS,",
     "  astroidPagesCollection,",
     '} from "astroidjs";',
     'import astroidConfig from "../../astroid.config.js";',
     'import { pages, pagesVersions, siteSettings } from "../schema.js";',
+    ...(config.settings?.hooks ? ['import { settingsHooks } from "../settings-hooks.js";'] : []),
     "",
     "const pagesCollection = astroidPagesCollection(astroidConfig);",
     "",

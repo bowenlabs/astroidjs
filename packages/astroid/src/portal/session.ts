@@ -15,8 +15,11 @@
 
 import type { PortalUser } from "./guard.js";
 
-/** Resolves the portal user for a request, or null when signed out. */
-export type PortalSessionResolver = (request: Request) => Promise<PortalUser | null>;
+/** Resolves the portal user for a request, or null when signed out. A site's
+ *  resolver can return its own richer user type; see {@link resolvePortalSession}. */
+export type PortalSessionResolver<U extends PortalUser = PortalUser> = (
+  request: Request,
+) => Promise<U | null>;
 
 const inFlight = new WeakMap<Request, Promise<PortalUser | null>>();
 
@@ -25,12 +28,17 @@ const inFlight = new WeakMap<Request, Promise<PortalUser | null>>();
  *
  * Shares the *promise*, not the result, so two callers racing during the same
  * request both await one lookup rather than starting a second.
+ *
+ * Generic over the site's user type, so the result keeps whatever the site's
+ * resolver returns (a customer ID, display initials) instead of narrowing to
+ * `PortalUser`. Every caller in a request passes the same resolver, so the
+ * shared promise always holds that type.
  */
-export function resolvePortalSession(
+export function resolvePortalSession<U extends PortalUser = PortalUser>(
   request: Request,
-  resolve: PortalSessionResolver,
-): Promise<PortalUser | null> {
-  const existing = inFlight.get(request);
+  resolve: PortalSessionResolver<U>,
+): Promise<U | null> {
+  const existing = inFlight.get(request) as Promise<U | null> | undefined;
   if (existing) return existing;
   // A rejected lookup degrades to signed-out rather than propagating: missing
   // bindings under plain `astro preview` shouldn't 500 a public page.

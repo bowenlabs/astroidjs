@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { defineAstroid } from "../src/config.js";
 import { AstroidConfigError } from "../src/errors.js";
@@ -198,6 +198,21 @@ describe("resolvePortalSession", () => {
     await resolvePortalSession(new Request("https://acme.test/a"), resolve);
     await resolvePortalSession(new Request("https://acme.test/b"), resolve);
     expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the site's own user type", async () => {
+    // A site resolves more than PortalUser (a customer ID, initials). Narrowing
+    // the result to PortalUser made every site-side read a cast.
+    type SiteUser = { id: string; email: string; role: string; customerId: number | null };
+    const request = new Request("https://acme.test/portal");
+    const user = await resolvePortalSession(request, async (): Promise<SiteUser> => ({
+      id: "u1",
+      email: "a@example.com",
+      role: "customer",
+      customerId: 7,
+    }));
+    expectTypeOf(user).toEqualTypeOf<SiteUser | null>();
+    expect(user?.customerId).toBe(7);
   });
 
   it("degrades a failed lookup to signed-out instead of throwing", async () => {

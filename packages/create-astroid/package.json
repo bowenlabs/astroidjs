@@ -1,6 +1,6 @@
 {
   "name": "create-astroid",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Scaffold a new Astroid site — an editable, multi-editor Astro app on Cloudflare Workers — in one command.",
   "keywords": [
     "astro",
@@ -31,10 +31,10 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.2",
-    "@louise-toolkit/astro": "^0.2.2",
+    "@louise-toolkit/astro": "^0.2.3",
     "astroidjs": "workspace:*",
     "better-auth": "^1.7.2",
-    "louise-toolkit": "^0.31.0"
+    "louise-toolkit": "^0.31.1"
   },
   "engines": {
     "node": ">=26.0.0"
