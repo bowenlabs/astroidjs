@@ -28,7 +28,7 @@ export function generateAstroidGalleryPage(config: AstroidConfig): string | null
 
   return [
     "---",
-    "// The work gallery — a justified grid over the media library.",
+    "// The work gallery—a justified grid over the media library.",
     "//",
     "// Scaffolded once; yours to edit. The layout primitive is general",
     "// (astroidjs/components/JustifiedGallery.astro); what lives here is this",
@@ -36,8 +36,8 @@ export function generateAstroidGalleryPage(config: AstroidConfig): string | null
     "//",
     "// Rows carry `alt`/`caption` from the media registry, so an editor fixes alt",
     "// text once in the library and every gallery showing that asset picks it up.",
-    "// Assets missing width/height still render — the client corrects the layout",
-    "// once the image decodes — but they cost a visible reflow, so it's worth",
+    "// Assets missing width/height still render—the client corrects the layout",
+    "// once the image decodes—but they cost a visible reflow, so it's worth",
     "// backfilling dimensions on older uploads.",
     'import JustifiedGallery from "astroidjs/components/JustifiedGallery.astro";',
     'import type { GalleryItem } from "astroidjs/components/justify";',
@@ -62,7 +62,7 @@ export function generateAstroidGalleryPage(config: AstroidConfig): string | null
     "  ).all<MediaRow>();",
     "  rows = result.results ?? [];",
     "} catch {",
-    "  // No DB binding yet (pre-provision) — render the empty state.",
+    "  // No DB binding yet (pre-provision)—render the empty state.",
     "}",
     "",
     "const items: GalleryItem[] = rows.map((row) => ({",

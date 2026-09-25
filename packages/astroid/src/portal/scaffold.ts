@@ -24,13 +24,13 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
   if (!portal) return null;
 
   return [
-    "// The PORTAL auth instance — customers/members, separate from the editor.",
+    "// The PORTAL auth instance—customers/members, separate from the editor.",
     "//",
     "// Scaffolded once; yours to edit (the reset email, extra user columns, what",
     "// role a new account gets). Three things should NOT change: the basePath,",
     "// the cookiePrefix, and the tablePrefix. The studio instance keeps Better",
     "// Auth's defaults because the Louise editor client hardcodes them, so this",
-    "// one moves — and if the two ever share a cookie prefix, signing into one",
+    "// one moves—and if the two ever share a cookie prefix, signing into one",
     "// silently signs you out of the other.",
     'import { astroidMailTheme, magicLinkEmail, passwordResetEmail, resolveMailer, sendTransactional } from "astroidjs";',
     'import { env } from "cloudflare:workers";',
@@ -44,7 +44,7 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
     "  return getLouiseAuth(env, new URL(request.url).origin, {",
     "    rpName: astroidConfig.theme.name,",
     "    mailFrom: { email: env.MAIL_FROM, name: astroidConfig.theme.name },",
-    "    // The portal never sends magic links — it's email + password — but the",
+    "    // The portal never sends magic links—it's email + password—but the",
     "    // toolkit's config asks for a renderer, so give it the real one.",
     "    renderMagicLinkEmail: ({ url, toEmail }) => magicLinkEmail(MAIL_THEME, { url, toEmail }),",
     `    basePath: ${JSON.stringify(portal.basePath)},`,
@@ -54,14 +54,14 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
     "      minPasswordLength: 8,",
     portal.signUp
       ? "      // Public sign-up is ON for this project."
-      : "      // Accounts are provisioned by staff — no public sign-up.",
+      : "      // Accounts are provisioned by staff—no public sign-up.",
     `      disableSignUp: ${!portal.signUp},`,
     "      sendResetPassword: async ({ user, url }) => {",
     "        // Through `resolveMailer`, NOT a hand-built options object: it is the",
     "        // only thing that applies the DUMMY_REPLACE_ME sentinel check. Built by",
     "        // hand, a fresh deploy with a real EMAIL binding but a placeholder",
     "        // MAIL_FROM read as configured and called the Email API with an envelope",
-    '        // sender of literally "DUMMY_REPLACE_ME" — rejected upstream, swallowed',
+    '        // sender of literally "DUMMY_REPLACE_ME"—rejected upstream, swallowed',
     "        // here, and reported to the user as a reset email that was sent.",
     "        const mailer = await resolveMailer(env);",
     "        await sendTransactional(mailer, [",
@@ -69,7 +69,7 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
     "        ]);",
     "      },",
     "    },",
-    "    // The portal has its own users — never the editor allowlist.",
+    "    // The portal has its own users—never the editor allowlist.",
     "    resolveAdmins: () => [],",
     "  });",
     "}",
@@ -136,7 +136,7 @@ export function generateAstroidPortalAuthRoute(config: AstroidConfig): string | 
 export function generateAstroidPortalLocals(config: AstroidConfig): string {
   if (!astroidPortal(config)) return "";
   return [
-    "    /** The signed-in PORTAL user (customers/members) — distinct from",
+    "    /** The signed-in PORTAL user (customers/members)—distinct from",
     "     *  `editor`, which is the studio session. Null when signed out. */",
     '    portalUser: import("astroidjs").PortalUser | null;',
   ].join("\n");

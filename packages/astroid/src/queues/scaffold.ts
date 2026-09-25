@@ -49,7 +49,7 @@ const PROVIDERS: Record<
     // Stripe's header carries a timestamp; the verifier rejects replays outside
     // its tolerance, so it needs the current time.
     call: 'verifyStripeSignature(raw, headers.get(HEADER) ?? "", secret, Math.floor(Date.now() / 1000))',
-    note: "Stripe's signature is timestamped — the verifier rejects replays outside a 5-minute tolerance.",
+    note: "Stripe's signature is timestamped—the verifier rejects replays outside a 5-minute tolerance.",
   },
   fourthwall: {
     module: "louise-toolkit/commerce/fourthwall",
@@ -74,7 +74,7 @@ export function generateAstroidEnvBindings(config: AstroidConfig): string {
   const providers = astroidCommerceProviders(config.commerce);
   if (providers.length === 0) return "";
   return [
-    "  /** Queue producer — verified webhooks + the cron re-sync (src/queue.ts). */",
+    "  /** Queue producer—verified webhooks + the cron re-sync (src/queue.ts). */",
     '  COMMERCE_QUEUE: Queue<import("astroidjs").AstroidQueueMessage>;',
     // One secret SET per provider: a site running Stripe for invoicing and
     // Fourthwall for the storefront talks to both, credentialed and signed
@@ -111,15 +111,15 @@ export function generateAstroidQueueSeam(config: AstroidConfig): string {
   // in rather than leaving it to be discovered on a busy day (#294).
   const multiProvider = astroidCommerceProviders(config.commerce).length > 1;
   return [
-    "// The queue consumer — what each message actually does.",
+    "// The queue consumer—what each message actually does.",
     "//",
     "// Scaffolded once; yours to edit. `astroidQueueHandler` owns the dispatch",
     "// (a periodic refresh and any catalog-affecting webhook trigger a re-sync;",
     "// everything else acks as a no-op), so what's left here is what a refresh",
     "// MEANS for this project.",
     "//",
-    "// Throwing marks the message for retry. That's usually right — a failed",
-    "// refresh means the site is serving stale data — and Cloudflare routes it to",
+    "// Throwing marks the message for retry. That's usually right—a failed",
+    "// refresh means the site is serving stale data—and Cloudflare routes it to",
     "// the DLQ once it exceeds max_retries (wrangler.jsonc).",
     'import { astroidQueueHandler, type AstroidQueueMessage } from "astroidjs";',
     "",
@@ -132,7 +132,7 @@ export function generateAstroidQueueSeam(config: AstroidConfig): string {
       ? [
           `    // This project runs more than one commerce provider, and the catalog is`,
           `    // ${provider}'s. Scoping the refresh keeps the OTHER provider's webhooks from`,
-          `    // triggering it — Square alone emits an inventory event on every sale, which`,
+          `    // triggering it—Square alone emits an inventory event on every sale, which`,
           `    // unscoped would re-sync ${provider} once per transaction.`,
           `    catalogProvider: ${JSON.stringify(provider)},`,
         ]
@@ -157,7 +157,7 @@ export function generateAstroidQueueSeam(config: AstroidConfig): string {
           "      // takes `retry: { attempts: 3 }`, backing off on 429/5xx inside every",
           "      // verb. It is off by default because a checkout route has a customer",
           "      // watching a spinner, and there a fast failure beats a slow one. Here",
-          "      // the opposite holds — a catalog push that gives up halfway is worse.",
+          "      // the opposite holds—a catalog push that gives up halfway is worse.",
         ]
       : [
           "      // Nobody is watching this run, so ask for backoff on 429/5xx wherever",
@@ -172,7 +172,7 @@ export function generateAstroidQueueSeam(config: AstroidConfig): string {
     "      // letting that escape is correct: an uncaught throw here marks the",
     "      // message for retry. Swallow it and the queue acks, the cron acks too,",
     "      // and the site serves a frozen catalog with nothing in `wrangler tail`.",
-    "      // Partial failures don't throw — that's what `r.failed` above is for.",
+    "      // Partial failures don't throw—that's what `r.failed` above is for.",
     "      void env;",
     "    },",
     "  })(message);",
@@ -212,7 +212,7 @@ export function generateAstroidWebhookRoute(
     `// ${p.note}`,
     "//",
     "// Unprovisioned (the secret is absent or still the placeholder) answers 503,",
-    "// which keeps the provider retrying — so events delivered before you set the",
+    "// which keeps the provider retrying—so events delivered before you set the",
     "// secret land afterwards instead of being lost.",
     'import type { APIRoute } from "astro";',
     'import { handleWebhook, readModuleSecret } from "astroidjs";',

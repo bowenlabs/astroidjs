@@ -84,7 +84,7 @@ export const BUILT_IN_OWNED: Record<string, OwnedColumn> = {
     type: "text",
     values: ["draft", "published"],
     default: "draft",
-    note: "New remote items land as draft — nothing goes live until someone says so.",
+    note: "New remote items land as draft—nothing goes live until someone says so.",
   },
   sortOrder: { type: "real", default: 0 },
   featured: { type: "boolean", default: false },
@@ -152,12 +152,12 @@ export function generateCatalogTable(config: AstroidConfig): string | null {
   p(
     mode === "mirror"
       ? "// a local copy plus the owner's edits. Pulled columns are overwritten every"
-      : "// the owner's edits only — catalog fields are read live from the provider.",
+      : "// the owner's edits only—catalog fields are read live from the provider.",
   );
   p("// sync; owned columns are preserved. See astroidCatalogUpsert.");
   p(`export const ${camel(table)} = sqliteTable(${JSON.stringify(table)}, {`);
   p('  id: integer("id").primaryKey({ autoIncrement: true }),');
-  p("  // The provider's id for this item — the sync's idempotency key.");
+  p("  // The provider's id for this item—the sync's idempotency key.");
   p('  externalId: text("external_id").notNull().unique(),');
 
   if (mode === "mirror") {

@@ -35,7 +35,7 @@ export function generateMapTileRoute(config: AstroidConfig): string | null {
 
   return [
     "// Serves the self-hosted Protomaps basemap (one PMTiles archive) from R2,",
-    "// same-origin, with HTTP range support — the client reads only the byte",
+    "// same-origin, with HTTP range support—the client reads only the byte",
     "// ranges it needs per tile.",
     "//",
     "// Same-origin is the point: no external tile host and no API key means the",
@@ -43,7 +43,7 @@ export function generateMapTileRoute(config: AstroidConfig): string | null {
     "// irrelevant.",
     "//",
     "// Upload an archive to this key before the map draws anything (until then",
-    "// the canvas shows its background and pin — the module is dormant, not",
+    "// the canvas shows its background and pin—the module is dormant, not",
     "// broken):",
     `//   wrangler r2 object put ${config.key}-media/${ASTROID_PMTILES_KEY} \\`,
     "//     --file=extract.pmtiles --content-type=application/octet-stream --remote",
@@ -88,7 +88,7 @@ export function generateMapEmbedComponent(config: AstroidConfig): string | null 
   return [
     "---",
     "// A MapLibre map over the self-hosted PMTiles basemap, centred on exact",
-    "// coordinates. Scaffolded once; yours to edit — the pin, the gestures, and",
+    "// coordinates. Scaffolded once; yours to edit—the pin, the gestures, and",
     "// the placeholder are brand decisions.",
     "//",
     "// Coordinates, never a geocoded address string: geocoding at render time is",
@@ -201,7 +201,7 @@ export function generateMapEmbedComponent(config: AstroidConfig): string | null 
     "          if (!entry.isIntersecting) continue;",
     "          obs.unobserve(entry.target);",
     "          // `init` is async and nothing awaits it, so without this catch a",
-    "          // failed chunk fetch — a page load racing a deploy is enough — is a",
+    "          // failed chunk fetch—a page load racing a deploy is enough—is a",
     "          // silent unhandled rejection: the container just stays an empty",
     "          // tinted box with nothing in the console to explain it.",
     "          init(entry.target as HTMLElement).catch((err) => {",

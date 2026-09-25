@@ -53,7 +53,7 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     {
       name: "versions",
       factory: "versionsRoute",
-      note: "Draft/publish + version history for pages. MUST precede pagesRoute — pagesRoute's /:id matcher would otherwise claim /pages/:id/versions and 400 on the non-integer id.",
+      note: "Draft/publish + version history for pages. MUST precede pagesRoute—pagesRoute's /:id matcher would otherwise claim /pages/:id/versions and 400 on the non-integer id.",
     },
     {
       name: "search",
@@ -63,7 +63,7 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     {
       name: "seoFix",
       factory: "seoFixRoute",
-      note: "One-click SEO backfill for published pages missing a title/description. MUST precede pagesRoute for the same reason versions/search do: it mounts at /api/louise/pages/generate-seo, and pagesRoute claims EVERY path under /api/louise/pages/ as an item id — so mounted after, it would never be reached and the request would 400 on the non-integer id `generate-seo`.",
+      note: "One-click SEO backfill for published pages missing a title/description. MUST precede pagesRoute for the same reason versions/search do: it mounts at /api/louise/pages/generate-seo, and pagesRoute claims EVERY path under /api/louise/pages/ as an item id—so mounted after, it would never be reached and the request would 400 on the non-integer id `generate-seo`.",
     },
     {
       name: "pages",
@@ -73,7 +73,7 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     {
       name: "save",
       factory: "saveRoute",
-      note: "Live field saves (title, SEO) — the versioned body stages drafts via versionsRoute instead.",
+      note: "Live field saves (title, SEO)—the versioned body stages drafts via versionsRoute instead.",
     },
     {
       name: "settings",
@@ -83,12 +83,12 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     {
       name: "media",
       factory: "mediaRoute",
-      note: "Media library — list, upload, delete, reference checks.",
+      note: "Media library—list, upload, delete, reference checks.",
     },
     {
       name: "editors",
       factory: "editorsRoute",
-      note: "Editor roster (the Users panel) over Better Auth's `user` table — a row IS an editor, and the same table is the magic-link allowlist (resolveAdmins).",
+      note: "Editor roster (the Users panel) over Better Auth's `user` table—a row IS an editor, and the same table is the magic-link allowlist (resolveAdmins).",
     },
   ];
 
@@ -105,26 +105,26 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     routes.push({
       name: "realtime",
       factory: "realtimeRoute",
-      note: "WebSocket upgrade for the per-page live editing session (ADR 0002). Owns /api/louise/realtime/*. Guards the handshake as a same-origin, session-gated mutation, then forwards to the per-page Durable Object with the SERVER-resolved editor identity — presence is never taken from the client.",
+      note: "WebSocket upgrade for the per-page live editing session (ADR 0002). Owns /api/louise/realtime/*. Guards the handshake as a same-origin, session-gated mutation, then forwards to the per-page Durable Object with the SERVER-resolved editor identity—presence is never taken from the client.",
     });
   }
 
   routes.push({
     name: "vitals",
     factory: "vitalsRoute",
-    note: "Public CWV ingestion (POST /api/louise/vitals). NOT session-gated — these are anonymous visitor beacons — but same-origin only, and it accepts-and-drops without the dataset binding. Always 204.",
+    note: "Public CWV ingestion (POST /api/louise/vitals). NOT session-gated—these are anonymous visitor beacons—but same-origin only, and it accepts-and-drops without the dataset binding. Always 204.",
   });
 
   routes.push({
     name: "health",
     factory: "healthRoute",
-    note: "The site-health panel's read of the persisted scan summary. Owns /api/louise/health. Like overviewRoute, its client half already ships in the editor drawer — unmounted, the Health card was dead UI. Returns `{ summary: null }` (a 200) until the daily cron writes the first scan, which the panel renders as 'not checked yet'.",
+    note: "The site-health panel's read of the persisted scan summary. Owns /api/louise/health. Like overviewRoute, its client half already ships in the editor drawer—unmounted, the Health card was dead UI. Returns `{ summary: null }` (a 200) until the daily cron writes the first scan, which the panel renders as 'not checked yet'.",
   });
 
   routes.push({
     name: "ai",
     factory: "aiRoute",
-    note: "Editor AI assists — rewrite/expand/shorten a selection, suggest SEO for a page. Owns /api/louise/ai/*, so it collides with nothing. POST-only and editor-gated, since each call spends AI budget.",
+    note: "Editor AI assists—rewrite/expand/shorten a selection, suggest SEO for a page. Owns /api/louise/ai/*, so it collides with nothing. POST-only and editor-gated, since each call spends AI budget.",
   });
 
   if (capturesInquiries(config)) {
@@ -145,7 +145,7 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
   routes.push({
     name: "seed",
     factory: "seedRoute",
-    note: "First-run site_settings seed. Last — it's a one-shot bootstrap, not a hot path.",
+    note: "First-run site_settings seed. Last—it's a one-shot bootstrap, not a hot path.",
   });
 
   return routes;
