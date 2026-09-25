@@ -1,8 +1,8 @@
 ---
 // Editor sign-in. Emails a magic link (Better Auth) to an allowlisted editor;
 // clicking it starts a session and lands on `/?louise` (edit mode on). The gate
-// is enumeration-safe — the response is identical whether or not the email is an
-// editor — so the UI always says "check your email".
+// is enumeration-safe—the response is identical whether or not the email is an
+// editor—so the UI always says "check your email".
 import { env } from "cloudflare:workers";
 import { turnstileSiteKey } from "louise-toolkit/auth";
 import Site from "../layouts/Site.astro";
@@ -14,8 +14,8 @@ export const prerender = false;
 // This has to match the server exactly. `getLouiseAuth` registers Better Auth's
 // captcha plugin on /sign-in/magic-link the moment BOTH halves of the pair are
 // real, and that plugin rejects any request without an `x-captcha-response`
-// header. So a page that never rendered a widget meant provisioning Turnstile —
-// which .env.example openly invites you to do — locked the owner out of their
+// header. So a page that never rendered a widget meant provisioning Turnstile—which
+// .env.example openly invites you to do—locked the owner out of their
 // own sign-in, with a 403 and no clue why.
 //
 // `turnstileSiteKey` returns null for the always-passing TEST key, which is the
@@ -46,7 +46,7 @@ const siteKey = turnstileSiteKey(env);
           {
             siteKey && (
               /* Rendered explicitly by the script below, which reads the key
-                 from here — a processed script can't take `define:vars`. */
+                 from here—a processed script can't take `define:vars`. */
               <div id="captcha" data-sitekey={siteKey} />
             )
           }
@@ -68,7 +68,7 @@ const siteKey = turnstileSiteKey(env);
     const msg = document.getElementById("msg");
     const captcha = document.getElementById("captcha");
 
-    // Absent when no real site key is set — then the server's captcha plugin is
+    // Absent when no real site key is set—then the server's captcha plugin is
     // off too, and the request goes without a token.
     let widget: TurnstileWidget | null = null;
     const ready = captcha?.dataset.sitekey
@@ -79,7 +79,7 @@ const siteKey = turnstileSiteKey(env);
           .catch(() => {
             // The server will refuse a request without a token, so say so now
             // rather than after the owner has typed their email.
-            if (msg) msg.textContent = "The sign-in check didn't load — reload the page to try again.";
+            if (msg) msg.textContent = "The sign-in check didn't load—reload the page to try again.";
           })
       : Promise.resolve();
 
@@ -107,9 +107,9 @@ const siteKey = turnstileSiteKey(env);
         // editor, so a failure here is the captcha, a rate limit, or an outage.
         msg.textContent = res.ok
           ? "If that email is an editor, a sign-in link is on its way."
-          : "That didn't go through — please try again.";
+          : "That didn't go through—please try again.";
       } catch {
-        msg.textContent = "Something went wrong — please try again.";
+        msg.textContent = "Something went wrong—please try again.";
       } finally {
         // A token is single-use, and this one is spent whatever happened. Without
         // a fresh one, "send it again" posts the spent token and is refused.

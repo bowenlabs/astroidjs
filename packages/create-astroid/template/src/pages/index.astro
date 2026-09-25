@@ -1,5 +1,5 @@
 ---
-// The home page — an editable `pages` row rendered in place. Reads the published
+// The home page—an editable `pages` row rendered in place. Reads the published
 // `home` row for the public view; in edit mode it reads the latest DRAFT so an
 // editor's in-progress edits resume. The <Editable> fields carry the markers the
 // Louise client turns into inline editors; saves stage a draft (versionedPageId),
@@ -17,7 +17,7 @@ const { editMode } = Astro.locals;
 // Edge caching (ADR 0004). Opting in emits `Cloudflare-CDN-Cache-Control`, which
 // the worker's `withEdgeCache` layer reads as "store this", then strips.
 //
-// Both conditions matter. Edit mode must NEVER opt in — a cached editor render
+// Both conditions matter. Edit mode must NEVER opt in—a cached editor render
 // would carry draft content and the inline-edit hooks into the shared public
 // entry. And the var is off by default because `caches.default` survives
 // Cloudflare Dev Mode and Purge Everything; walk the activation runbook in
@@ -33,8 +33,8 @@ if (editMode || env.ASTROID_EDGE_CACHE !== "true") {
   Astro.cache.set({ maxAge: 60 });
 }
 
-// `seo_*` are the page's SEO overrides, deliberately separate from `title` —
-// which is the on-page H1. The home page passes NO title to <Site>, so <title>
+// `seo_*` are the page's SEO overrides, deliberately separate from `title`—which
+// is the on-page H1. The home page passes NO title to <Site>, so <title>
 // is the site-wide default ("Acme Coffee", not "Acme Coffee | Acme Coffee");
 // set `seo_title` on the row to override just the head.
 interface HomeRow {
@@ -54,12 +54,12 @@ try {
     "SELECT id, title, body, sections, seo_title, seo_description, og_image, noindex FROM pages WHERE slug = 'home'",
   ).first<HomeRow>();
 } catch {
-  // No DB binding yet (pre-provision) — fall through to the seed-me prompt.
+  // No DB binding yet (pre-provision)—fall through to the seed-me prompt.
 }
 
 let title = page?.title ?? "__BRAND_NAME__";
 let body = page?.body ?? "";
-// `sections` is a JSON string in D1. Bad JSON is a render-time non-event — the
+// `sections` is a JSON string in D1. Bad JSON is a render-time non-event—the
 // page falls back to its prose body rather than 500ing on one malformed row.
 function parseSections(raw: string | null | undefined): unknown[] {
   if (!raw) return [];
@@ -89,13 +89,13 @@ if (editMode && page) {
       if (typeof d.title === "string") title = d.title;
       if (typeof d.body === "string") body = d.body;
       // Sections stage as drafts like any other field, so edit mode must render
-      // the draft's array — otherwise an editor's in-progress section edits
+      // the draft's array—otherwise an editor's in-progress section edits
       // vanish on reload while their title edits survive.
       if (Array.isArray(d.sections)) sections = d.sections;
       else if (typeof d.sections === "string") sections = parseSections(d.sections);
     }
   } catch {
-    // Non-fatal — fall back to the live row.
+    // Non-fatal—fall back to the live row.
   }
 }
 ---

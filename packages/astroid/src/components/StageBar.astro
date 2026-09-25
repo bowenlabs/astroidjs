@@ -1,5 +1,5 @@
 ---
-// `<StageBar>` — a pipeline's progress as a segmented bar.
+// `<StageBar>`—a pipeline's progress as a segmented bar.
 //
 // Generalized from ghostfire's six-stage floor tracker, which hard-coded the
 // segment count, the corner radii, the brand hex codes, and a mascot image.
@@ -17,7 +17,7 @@ interface Props {
   stage: number;
   /**
    * An optional marker (an emoji, a mascot glyph) that rides above the active
-   * segment. Off by default — the reference's bobbing ghost is brand, not
+   * segment. Off by default—the reference's bobbing ghost is brand, not
    * mechanism.
    */
   marker?: string;
@@ -81,7 +81,7 @@ const markerLeft = complete ? null : `${(((current + 0.5) / stages.length) * 100
     transition: background-color 300ms ease;
   }
   /* Round only the outer ends, so the bar reads as one track rather than a row
-     of separate pills — at any segment count. */
+     of separate pills—at any segment count. */
   .astroid-stagebar__step:first-child .astroid-stagebar__seg {
     border-start-start-radius: 999px;
     border-end-start-radius: 999px;

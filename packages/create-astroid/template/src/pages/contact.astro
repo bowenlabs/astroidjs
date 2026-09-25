@@ -1,14 +1,14 @@
 ---
 // The public contact form.
 //
-// The `contact` section — and the scaffolded hero/cta defaults — link here, so
+// The `contact` section—and the scaffolded hero/cta defaults—link here, so
 // without this page a fresh site ships a dead link. It posts to the generated
 // worker's `formRoute`, mounted at /api/louise/forms/inquiries: same-origin POST
 // only, a honeypot field plus a minimum time-on-page, a KV rate limit, then
 // validation against the inquiries form before the row is written. Submissions
 // land in the Inquiries tab of the editor drawer.
 //
-// Yours to edit — the copy, the fields, the layout. (If you remove the `contact`
+// Yours to edit—the copy, the fields, the layout. (If you remove the `contact`
 // section from astroid.config.ts, the form route stops being mounted and this
 // page's POST will 404; delete the page too, or keep the section.)
 import Site from "../layouts/Site.astro";
@@ -76,7 +76,7 @@ const renderedAt = Date.now();
 
 <script>
   // Progressive enhancement: without JS the form still submits (the route accepts
-  // form-encoded bodies) — the visitor just lands on the JSON response. A
+  // form-encoded bodies)—the visitor just lands on the JSON response. A
   // processed <script> (no is:inline) is bundled to a same-origin file, which is
   // what keeps it inside the CSP's `script-src 'self'`.
   const form = document.querySelector<HTMLFormElement>("#contact-form");
@@ -98,7 +98,7 @@ const renderedAt = Date.now();
 
       if (response.ok) {
         form.reset();
-        if (status) status.textContent = "Thanks — we've got it, and we'll be in touch.";
+        if (status) status.textContent = "Thanks—we've got it, and we'll be in touch.";
         return;
       }
 

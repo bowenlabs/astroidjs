@@ -41,7 +41,7 @@ const image = field(item, "image");
         </Editable>
         {role && (
           <>
-            {attribution && <span aria-hidden="true"> — </span>}
+            {attribution && <span aria-hidden="true"> · </span>}
             <Editable as="span" base={base} field="role" edit={edit}>{role}</Editable>
           </>
         )}

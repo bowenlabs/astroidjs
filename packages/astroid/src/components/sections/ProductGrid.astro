@@ -4,7 +4,7 @@
 // Deliberately NOT a live catalog read. A section is stored content that an
 // editor curates; the commerce mirror has its own loader (`readCatalog`) with
 // its own freshness story. A site that wants the live catalog renders it in a
-// page, not through the page-builder — mixing the two would make a section's
+// page, not through the page-builder—mixing the two would make a section's
 // stored value and what it displays disagree, and the editor would be editing
 // something that isn't there.
 import type { SectionRenderProps } from "../sections.js";

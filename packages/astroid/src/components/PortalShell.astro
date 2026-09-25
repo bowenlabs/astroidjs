@@ -1,5 +1,5 @@
 ---
-// `<PortalShell>` — the account-area chrome: a sidebar of nav items and a main
+// `<PortalShell>`—the account-area chrome: a sidebar of nav items and a main
 // column, collapsing to a burger on small screens.
 //
 // Theme-tokened, never brand-styled. Every colour here is a daisyUI token
@@ -14,11 +14,11 @@ import type { PortalNav } from "astroidjs";
 
 interface Props {
   nav: PortalNav;
-  /** The signed-in user's role — decides which nav items are visible. */
+  /** The signed-in user's role—decides which nav items are visible. */
   role?: string | null;
   /** Current path, for the active highlight. Defaults to the rendered URL. */
   path?: string;
-  /** Heading above the nav, e.g. the account holder's name. */
+  /** Heading above the nav, for example, the account holder's name. */
   title?: string;
 }
 
@@ -26,7 +26,7 @@ const { nav, role, path, title } = Astro.props;
 const current = path ?? Astro.url.pathname;
 
 // Filtered by role BEFORE render: an item the viewer can't reach is never
-// drawn, rather than drawn and then 403'd — which reads as a broken link.
+// drawn, rather than drawn and then 403'd—which reads as a broken link.
 const items = nav.forRole(role);
 const active = nav.activeFor(current);
 ---

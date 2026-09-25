@@ -53,7 +53,7 @@ try {
      FROM site_settings WHERE id = 1`,
   ).first<Settings>();
 } catch {
-  // No DB binding yet — fall through to the config defaults below.
+  // No DB binding yet—fall through to the config defaults below.
 }
 
 const settings = {
@@ -99,7 +99,7 @@ const settings = {
     <LouiseEdit versionedPageId={versionedPageId} sections={sections} />
     {
       /* Real-visitor Core Web Vitals. A static file from public/, so it is
-         same-origin and already covered by `script-src 'self'` — an inline
+         same-origin and already covered by `script-src 'self'`—an inline
          script with generated content couldn't be hashed into the CSP.
          `defer` keeps it off the critical path; it reports once per page on
          visibilitychange via sendBeacon. Skipped in edit mode: an editor's
