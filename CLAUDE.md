@@ -15,6 +15,9 @@ opinion belongs here instead—usually it does.
 "astro" may not appear anywhere in its source, code or prose. That is why these
 are separate repos.
 
+How the pieces fit is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and the
+traps are in [docs/LESSONS.md](docs/LESSONS.md).
+
 ## Toolchain
 
 - **Node 26**—`.nvmrc` and `engines`, matching the CI runner.

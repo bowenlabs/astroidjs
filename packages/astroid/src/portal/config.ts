@@ -3,12 +3,13 @@
 // Portal defaults derived from the project config—the single place that knows
 // the portal's mount, cookie prefix, table prefix, and guard table.
 //
-// The isolation constants are fixed rather than configurable, and that's the
-// point: the studio instance MUST keep Better Auth's defaults (`/api/auth`, the
-// unprefixed tables) because the Louise editor client hardcodes them, so the
-// portal is the one that moves. Leaving that to a project invites the one
-// mistake that matters—two instances sharing a cookie prefix, where signing
-// into one silently signs you out of the other, intermittently, in production.
+// The studio instance keeps `/api/auth` because the Louise editor client
+// hardcodes it, so the portal is the one that moves: its own mount, cookie
+// prefix, and table prefix. The defaults are safe distinct values, and
+// `defineAstroid` rejects any override that collides with the editor. That guards
+// the one mistake that matters—two instances sharing a cookie prefix, where
+// signing into one silently signs you out of the other, intermittently, in
+// production.
 
 import type { AstroidConfig, Portal } from "../config.js";
 import { ASTROID_PORTAL_BASE_PATH } from "../security/rate-rules.js";
@@ -19,7 +20,7 @@ import type { PortalGuardConfig, PortalRoute } from "./guard.js";
 export const ASTROID_PORTAL_COOKIE_PREFIX = "portal";
 
 /** Table-name prefix for the portal's Better Auth tables—`portal_user`,
- *  `portal_session`, … The studio owns the unprefixed names. */
+ *  `portal_session`, … The studio's tables carry the `louise_` prefix. */
 export const ASTROID_PORTAL_TABLE_PREFIX = "portal_";
 
 /** Default guard table: the account area, for any signed-in portal user. */
@@ -49,7 +50,7 @@ export function astroidPortal(config: AstroidConfig): ResolvedPortal | null {
   return {
     enabled: true,
     // Isolation is configurable so a site with an existing second instance
-    // (coracle's shop account at /api/shop-auth, cookie `coracle_shop`, the
+    // (for example, a shop account at /api/shop-auth with its own cookie and the
     // unprefixed `user` tables) keeps its live mount + cookies unchanged. The
     // defaults stay the safe distinct-from-editor values; `defineAstroid`'s
     // `assertAuthIsolation` rejects a resolved value that collides with the
