@@ -129,7 +129,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
 
   p("{");
   p('  "$schema": "node_modules/wrangler/config-schema.json",');
-  p("  // The Cloudflare Worker name — also the default *.workers.dev subdomain.");
+  p("  // The Cloudflare Worker name—also the default *.workers.dev subdomain.");
   p(`  "name": ${JSON.stringify(key)},`);
   p("  // Pin your account so deploys don't prompt (or set CLOUDFLARE_ACCOUNT_ID).");
   p('  // "account_id": "<your-cloudflare-account-id>",');
@@ -139,7 +139,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  // global_fetch_strictly_public: a fetch to this zone goes through Cloudflare's");
   p("  // front door like any Internet request, past the WAF and bot rules (ADR 0012).");
   p("  // If the daily health scan starts reporting broken links that aren't, a zone");
-  p("  // rule is challenging its self-crawl — allow it rather than drop the flag.");
+  p("  // rule is challenging its self-crawl—allow it rather than drop the flag.");
   p('  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],');
   p("  // @astrojs/cloudflare builds this entry and wires the static assets under dist/.");
   p('  "main": "src/worker.ts",');
@@ -155,7 +155,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
       // `custom_domain: true` on a pattern containing `*`, which is precisely
       // why `hosts` cannot express this.
       p("    // Wildcard tenant hosts (`tenancy.hostPattern`). A zone route, NOT a");
-      p("    // custom_domain — Cloudflare refuses a wildcard custom domain. The");
+      p("    // custom_domain—Cloudflare refuses a wildcard custom domain. The");
       p("    // apex is routed separately above: `*.example.com` does NOT match");
       p("    // `example.com`, so without a `hosts` entry the apex would 404.");
       p(
@@ -180,7 +180,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p("  },");
     p("  // A DO class needs a migration tag. `new_sqlite_classes` (NOT");
     p("  // `new_classes`) because the session keeps its authoritative state in");
-    p("  // `ctx.storage`, which is the SQLite-backed store — and the storage");
+    p("  // `ctx.storage`, which is the SQLite-backed store—and the storage");
     p("  // backend cannot be changed after the class is first deployed.");
     p('  "migrations": [');
     p(
@@ -200,7 +200,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     const { queue, dlq } = astroidQueueNames(config);
     p("  // Provider webhooks are verified at the edge, then enqueued here so the");
     p("  // receiver can return fast. Retries + DLQ routing are Cloudflare's, not");
-    p("  // the consumer's — set them here, not in code.");
+    p("  // the consumer's—set them here, not in code.");
     p(`  // Create both: \`wrangler queues create ${queue}\` and \`… ${dlq}\`.`);
     p('  "queues": {');
     p(
@@ -235,19 +235,19 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p('  "images": { "binding": "IMAGES" },');
   p("  // Analytics Engine: real-visitor Core Web Vitals. Free, and the ingest");
   p("  // route accepts-and-drops without it, so it costs nothing unused. Reading");
-  p("  // the p75 back out needs CF_ACCOUNT_ID + CF_API_TOKEN (see .env.example) —");
+  p("  // the p75 back out needs CF_ACCOUNT_ID + CF_API_TOKEN (see .env.example)—");
   p("  // until those are real the Health badge reads 'not measured yet'.");
   p(
     `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_VITALS_BINDING)}, "dataset": ${JSON.stringify(astroidVitalsDataset(config))} }],`,
   );
   p("  // Workers AI. Powers the editor's rewrite + SEO-suggest buttons and alt-text");
-  p("  // generation on upload — all of which SHIP IN THE EDITOR DRAWER already and,");
+  p("  // generation on upload—all of which SHIP IN THE EDITOR DRAWER already and,");
   p("  // without this binding, were permanently invisible: their routes answer 503");
   p("  // and the client hides the button. No account setup beyond the binding, and");
   p("  // every call is editor-gated, so a visitor can never spend your AI budget.");
   p('  "ai": { "binding": "AI" },');
   p("  // KV: RL = the security rate limiter (it also holds the daily site-health");
-  p("  // summary under its own key — one small singleton blob, not worth a binding");
+  p("  // summary under its own key—one small singleton blob, not worth a binding");
   p("  // someone has to remember to provision); DRAFTS = the autosave write-buffer.");
   p("  // Create each: `wrangler kv namespace create <RL|DRAFTS>`.");
   p('  "kv_namespaces": [');
@@ -261,7 +261,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   // sign-in was impossible on every DEPLOYED site, while every local build
   // and every CI scaffold passed. Nothing in this repo runs a deployed scaffold,
   // which is why it survived.
-  p("  // Cloudflare Email Sending — magic-link sign-in + inquiry notifications.");
+  p("  // Cloudflare Email Sending—magic-link sign-in + inquiry notifications.");
   p("  // Sign-in DEPENDS on this: in production the magic link is emailed, not logged.");
   p("  // Enable Email Sending for your zone, then verify the address in MAIL_FROM.");
   p('  "send_email": [{ "name": "EMAIL" }],');
@@ -281,7 +281,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("    // Turn it on for a PREVIEW deploy first and walk the activation runbook");
   p("    // (docs/adr/0004-edge-caching.md). `caches.default` is not cleared by");
   p("    // Cloudflare Dev Mode or Purge Everything, so a bad prod flip is hard to");
-  p("    // undo — this feature was reverted twice for exactly that.");
+  p("    // undo—this feature was reverted twice for exactly that.");
   p('    "ASTROID_EDGE_CACHE": "false",');
   for (const v of astroidCheckoutVars(config)) {
     // Public, not secret—the app id ships to the browser to mount the card
@@ -297,7 +297,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   // is generated from the same declaration the runtime dormancy gate reads.
   const secretNames = commerceSecretNames(config.commerce);
   if (secretNames.length > 0) {
-    p("  // Commerce secrets — set OUTSIDE this file (it's committed):");
+    p("  // Commerce secrets—set OUTSIDE this file (it's committed):");
     p("  //   local:    .dev.vars (see .env.example, seeded with DUMMY_REPLACE_ME)");
     p("  //   deployed: `wrangler secret put <NAME>`, or a Secrets Store binding");
     p("  // Until each is real, commerce stays dormant: the D1 mirror serves, the");

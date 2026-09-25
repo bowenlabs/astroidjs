@@ -103,11 +103,11 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   files.push({
     path: "src/schema.site.ts",
     contents: [
-      "// Site-owned Drizzle tables — the ones Astroid doesn't manage. Declare them",
+      "// Site-owned Drizzle tables—the ones Astroid doesn't manage. Declare them",
       "// here; the generated src/schema.ts re-exports everything from this file, so",
       "// drizzle-kit sees them and the worker can import them. Empty by default.",
       "//",
-      '// e.g.  export const redirects = sqliteTable("redirects", { … });',
+      '// For example: export const redirects = sqliteTable("redirects", { … });',
       "export {};",
       "",
     ].join("\n"),
