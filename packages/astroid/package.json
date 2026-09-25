@@ -72,7 +72,7 @@
     "astro": "^7.2.9",
     "louise-toolkit": "^0.31.1",
     "solid-js": "^1.9.15",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   },
   "peerDependencies": {
