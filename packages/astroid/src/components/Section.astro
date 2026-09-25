@@ -1,10 +1,10 @@
 ---
-// `<Section>` — the section-library dispatcher (ADR 0003 item 2, on the ADR 0005
+// `<Section>`—the section-library dispatcher (ADR 0003 item 2, on the ADR 0005
 // model).
 //
 // It renders ONE stored `SectionItem`: dispatch on `_type`, hand the component
 // its `base` path, and let the component own every pixel. What changed from the
-// old `kind`-prop version is where the truth lives — the item is data loaded from
+// old `kind`-prop version is where the truth lives—the item is data loaded from
 // the page's `sections` column, not props a template hand-wrote, so what renders
 // is exactly what the on-canvas editor edits in place.
 //
@@ -14,7 +14,7 @@
 //   • the FIELDS are stamped by `<Editable base={base} field="…">` inside each
 //     component, because only the component knows which of its text nodes are
 //     editable. Since A2 those carry the SAME `data-louise-node` attribute, one
-//     path deeper — the catalog says whether a field is edited in place, so the
+//     path deeper—the catalog says whether a field is edited in place, so the
 //     marker no longer has to.
 //
 // Blocks recurse through this same component with a deeper `base`. That's the
@@ -51,8 +51,8 @@ interface Props {
 /**
  * `_type` → render component. A map rather than a chain of `{type === "x" && …}`
  * for one reason that matters: it can be checked. A catalog entry whose type is
- * missing here renders NOTHING — a silent hole in the page rather than an error
- * — so the test suite asserts these keys and the catalog's are the same set.
+ * missing here renders NOTHING—a silent hole in the page rather than an error—so
+ * the test suite asserts these keys and the catalog's are the same set.
  */
 const COMPONENTS: Record<string, ((props: SectionRenderProps) => unknown) | undefined> = {
   hero: Hero,
@@ -82,12 +82,12 @@ const type = String(item._type);
 const blocks = Array.isArray(item.blocks) ? item.blocks : [];
 
 // The boundary marker the on-canvas chrome draws its ring on. It is the item's
-// path, verbatim — pre-0010 this line string-sniffed `base` for ".blocks." to pick
+// path, verbatim—pre-0010 this line string-sniffed `base` for ".blocks." to pick
 // between two attribute names, which was the three-attribute editing model leaking
 // into an otherwise uniform recursive render (ADR 0010, Context). The editor
 // resolves what a path CAN do from the catalog; the render just says where it is.
 //
-// `class="contents"` keeps this wrapper out of layout entirely — the ring is drawn
+// `class="contents"` keeps this wrapper out of layout entirely—the ring is drawn
 // as a box-shadow on the element itself, so an extra block box here would offset
 // every section's spacing for the sake of an attribute.
 const boundary = editing ? { "data-louise-node": base } : {};
@@ -95,7 +95,7 @@ const boundary = editing ? { "data-louise-node": base } : {};
 const shared = { item, base, edit: editing, mediaMeta };
 
 // Resolved in the frontmatter so the template is one dynamic tag rather than a
-// ladder of comparisons. The map itself is the dispatch check — an unknown
+// ladder of comparisons. The map itself is the dispatch check—an unknown
 // `_type` (legitimate mid-migration, and already rejected on write) simply
 // finds nothing and renders nothing, which is why the lookup is typed as
 // possibly-undefined rather than asserted.

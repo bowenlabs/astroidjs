@@ -1,5 +1,5 @@
 ---
-// Boots the in-page Louise editor — the edit bar + the Settings drawer (Pages,
+// Boots the in-page Louise editor—the edit bar + the Settings drawer (Pages,
 // Media, Settings, Users). Drop it before </body> in your layout.
 //
 // Gated on `Astro.locals.editMode`, which the generated middleware sets for a
@@ -25,7 +25,7 @@ const sectionsJson = Array.isArray(sections) ? JSON.stringify(sections) : undefi
 
 // Is the live multi-editor session on? Read from the config rather than baked in
 // at scaffold time, so adding `realtime` to `modules` later takes effect here
-// too — `astroid generate` regenerates the worker and scaffolds the Durable
+// too—`astroid generate` regenerates the worker and scaffolds the Durable
 // Object, but this file is yours and is never rewritten.
 const realtimeOn = (astroidConfig.modules ?? []).includes("realtime");
 ---
@@ -36,7 +36,7 @@ const realtimeOn = (astroidConfig.modules ?? []).includes("realtime");
       {/* Per-render values (editor name, versioned page id) ride as data-* on this
           marker element rather than a define:vars inline script. define:vars forces
           is:inline, whose content varies per request and so can't be hashed by
-          Astro's security.csp — it would be CSP-blocked. The boot script below
+          Astro's security.csp—it would be CSP-blocked. The boot script below
           reads them from here; being static, it hashes cleanly into script-src.
           The element also gates the editor: no marker (a non-edit page swapped in
           by a view transition) → boot() no-ops. */}
@@ -53,10 +53,10 @@ const realtimeOn = (astroidConfig.modules ?? []).includes("realtime");
         // the edit bar; `mountSettings` renders the drawer (Pages/Media/Settings +
         // Users, backed by editorsRoute). When the page passes `versionedPageId`,
         // the bar gains Save draft + Publish, and this page's `<Editable>` fields
-        // are edited in place — their changes stage a draft, promoted on Publish.
+        // are edited in place—their changes stage a draft, promoted on Publish.
         // The sections editor currently mounted on this <body>, and which boot
-        // owns it. `boot()` runs at parse AND on `astro:page-load` — which Astro's
-        // ClientRouter fires on the initial load, not only on navigations — so two
+        // owns it. `boot()` runs at parse AND on `astro:page-load`—which Astro's
+        // ClientRouter fires on the initial load, not only on navigations—so two
         // boots race, and the second lands while the first one's dynamic import is
         // still in flight. Without a guard both mount, and the page gets two
         // on-canvas chromes, two toolbars and two Publish buttons over one store.
@@ -65,7 +65,7 @@ const realtimeOn = (astroidConfig.modules ?? []).includes("realtime");
         // not, and it is also the one that needs disposing on a view-transition
         // nav so its flush and unsaved-changes listeners don't outlive the page.
         // Annotated, not inferred: `= null` alone infers `null`, and `astro check`
-        // runs strict — the scaffold smoke fails on ts(7034)/ts(7005) before a
+        // runs strict—the scaffold smoke fails on ts(7034)/ts(7005) before a
         // scaffolded site ever builds.
         let teardown: (() => void) | null = null;
         let generation = 0;
@@ -82,7 +82,7 @@ const realtimeOn = (astroidConfig.modules ?? []).includes("realtime");
             import("astroidjs/components/sections"),
           ])
             .then(([client, settings, lib]) => {
-              // Superseded while importing — a later boot owns the page now.
+              // Superseded while importing—a later boot owns the page now.
               if (gen !== generation) return;
               settings.mountSettings({
                 userName: el.dataset.louiseUser || "Editor",

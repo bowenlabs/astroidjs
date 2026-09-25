@@ -1,10 +1,10 @@
 ---
-// `<RegisterSW>` — registers the PWA service worker.
+// `<RegisterSW>`—registers the PWA service worker.
 //
 // A bundled `<script>`, never an inline one: Astro hashes it into `script-src`,
 // so this works under the strict CSP without `unsafe-inline`. That's also why
 // the scope rides on a `data-` attribute rather than being interpolated into
-// the script — `define:vars` forces `is:inline`, whose content varies per
+// the script—`define:vars` forces `is:inline`, whose content varies per
 // render and therefore can't be hashed.
 //
 // Registration is best-effort by design. A service worker is an enhancement:
@@ -36,7 +36,7 @@ const { scope = "/", src = "/sw.js" } = Astro.props;
     navigator.serviceWorker
       .register(el.dataset.src ?? "/sw.js", { scope: el.dataset.scope ?? "/" })
       .catch((error) => {
-        // Not fatal — the app works without it. Logged rather than swallowed so
+        // Not fatal—the app works without it. Logged rather than swallowed so
         // a scope/MIME misconfiguration is findable instead of just "the PWA
         // doesn't install and nobody knows why".
         console.warn("[astroid] service worker registration failed", error);

@@ -1,5 +1,5 @@
 ---
-// `<MediaSlot>` — the responsive-image primitive (#257).
+// `<MediaSlot>`—the responsive-image primitive (#257).
 //
 // One place that knows how to put a media-library image on a page correctly:
 // a width-descriptor `srcset` over Cloudflare Image Resizing, a `sizes` hint so
@@ -7,7 +7,7 @@
 // box so the image can't shift the page as it loads, and lazy/async decoding by
 // default.
 //
-// The math is not new — `louise-toolkit/media` already ships `cfImageSrcset`
+// The math is not new—`louise-toolkit/media` already ships `cfImageSrcset`
 // (width descriptors, ratio-derived heights, cover-crop gravity, `format=auto`)
 // and `circleImage`. What every consuming site rebuilt by hand was the *component*
 // around it: the ratio box, the `sizes` string, the focal-point crop, and
@@ -15,13 +15,13 @@
 // Contentful Paint regression. That's what this owns.
 //
 // CSP: the focal/zoom knobs emit a data-driven inline `style` attribute. That is
-// exactly the case astroid's middleware rewrites `style-src` for (#253) — scripts
+// exactly the case astroid's middleware rewrites `style-src` for (#253)—scripts
 // stay hash-pinned with no `unsafe-inline`.
 import { cfImageSrcset, circleImage } from "louise-toolkit/media";
 import type { HTMLAttributes } from "astro/types";
 
 interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset" | "sizes" | "width" | "height"> {
-  /** Image URL — a media-library asset, or any URL on a resizing-enabled zone. */
+  /** Image URL—a media-library asset, or any URL on a resizing-enabled zone. */
   src: string;
   /**
    * Alternative text. REQUIRED, and `""` is a legitimate value: an image that
@@ -33,18 +33,18 @@ interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset" | "sizes" |
   alt: string;
   /**
    * The largest width, in CSS px, this image is displayed at on a 1× screen.
-   * Drives the srcset ladder — not a hard render width.
+   * Drives the srcset ladder—not a hard render width.
    */
   width?: number;
   /**
-   * The `sizes` attribute: how wide the image renders at each breakpoint, e.g.
+   * The `sizes` attribute: how wide the image renders at each breakpoint, for example,
    * `"(max-width: 640px) 100vw, 33vw"`. Without it the browser assumes `100vw`
    * and over-fetches on every multi-column layout, which is the single most
    * common way a "responsive" image ends up slower than a fixed one.
    */
   sizes?: string;
-  /** Aspect ratio as `"w/h"` (e.g. `"16/9"`). Reserves the box and derives each
-   *  derivative's height so the crop matches what's shown — no wasted pixels. */
+  /** Aspect ratio as `"w/h"` (for example, `"16/9"`). Reserves the box and derives each
+   *  derivative's height so the crop matches what's shown—no wasted pixels. */
   ratio?: string;
   /** `rect` (default) or `circle`. A circle uses a square focal crop + 2× retina. */
   shape?: "rect" | "circle";
@@ -57,7 +57,7 @@ interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset" | "sizes" |
   /** Encode quality, 1–100. Default 82. */
   quality?: number;
   /**
-   * Focal point as percentages, for when `gravity: auto` picks wrong — a portrait
+   * Focal point as percentages, for when `gravity: auto` picks wrong—a portrait
    * where the subject sits high, say. Applied as `object-position`, so it's a
    * render-time framing choice and the same derivative is reused.
    */
@@ -65,7 +65,7 @@ interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset" | "sizes" |
   /** Scale factor inside the box, for a punch-in crop. Default 1. */
   zoom?: number;
   /**
-   * `lazy` (default) or `eager`. Set `eager` — and `priority` — for anything
+   * `lazy` (default) or `eager`. Set `eager`—and `priority`—for anything
    * above the fold: lazy-loading the LCP image delays it by a full network
    * round-trip after layout.
    */
@@ -111,7 +111,7 @@ const sizesAttr = sizes ?? (circle ? `${size}px` : `${width}px`);
 
 // Framing lives on the <img>: `object-position` moves the visible window of a
 // cover-crop, `scale` punches in. Both are per-placement, so they must NOT go
-// through the CDN — that would mint a second derivative of the same source.
+// through the CDN—that would mint a second derivative of the same source.
 const frame = [
   focal ? `object-position:${focal.x}% ${focal.y}%` : "",
   zoom !== 1 ? `transform:scale(${zoom})` : "",
@@ -132,7 +132,7 @@ const img = {
   src: derived.src,
   srcset: derived.srcset,
   // A circle's srcset uses DPR descriptors (`1x`/`2x`), which `sizes` does not
-  // apply to — supplying it there would be ignored at best and confusing at worst.
+  // apply to—supplying it there would be ignored at best and confusing at worst.
   ...(circle ? {} : { sizes: sizesAttr }),
   alt,
   loading,
