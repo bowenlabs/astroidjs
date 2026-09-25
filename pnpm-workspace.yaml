@@ -2,6 +2,10 @@ packages:
   - packages/*
   - workers/*
 
+# Refuse to install on the wrong Node rather than warn: `engines` alone only
+# prints "Unsupported engine" and carries on. The version is .nvmrc.
+engineStrict: true
+
 # esbuild's postinstall builds its native binary. vitest and knip both go through
 # it, so without this the install completes and the test run fails later with a
 # missing-binary error that reads like a corrupt store rather than a skipped
