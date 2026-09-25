@@ -1,0 +1,7 @@
+# Fingerprints of gitleaks findings that aren't secrets. Each entry needs a
+# comment that says why. `.github/workflows/secrets.yml` runs the scan.
+
+# False positive: a sentence of prose in the old packages/astroid/README.md,
+# about which commerce providers fill which roles, matches the
+# generic-api-key rule.
+eaf8b586696e97bc9d8c0f61a7cc6ce30ed7ac2b:packages/astroid/README.md:generic-api-key:71
