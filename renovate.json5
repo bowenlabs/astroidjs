@@ -15,7 +15,7 @@
     // files carry `__ASTROID_*__` placeholders, several are not valid TypeScript
     // standalone, and the toolkit versions in its package.json are sentinels
     // (`0.0.0-replaced-at-scaffold`) that create-astroid DERIVES from its own
-    // resolved dependencies at pack time.
+    // resolved dependencies at scaffold time.
     //
     // `scripts/ci/checks/scaffold-versions.mjs` fails the build if those become
     // hardcoded literals, which is precisely what a well-meaning Renovate PR

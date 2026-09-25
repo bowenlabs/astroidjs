@@ -10,6 +10,12 @@
 // (`toolkitRanges()`); this asserts the derivation actually happened and produced
 // the right answer, so re-hardcoding a literal fails here rather than on npm.
 //
+// The expected range is a caret on the RESOLVED version, never create-astroid's
+// declared range. A declared `^0.31.0` still matches after 0.31.1 ships, so a
+// check that accepted it could not tell a derivation that reads the install from
+// one that writes the stale floor. That second kind shipped once: it matched the
+// declared range, and the smoke test failed on every PR the day a patch shipped.
+//
 // Resolution deliberately mirrors `toolkitRanges()`—`createRequire` from the
 // installed create-astroid's own directory—rather than reading
 // `./node_modules/<name>`. Under pnpm's isolated layout a transitive dependency
