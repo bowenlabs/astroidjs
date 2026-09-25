@@ -1,5 +1,12 @@
 # create-astroid
 
+## 0.7.2
+
+### Patch Changes
+
+- Updated dependencies [d9fa7f4]
+  - astroidjs@0.13.0
+
 ## 0.7.1
 
 ### Patch Changes
