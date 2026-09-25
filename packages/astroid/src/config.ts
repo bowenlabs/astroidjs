@@ -462,6 +462,19 @@ export interface SettingsConfig {
   /** Extra media-library image keys beyond the base logo/favicon/OG defaults—*
     settings values validated as media-library URLs on write. */
   imageKeys?: string[];
+  /**
+   * Take per-key sanitizers and a GET transform from the scaffold-once
+   * `src/settings-hooks.ts`. The generated `settingsRoute` and the scaffolded
+   * settings Action both spread them in, so the two write paths clean a value
+   * the same way.
+   *
+   * The allowlist alone decides only which keys are written, not what's in
+   * them. Turn this on when a site's settings need clamping or normalizing
+   * before they're stored, such as a length limit, an email address, or a
+   * nested config object. The hooks live in a module rather than in this config
+   * because a sanitizer usually imports runtime code, which the CLI can't load.
+   */
+  hooks?: boolean;
 }
 
 /** Media-library upload policy. */
@@ -480,6 +493,19 @@ export interface MediaConfig {
    * time rather than surfacing as a mystery upload failure in production.
    */
   maxUploadBytes?: number;
+}
+
+export interface PagesConfig {
+  /**
+   * Take a transform and extra reserved slugs for the `pages` route from the
+   * scaffold-once `src/pages-hooks.ts`. The generated worker passes them to
+   * `astroidPagesWriteHooks`, so the site's transform runs before Astroid's own
+   * section sanitize and validate.
+   *
+   * Turn this on when a site cleans a page write itself: normalizing the slug,
+   * clamping a title, or filling a new page's defaults.
+   */
+  hooks?: boolean;
 }
 
 export interface DeployConfig {
@@ -561,6 +587,8 @@ export interface AstroidConfig {
   settings?: SettingsConfig;
   /** Media-library upload policy (for example, a larger `maxUploadBytes`). */
   media?: MediaConfig;
+  /** The editable `pages` collection's site-owned write hooks. */
+  pages?: PagesConfig;
   /**
    * Force the contact form + `inquiries` table on or off. Omit to detect from
    * the config (a `contact` section, or a wholesale-inquiry module). Set `true`

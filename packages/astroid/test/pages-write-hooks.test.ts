@@ -15,6 +15,7 @@
 import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import {
+  ASTROID_RESERVED_SLUGS,
   assertAstroidPageSections,
   astroidPagesCollection,
   astroidPagesWriteHooks,
@@ -123,6 +124,61 @@ describe("astroidPagesWriteHooks — sanitize", () => {
     });
     const answer = (out.sections as { items: { answer: string }[] }[])[0].items[0].answer;
     expect(answer).not.toContain("<script>");
+  });
+});
+
+describe("astroidPagesWriteHooks — site hooks", () => {
+  it("reserves Astroid's own paths with no site hooks", () => {
+    expect(hooks.reservedSlugs).toEqual([...ASTROID_RESERVED_SLUGS]);
+    expect(hooks.reservedSlugs).toContain("api");
+  });
+
+  it("adds a site's reserved slugs to Astroid's", () => {
+    const withSite = astroidPagesWriteHooks(config, { reservedSlugs: ["home", "portal"] });
+    expect(withSite.reservedSlugs).toEqual([...ASTROID_RESERVED_SLUGS, "home", "portal"]);
+  });
+
+  it("runs the site's transform before Astroid's section sanitize", async () => {
+    const withSite = astroidPagesWriteHooks(config, {
+      transform: (data) => ({
+        ...data,
+        slug: String(data.slug).toLowerCase(),
+        sections: [
+          { _type: "faq", items: [{ question: "q", answer: "<p>ok</p><script>x()</script>" }] },
+        ],
+      }),
+    });
+    const out = await withSite.transform({ slug: "About-Us" }, { operation: "create" });
+    expect(out.slug).toBe("about-us");
+    // The section the site's transform produced still went through the sanitizer.
+    const answer = (out.sections as { items: { answer: string }[] }[])[0].items[0].answer;
+    expect(answer).not.toContain("<script>");
+  });
+
+  it("runs the site's validate before Astroid's section validation", async () => {
+    const withSite = astroidPagesWriteHooks(config, {
+      validate: (data) => {
+        if (data.title === "") throw new Error("Title can't be empty.");
+      },
+    });
+    await expect(withSite.validate({ title: "" }, { operation: "update" })).rejects.toThrow(
+      "Title can't be empty.",
+    );
+    await expect(
+      withSite.validate({ title: "t" }, { operation: "update" }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("passes the write context to the site's transform", async () => {
+    const seen: string[] = [];
+    const withSite = astroidPagesWriteHooks(config, {
+      transform: (data, ctx) => {
+        seen.push(ctx.operation);
+        return data;
+      },
+    });
+    await withSite.transform({ title: "t" }, { operation: "update" });
+    expect(seen).toEqual(["update"]);
   });
 });
 
