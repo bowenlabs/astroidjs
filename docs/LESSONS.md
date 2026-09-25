@@ -45,10 +45,10 @@ tricky:
   path. A served scaffold is its only guard, and CI doesn't serve one yet (#32).
 - The `DRAFTS` write buffer used to defer validation to publish: a bad write
   that merged into an open buffer returned 200 and failed later. Since
-  louise-toolkit #529, a buffered save runs the collection's hooks first, so
-  it answers 422 like any other. The fix ships in the first louise-toolkit
-  release after 0.31.0, which the `^0.31.0` range accepts. On 0.31.0 or
-  earlier, test validation on a fresh page.
+  louise-toolkit 0.31.1 (#529), a buffered save runs the collection's hooks
+  first, so it answers 422 like any other. The `^0.31.0` range accepts 0.31.1,
+  so refresh the lockfile to pick it up. On 0.31.0 or earlier, test validation
+  on a fresh page.
 
 ### Read the module before inferring a data model
 
