@@ -148,7 +148,7 @@ async function cmdDoctor(cwd, flags) {
       // and are a pure function of the config, so "stale" means the project on
       // disk is not the project the config describes—which is the single
       // condition doctor exists to catch. As a warning it printed "healthy" and
-      // exited 0, so `pnpm doctor` could not gate CI on it.
+      // exited 0, so `pnpm run doctor` could not gate CI on it.
       err(`${file.path} is stale (out of sync with your config) — run \`astroid generate\`.`);
     } else {
       ok(`${file.path} is up to date`);

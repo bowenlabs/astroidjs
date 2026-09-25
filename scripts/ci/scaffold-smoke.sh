@@ -106,6 +106,24 @@ cd "$ROOM/smoke"
 mv pnpm-workspace.yaml.new pnpm-workspace.yaml
 
 corepack pnpm install
+
+# Run the scaffold's own CI doctor step, verbatim, and require Astroid's summary
+# line. `doctor` is also a pnpm built-in, and a built-in beats a script of the
+# same name, so `pnpm doctor` ran pnpm's self-check and exited 0: the step was
+# green in every scaffolded project without ever running `astroid doctor`. Only
+# `corepack` is prefixed, because the smoke test can't assume a bare `pnpm`.
+echo "==> the scaffold's CI doctor step runs astroid doctor"
+DOCTOR_CMD="$(grep -A1 -- '- name: Doctor' .github/workflows/ci.yml | sed -n 's/^ *run: *//p')"
+[ -n "$DOCTOR_CMD" ] || { echo "no Doctor step found in .github/workflows/ci.yml" >&2; exit 1; }
+DOCTOR_STATUS=0
+DOCTOR_OUT="$(eval "corepack $DOCTOR_CMD")" || DOCTOR_STATUS=$?
+printf '%s\n' "$DOCTOR_OUT"
+[ "$DOCTOR_STATUS" -eq 0 ] || { echo "\`$DOCTOR_CMD\` exited $DOCTOR_STATUS" >&2; exit 1; }
+grep -q '^doctor: ' <<<"$DOCTOR_OUT" || {
+  echo "\`$DOCTOR_CMD\` didn't run astroid doctor (no \`doctor:\` summary line)" >&2
+  exit 1
+}
+
 corepack pnpm exec astro check
 corepack pnpm exec astro build
 

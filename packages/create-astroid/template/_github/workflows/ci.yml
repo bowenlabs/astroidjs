@@ -36,8 +36,10 @@ jobs:
       # Validate the config, bindings, and that the generated
       # src/schema.ts · src/worker.ts · src/middleware.ts trio is still in sync
       # with astroid.config.ts. A fast fail before the heavier steps.
+      # `run` is load-bearing: `doctor` is a pnpm built-in, so a bare
+      # `pnpm doctor` runs pnpm's own self-check and never reaches Astroid's.
       - name: Doctor
-        run: pnpm doctor
+        run: pnpm run doctor
 
       # No-ops on a fresh scaffold; runs automatically once you add a `lint`
       # script (oxlint/biome) — same for `test` (vitest) further down.
