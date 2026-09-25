@@ -1,5 +1,68 @@
 # astroidjs
 
+## 0.14.0
+
+### Minor Changes
+
+- 203f24e: **A new project's home page now seeds the sections its archetype lists.** Before, `seed/home.seed.sql` was a fixed template file that seeded the marketing sections (hero, feature grid, call to action) for every archetype. A portfolio's `astroid.config.ts` listed a hero, gallery, about intro, and contact section, but its first page showed a feature grid and a call to action instead.
+
+  create-astroid now writes the seed from the config's own `sections`, with sample content for each one. The seed also escapes the brand name, so a name with an apostrophe (`--name "Kai's Bakery"`) no longer produces SQL that fails to run.
+
+  astroidjs exports the two functions that build it: `astroidHomeSeedSections(config)` returns the seeded sections, and `generateAstroidHomeSeed(config)` returns the SQL.
+
+  **What to do:** nothing for an existing site. A seed runs once against a fresh database, and `astroid generate` never writes one.
+
+### Patch Changes
+
+- 78012e9: Three fixes found while moving ghostfire.coffee onto Astroid.
+
+  - **`astroid doctor` reads `migrations_dir` from `wrangler.jsonc`.** It looked only for `migrations/`, so a site that keeps its D1 migrations in `drizzle/` got a warning on every run, and CI had to grep doctor's output instead of trusting its exit code. It now checks the directory wrangler applies migrations from, and falls back to `migrations/` when none is named.
+  - **`resolvePortalSession` keeps your user type.** It's generic now, so the result is whatever your `resolvePortalUser` returns (a customer ID, display initials) instead of `PortalUser`. Nothing to change: a resolver that returns `PortalUser` gets `PortalUser`. If your own identity type is an `interface`, make it a `type` alias; only a type alias is assignable to `PortalUser`'s index signature.
+  - **The scaffolded `src/actions/index.ts` no longer imports `ASTROID_SETTINGS_COLUMNS` when `settings.columns` is set.** The import went unused, which a lint run reports as an error in the site's own file. This only changes new scaffolds; delete the unused import from an existing file by hand.
+
+- ab07974: The comments that `astroid generate` writes into a site now follow the house prose style (Google developer documentation style, louise-toolkit ADR 0013). Dashes are closed up (`word—word`, not `word — word`), a plural status code now reads "answers 404," and "e.g." now reads "For example." Only comment text changed. Generated code, identifiers, and string values are byte-for-byte the same.
+
+  This covers the regenerated trio (`src/schema.ts`, `src/worker.ts`, `src/middleware.ts`), the scaffold-once files that `generateAstroidScaffoldFiles` and `generateAstroidWrangler` emit, and the `generateWorkflowSchema` and `generateWorkflowRoute` output. Linting a site's committed trio used to report about 40 errors, which is why sites excluded it from `lint:docs`. It now reports none.
+
+  What to do after you upgrade:
+
+  1. Run `astroid generate` (or `pnpm build`, which runs it) and commit the regenerated trio. Until you do, `astroid doctor` reports the committed trio as stale, because its comments no longer match what the generator writes.
+  2. Drop the trio from your `lint:docs` `--exclude` list, so the trio is linted like the rest of the site.
+
+  Scaffold-once files that a site already has aren't rewritten, because the site owns them. Only new scaffolds, and modules you turn on later, get the new comments. To bring an existing file in line, fix its dashes by hand, or let `lint:docs` find them.
+
+- 78012e9: A site can now clean what editors save, in settings and in pages, and the generated `pagesRoute` fixes three gaps every site had. Settings hooks need louise-toolkit 0.31.1 or later.
+
+  **Why.** The generated routes enforced which keys an editor could write, and nothing about their values. A site whose settings need a length limit or a valid email address, or whose pages need a normalized slug, had to hand-write its own route. The route plan mounts the generated one first, so that wasn't possible.
+
+  **Settings hooks.** Set `settings: { hooks: true }` and `astroid generate` scaffolds `src/settings-hooks.ts`, once, exporting `settingsHooks` (louise-toolkit's `SettingsRouteHooks`):
+
+  - `sanitize` maps a settings key to a function that returns the value to store. The generated `settingsRoute` and the scaffolded settings Action both use it, so a value is cleaned the same way on either write path. Sanitized values still go through the link-scheme and media-URL checks.
+  - `read` transforms the settings the panel loads, for example to fill keys an older row lacks from your defaults.
+
+  **Pages hooks.** Set `pages: { hooks: true }` and `astroid generate` scaffolds `src/pages-hooks.ts`, once, exporting `pagesHooks` (`AstroidPagesHooks`):
+
+  - `transform` cleans a page write before Astroid's section sanitize and validate run: normalize the slug, clamp a title, fill a new page's defaults.
+  - `validate` rejects a write, before Astroid's own section validation. Throw a `LouiseValidationError` for a 422.
+  - `reservedSlugs` adds to the paths no page may take.
+
+  **Fixed for every site, with no config:**
+
+  - Deleting a page now deletes its version snapshots. They have no foreign key to the page, so they used to orphan.
+  - A page write through the Pages panel now rebuilds the search index. A renamed page used to keep matching its old title until the next publish.
+  - `pagesRoute` now refuses the slugs in `ASTROID_RESERVED_SLUGS` (`404`, `_astro`, `api`, `cdn-cgi`, `robots.txt`, `sitemap.xml`) with a 422. A page saved under one was unreachable, and nothing said why.
+  - The media library's delete-safety scan now reads `site_settings.custom`, where a site's own image settings live. Deleting an image a custom setting used reported no references.
+
+  **What you have to do.** Run `astroid generate` and commit the regenerated `src/worker.ts`; `astroid doctor` reports it stale until you do. The hooks are opt-in, and a project that doesn't turn them on gets no new files. If you turn on `settings.hooks` in a project that already has `src/actions/index.ts`, that file isn't rewritten, because the site owns it. Add `import { settingsHooks } from "../settings-hooks.js";` and pass `sanitize: settingsHooks.sanitize` to `louiseSettingsAction` yourself.
+
+- 78012e9: On louise-toolkit 0.31.1 and @louise-toolkit/astro 0.2.3.
+
+  astroidjs now requires louise-toolkit `^0.31.1` as a peer. `settings.hooks` hands `settingsRoute` a `sanitize` map that 0.31.0 ignores without an error, so on the older toolkit a site would believe its settings were cleaned when they weren't.
+
+  0.31.1 also runs a collection's access check and `beforeChange` hooks on a buffered draft save, so a bad buffered write answers 422 instead of 200. Its buffer keys move to `draft:v2:`, so an edit that was only in the buffer when a site deploys (the last 10 seconds or so of an editing session) isn't resumed; the page resumes from its latest D1 draft.
+
+  New scaffolds from create-astroid get the new toolkit ranges. To upgrade an existing site, bump `louise-toolkit`, `@louise-toolkit/astro`, and `astroidjs` together, then run `astroid generate`.
+
 ## 0.13.0
 
 ### Minor Changes
