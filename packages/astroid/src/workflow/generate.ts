@@ -3,8 +3,8 @@
 // Workflow → Drizzle schema + the advance route.
 //
 // The schema half is a pure function of the config (regenerate freely); the
-// route is SCAFFOLD-ONCE, because per-stage side effects — issue the invoice
-// when packaging is signed, email the customer on every move — are the whole
+// route is SCAFFOLD-ONCE, because per-stage side effects—issue the invoice
+// when packaging is signed, email the customer on every move—are the whole
 // reason a project reaches for this module, and regenerating would erase them.
 
 import {
@@ -18,7 +18,7 @@ import {
  * The Drizzle table sources a workflow adds: the audit table, and the override
  * log when enabled.
  *
- * The `stage` column itself is NOT emitted here — it belongs to the project's
+ * The `stage` column itself is NOT emitted here—it belongs to the project's
  * own entity table (orders, applications, tickets), which Astroid doesn't own.
  * The returned `stageColumn` is the line to paste into it, which keeps the
  * ownership boundary honest rather than generating a table the project already has.
@@ -107,7 +107,7 @@ export function generateWorkflowSchema(config: WorkflowConfig): {
 }
 
 /**
- * `src/pages/api/<key>/advance.ts` — the guarded advance route.
+ * `src/pages/api/<key>/advance.ts`—the guarded advance route.
  *
  * Thin by design: `advanceWorkflowStage` owns the concurrency guard and the
  * status contract, so what's left here is authentication and the per-stage side

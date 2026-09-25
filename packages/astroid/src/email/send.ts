@@ -5,11 +5,11 @@
 // Transactional mail in this stack is always store-and-forward: the inquiry row
 // is already in D1, the account already exists. Mail is the *notification* of
 // something that happened, so a mail failure must never fail the request that
-// caused it — and never throw into a `waitUntil` where it becomes an unhandled
+// caused it—and never throw into a `waitUntil` where it becomes an unhandled
 // rejection. Every path here resolves.
 //
 // The second job is the dev story. There is no EMAIL binding under `wrangler
-// dev`, and the single most common local task is "click the magic link" — so an
+// dev`, and the single most common local task is "click the magic link"—so an
 // unconfigured mailer LOGS the message instead of silently dropping it, and it
 // logs the plaintext body, which is where the link is. That is the whole reason
 // every template renders a text alternative.
@@ -41,7 +41,7 @@ export interface MailerStatus {
   /** True only when a binding AND a real sender address are both present. */
   configured: boolean;
   values: ModuleSecrets<"MAIL_FROM">["values"];
-  /** What's unprovisioned — secret names and/or `"EMAIL"`. */
+  /** What's unprovisioned—secret names and/or `"EMAIL"`. */
   missing: string[];
   /** Whether an Email Sending binding is present at all. */
   hasBinding: boolean;
@@ -59,7 +59,7 @@ export interface MailerEnv {
  * Both halves are required, and for the same reason: a binding with no sender
  * address can't build an envelope, and a sender address with no binding has
  * nothing to send through. Either one missing means log-and-continue, which
- * under `wrangler dev` (no EMAIL binding at all) is the normal case — and the
+ * under `wrangler dev` (no EMAIL binding at all) is the normal case—and the
  * reason the magic-link flow is still workable locally.
  */
 export async function resolveMailerStatus(env: MailerEnv): Promise<MailerStatus> {
@@ -100,7 +100,7 @@ export async function resolveMailer(
 export interface OutgoingMail {
   to: string;
   content: MailContent;
-  /** Reply-To — for an inquiry notification, the visitor's own address, so the
+  /** Reply-To—for an inquiry notification, the visitor's own address, so the
    *  owner can just hit reply. */
   replyTo?: string;
 }
@@ -111,7 +111,7 @@ export interface DeliveryResult {
   subject: string;
   delivered: boolean;
   messageId?: string;
-  /** Why it wasn't delivered — `"not-configured"`, `"log-only"`, or the error. */
+  /** Why it wasn't delivered—`"not-configured"`, `"log-only"`, or the error. */
   reason?: string;
 }
 
@@ -142,11 +142,11 @@ export interface MailerOptions {
 /**
  * The console rendering of an unsent message.
  *
- * The body is the whole point in dev — that's where a sign-in link actually is,
+ * The body is the whole point in dev—that's where a sign-in link actually is,
  * and printing it is what lets you sign in with no mail provider configured.
  *
  * It is also a credential. `logOnly` turns on whenever `MAIL_FROM` is unset, and
- * that can happen in PRODUCTION — a secret that didn't get set, or a Secrets
+ * that can happen in PRODUCTION—a secret that didn't get set, or a Secrets
  * Store read that failed. The body then went to `console.info`, which means
  * `wrangler tail` and every Logpush sink, carrying live single-use magic links
  * and password-reset URLs. Anyone with read access to observability could take
@@ -181,7 +181,7 @@ function describe(mail: OutgoingMail, reason: string, includeBody: boolean): str
 /**
  * Best-effort "are we in development?".
  *
- * Deliberately conservative — it decides whether a credential is printed, so an
+ * Deliberately conservative—it decides whether a credential is printed, so an
  * unknown environment must read as production. Workers has no `NODE_ENV`, so we
  * look at the signals that do exist and let a caller override explicitly.
  */
@@ -260,7 +260,7 @@ export async function sendTransactional(
     // A genuine delivery failure is LOGGED, not just returned.
     //
     // The result array was the only record of it, and the one caller that
-    // matters — the generated inquiry handler — discards it by design (the row
+    // matters—the generated inquiry handler—discards it by design (the row
     // is already durable, and the visitor must not see a 500 because the owner's
     // notification bounced). So a dead Email Sending domain or an exhausted
     // quota produced silence everywhere: a success page for the visitor, nothing

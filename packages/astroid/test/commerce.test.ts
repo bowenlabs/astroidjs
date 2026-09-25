@@ -111,7 +111,7 @@ describe("catalog mirror schema", () => {
   });
 
   it("emits NO table or migration in live mode", () => {
-    // coracle's model: no Astroid-managed catalog table — the catalog is read
+    // coracle's model: no Astroid-managed catalog table—the catalog is read
     // live (KV-cached) from Square and any overlay table is the site's own
     // (product_display_meta in schema.site.ts).
     const cfg = shop({ provider: "square", catalog: { mode: "live" } });
@@ -157,7 +157,7 @@ describe("catalog mirror schema", () => {
 
   it("imports exactly the drizzle column builders the emitted source uses", () => {
     // The catalog's price/sortOrder are `real()`, which the base schema never
-    // needs — omitting it from the import made every commerce scaffold fail
+    // needs—omitting it from the import made every commerce scaffold fail
     // `astro check` with "Cannot find name 'real'".
     const withCatalog = generateAstroidSchema(shop({ provider: "square" }));
     expect(withCatalog).toContain(
@@ -207,7 +207,7 @@ describe("catalog adapters", () => {
       ],
     });
 
-    // Both carry the same keys — which is what lets one loader serve both.
+    // Both carry the same keys—which is what lets one loader serve both.
     expect(Object.keys(square).sort()).toEqual([
       "externalId",
       "images",
@@ -276,7 +276,7 @@ describe("catalog adapters — location scoping", () => {
 
   it("scopes the headline 'from' price to what the merchant actually stocks", () => {
     // The bug this closes. Unscoped, `Math.min` sees the 12oz at $18 and the
-    // card reads "from $18" — on a storefront that only sells the 2lb. The
+    // card reads "from $18"—on a storefront that only sells the 2lb. The
     // dropped variation is the cheap one, so the error runs in the direction a
     // customer notices at the till.
     expect(squareToCatalogItem(shared).price).toBe(18);
@@ -289,7 +289,7 @@ describe("catalog adapters — location scoping", () => {
     // `absentAtLocationIds` is a BLACKLIST, consulted only when
     // `presentAtAllLocations` is true; `presentAtLocationIds` is a WHITELIST,
     // consulted only when it is false. Swapping them shows a merchant products
-    // they don't carry — which is why this is asserted rather than assumed.
+    // they don't carry—which is why this is asserted rather than assumed.
     const blacklisted = {
       id: "SQ2",
       name: "Seasonal",
@@ -312,7 +312,7 @@ describe("catalog adapters — location scoping", () => {
 
   it("falls back to the base price when an override adjusts something else", () => {
     // A `location_overrides` entry with no `price_money` is Square's way of
-    // saying "same price, different inventory settings" — reading it as a price
+    // saying "same price, different inventory settings"—reading it as a price
     // of 0 would give the item away.
     const item = {
       id: "SQ3",
@@ -377,7 +377,7 @@ describe("catalog adapters — location scoping", () => {
     // And the reason it must be filtered rather than stored: it mirrors as $0.
     expect(squareToCatalogItem(noneHere, { locationId: "L-AIRPORT" }).price).toBe(0);
 
-    // Item itself withheld from the location — its variations don't matter.
+    // Item itself withheld from the location—its variations don't matter.
     expect(
       squareItemSoldAt(
         { ...shared, presentAtAllLocations: true, absentAtLocationIds: ["L-AIRPORT"] },
@@ -437,7 +437,7 @@ describe("catalog sync", () => {
     expect(update.sql).toContain("UPDATE products");
     for (const owned of ["slug", "status", "sort_order", "featured"]) {
       // Word-boundary matched: `external_slug` is a PULLED column and legitimately
-      // appears here — it's the provider's slug, not the owner's public one.
+      // appears here—it's the provider's slug, not the owner's public one.
       expect(update.sql, `owned column ${owned}`).not.toMatch(
         new RegExp(`(^|[\\s,])${owned}\\s*=`),
       );
@@ -464,7 +464,7 @@ describe("catalog sync", () => {
   it("reuses its own slug on a re-run rather than incrementing forever", async () => {
     const db = fakeDb([{ id: 1, external_id: "SQ1", slug: "house-blend" }]);
     // Delete the external_id match so it takes the insert path with the row
-    // still occupying the slug — i.e. the row is ours.
+    // still occupying the slug—that is, the row is ours.
     db.rows[0].external_id = "SQ1";
     const first = await astroidCatalogUpsert(item, { db, table: "products" });
     expect(first.created).toBe(false);
@@ -527,7 +527,7 @@ describe("verifyCheckout", () => {
   it("looks each variant up once even when repeated across lines", async () => {
     // Typed as the scoped signature so the call tuple is visible to the
     // assertion; the value passed in is still the zero-arity legacy shape,
-    // which is the point — it stays assignable.
+    // which is the point—it stays assignable.
     const lookup = vi.fn<ScopedPriceLookup>(prices({ V1: 100 }));
     await verifyCheckout(
       [
@@ -618,7 +618,7 @@ describe("verifyCheckout — scope and stock", () => {
 
     // The same cart at the airport, where the price is $38. Without scoping,
     // both storefronts verify against one number and a customer can pay the
-    // cheaper merchant's price at the dearer merchant's shop — the same class
+    // cheaper merchant's price at the dearer merchant's shop—the same class
     // of bug as trusting `unitPriceCents`, one level further back.
     expect(
       await verifyCheckout([line], pricesAt, { scope: { locationId: "L-AIRPORT" } }),
@@ -653,7 +653,7 @@ describe("verifyCheckout — scope and stock", () => {
       outOfStock: ["V1"],
     });
 
-    // V1 is still PRICED — reading the map first would call it available and
+    // V1 is still PRICED—reading the map first would call it available and
     // let the charge through. Stock is checked before price for that reason.
     expect(
       await verifyCheckout([{ variantId: "V1", quantity: 1, unitPriceCents: 4200 }], lookup),
@@ -690,7 +690,7 @@ describe("catalog sync — failure reporting", () => {
     { externalId: "SQ1", name: "A", price: 1 },
     { externalId: "SQ2", name: "B", price: 2 },
   ];
-  /** A db whose every statement throws — an unapplied migration, or D1 down. */
+  /** A db whose every statement throws—an unapplied migration, or D1 down. */
   const brokenDb = () => ({
     prepare() {
       throw new Error("no such table: products");
@@ -731,7 +731,7 @@ describe("catalog sync — failure reporting", () => {
     const result = await astroidCatalogSync(items, { db: flaky as never, table: "products" });
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toMatchObject({ externalId: "SQ1", message: "transient" });
-    // The surviving item still landed — a partial catalog beats a stale one.
+    // The surviving item still landed—a partial catalog beats a stale one.
     expect(result.created + result.updated).toBe(1);
   });
 
@@ -759,8 +759,8 @@ describe("checkoutIdempotencyKey", () => {
   it("separates DIFFERENT buyers with identical carts", async () => {
     // The bug this closes: the key was a pure function of the cart, so Alice and
     // Bob each buying 1×A + 2×B produced byte-identical keys. Providers scope
-    // idempotency keys per account for ~24h, so Bob's charge was deduped into
-    // Alice's order — Bob was never charged and the site reported success.
+    // idempotency keys per account for about 24 hours, so Bob's charge was deduped into
+    // Alice's order—Bob was never charged and the site reported success.
     expect(await checkoutIdempotencyKey(cart, "order", "cart_alice")).not.toBe(
       await checkoutIdempotencyKey(cart, "order", "cart_bob"),
     );
@@ -768,7 +768,7 @@ describe("checkoutIdempotencyKey", () => {
 
   it("refuses an empty identity rather than silently colliding", async () => {
     // A falsy identity would restore the collision exactly, and the damage is
-    // invisible at the call site — so this must throw, not default.
+    // invisible at the call site—so this must throw, not default.
     await expect(checkoutIdempotencyKey(cart, "order", "")).rejects.toThrow(AstroidUsageError);
     await expect(checkoutIdempotencyKey(cart, "order", "   ")).rejects.toThrow(/identity/i);
   });
@@ -801,13 +801,13 @@ describe("generated checkout route", () => {
 
   it("is null unless the project takes card payments (Square storefront)", () => {
     // A marketing site, or a Stripe/Fourthwall project, gets no in-page charge
-    // route — so nothing to gate.
+    // route—so nothing to gate.
     expect(generateAstroidCheckoutRoute({ ...base, archetype: "marketing" })).toBeNull();
   });
 
   it("gates the money-moving POST to same-origin, like every other public write", () => {
     // Served, a cross-origin correct-price POST reached this route and returned
-    // 200 while the contact form and vitals beacon 403'd cross-origin — the one
+    // 200 while the contact form and vitals beacon 403'd cross-origin—the one
     // money-moving endpoint was the only ungated public POST. It must refuse a
     // cross-origin request with a 403.
     const route = generateAstroidCheckoutRoute(square);
@@ -818,7 +818,7 @@ describe("generated checkout route", () => {
 
   it("checks the origin BEFORE parsing the body or re-pricing", () => {
     // Order matters: the gate is worthless if it runs after the work. It must
-    // precede the JSON parse (and everything downstream — verifyCheckout, the
+    // precede the JSON parse (and everything downstream—verifyCheckout, the
     // dormancy gate, createPayment).
     const route = generateAstroidCheckoutRoute(square) as string;
     const gate = route.indexOf("isSameOrigin(request)");
@@ -842,11 +842,11 @@ describe("generated checkout route — square.locations: multi", () => {
     // SQUARE_LOCATION_ID under multi-location, on the grounds that any path
     // defaulting to an ambient id rings one merchant's sale against another
     // merchant's books. The generated route was exactly such a path: it charged
-    // with `env.SQUARE_LOCATION_ID ?? ""` — a var the project is told not to
-    // set — so the charge either failed outright or, if someone set the var to
+    // with `env.SQUARE_LOCATION_ID ?? ""`—a var the project is told not to
+    // set—so the charge either failed outright or, if someone set the var to
     // quiet it, credited a single location for every merchant's sales.
     const route = generateAstroidCheckoutRoute(multi) as string;
-    // Asserted on the READ, not the name — the generated comment explains why
+    // Asserted on the READ, not the name—the generated comment explains why
     // the var is absent, so it mentions it by name on purpose.
     expect(route).not.toContain("env.SQUARE_LOCATION_ID");
     // Single-location still uses it, because there the ambient id is correct.
@@ -887,7 +887,7 @@ describe("generated checkout route — square.locations: multi", () => {
   it("checks provisioning BEFORE re-pricing, because re-pricing calls Square", () => {
     // The rule the route states for itself: "it must never call Square with a
     // dummy credential." Under multi-location, re-pricing IS a Square call, so
-    // leaving the dormancy gate in its usual place — after verification — would
+    // leaving the dormancy gate in its usual place—after verification—would
     // have the enforcing step break the rule it enforces. An unprovisioned
     // store must reach neither.
     const route = generateAstroidCheckoutRoute(multi) as string;
@@ -942,7 +942,7 @@ describe("generated Square card component", () => {
 
   it("is null unless the project takes card payments", () => {
     // Square-for-invoicing never renders an in-page card field, so there is no
-    // component to emit — same gate as the checkout route.
+    // component to emit—same gate as the checkout route.
     expect(generateAstroidSquareCard({ ...base, archetype: "marketing" })).toBeNull();
     expect(generateAstroidSquareCard(square)).not.toBeNull();
   });
@@ -960,7 +960,7 @@ describe("generated Square card component", () => {
   it("says so instead of rendering a dead form when the store is unprovisioned", () => {
     // The ids are read from env at request time, so a store that has commerce
     // configured but no Square credentials yet still renders this component. It
-    // must degrade to an explanation naming the two vars — a card field that
+    // must degrade to an explanation naming the two vars—a card field that
     // silently never mounts is indistinguishable from a broken checkout.
     const card = generateAstroidSquareCard(square) as string;
     expect(card).toContain("const ready = Boolean(appId && locationId);");
@@ -971,7 +971,7 @@ describe("generated Square card component", () => {
     // The app id and location id are public and belong in the browser; the
     // access token moves money and must stay server-side. This component is
     // shipped to every checkout visitor, so a stray reference here is a
-    // credential leak, not a type error — nothing else would catch it.
+    // credential leak, not a type error—nothing else would catch it.
     const card = generateAstroidSquareCard(square) as string;
     expect(card).toContain("env.SQUARE_APP_ID");
     expect(card).not.toContain("SQUARE_ACCESS_TOKEN");
@@ -984,7 +984,7 @@ describe("generated Square card component", () => {
 describe("Square vars are gated per-role, not per-card-checkout", () => {
   // Regression: both vars used to be gated on `usesCardCheckout` (storefront ===
   // "square"). SQUARE_ENVIRONMENT selects the API HOST, and SquareConfig defaults
-  // it to "sandbox" — so a Square-for-invoicing site got no var and created every
+  // it to "sandbox"—so a Square-for-invoicing site got no var and created every
   // PRODUCTION invoice against the sandbox. No error, no warning, no money.
   const varNames = (c: AstroidConfig) => astroidCheckoutVars(c).map((v) => v.name);
 
@@ -1061,8 +1061,8 @@ describe("per-provider dormancy gating", () => {
 // ── The `pos` role and multi-location Square ─────────────────────────────────
 //
 // `pos` is in-person selling: stock held at real places. It is a separate role
-// from `storefront` because a site commonly runs both — POD merch through one
-// provider, physical originals through another — and because only `pos` needs
+// from `storefront` because a site commonly runs both—POD merch through one
+// provider, physical originals through another—and because only `pos` needs
 // locations, per-location pricing, and inventory.
 
 describe("commerce role: pos", () => {
@@ -1080,7 +1080,7 @@ describe("commerce role: pos", () => {
   });
 
   it("rejects providers whose client cannot do locations or inventory", () => {
-    // Fourthwall's Platform API is create-only for products — it cannot model
+    // Fourthwall's Platform API is create-only for products—it cannot model
     // stock held at a place, so `pos` is not something it can serve.
     expect(() => assertCommerceRoles({ pos: "fourthwall" })).toThrow(/can't serve/);
     expect(() => assertCommerceRoles({ pos: "fourthwall" })).toThrow(/locations\/inventory/);
@@ -1120,7 +1120,7 @@ describe("square.locations: multi", () => {
   });
 
   it("DROPS SQUARE_LOCATION_ID when multi-location", () => {
-    // Not merely unnecessary — hazardous. Any path defaulting to an ambient
+    // Not merely unnecessary—hazardous. Any path defaulting to an ambient
     // location id would ring one merchant's sale against another's books, and
     // would look successful doing it.
     const commerce = { pos: "square" as const, square: { locations: "multi" as const } };

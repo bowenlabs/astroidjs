@@ -1,18 +1,18 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// Project generation — the config → files layer the `astroid` CLI writes.
+// Project generation—the config → files layer the `astroid` CLI writes.
 //
 // Two tiers of generated file, deliberately kept apart:
 //
-//   1. The REGENERATED trio (`generateAstroidProject`) — `src/schema.ts`,
+//   1. The REGENERATED trio (`generateAstroidProject`)—`src/schema.ts`,
 //      `src/worker.ts`, `src/middleware.ts`. Pure functions of the config, marked
 //      "do not hand-edit". `astroid generate` (and `dev`/`build`) rewrite these on
 //      every run, and `astroid doctor` diffs them to catch drift.
 //
-//   2. The SCAFFOLD-ONCE files (`generateAstroidWrangler`, …) — `wrangler.jsonc`
+//   2. The SCAFFOLD-ONCE files (`generateAstroidWrangler`, …)—`wrangler.jsonc`
 //      and friends. `create-astroid` writes them once; the developer then owns
 //      them (fills real binding ids, secrets, account). `astroid generate` must
-//      NEVER clobber them, or it would wipe provisioned ids — so they live in a
+//      NEVER clobber them, or it would wipe provisioned ids—so they live in a
 //      separate function the regenerate path doesn't call.
 
 import { ASTROID_VITALS_BINDING, astroidVitalsDataset } from "../analytics/index.js";
@@ -43,13 +43,13 @@ import { generateAstroidMiddleware, generateAstroidWorker } from "../worker/gene
 
 /** A generated file: a project-root-relative POSIX path + its full contents. */
 export interface GeneratedFile {
-  /** Path relative to the project root, POSIX-separated (e.g. `"src/worker.ts"`). */
+  /** Path relative to the project root, POSIX-separated (for example, `"src/worker.ts"`). */
   path: string;
   contents: string;
 }
 
 /**
- * The regenerated trio — the files that are a pure function of the Astroid config
+ * The regenerated trio—the files that are a pure function of the Astroid config
  * and carry a "do not hand-edit" banner. `astroid generate` writes exactly these,
  * and `astroid doctor` regenerates them in-memory to diff against disk. Scaffold-
  * once files (wrangler.jsonc, astro.config, auth.ts) are NOT here by design.
@@ -72,7 +72,7 @@ export function generateAstroidProject(config: AstroidConfig): GeneratedFile[] {
  * names come from {@link commerceSecretNames}, the same declaration the runtime
  * gate and the generated `env.d.ts` read.
  *
- * Empty string when the project enables no module that needs credentials — the
+ * Empty string when the project enables no module that needs credentials—the
  * core secrets (session, Turnstile, mail) are already in the template file, with
  * their own prose.
  */
@@ -103,7 +103,7 @@ export function generateAstroidSecretsEnv(config: AstroidConfig): string {
 }
 
 // Pinned compatibility date for the emitted Worker. A literal (Astroid's
-// generators are pure — no `Date.now()`), bumped deliberately when the runtime
+// generators are pure—no `Date.now()`), bumped deliberately when the runtime
 // baseline moves; matches the reference site's wrangler.jsonc.
 const COMPATIBILITY_DATE = "2026-06-20";
 
@@ -111,7 +111,7 @@ const COMPATIBILITY_DATE = "2026-06-20";
  * Generate a floor `wrangler.jsonc` from the config: the Worker name + editable
  * bindings a baseline Louise site needs (D1, R2 media, the rate-limit + autosave
  * KV, Cloudflare Images), custom-domain routes from `hosts`, and the `vars` the
- * media route + editor read. Binding ids are placeholders — real ids are filled by
+ * media route + editor read. Binding ids are placeholders—real ids are filled by
  * `wrangler … create` (or, later, `astroid deploy`); `astroid doctor` flags any
  * still-unresolved placeholder.
  *
@@ -151,7 +151,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
       p(`    { "pattern": ${JSON.stringify(host)}, "custom_domain": true },`);
     }
     if (tenancy) {
-      // A wildcard is a ZONE route, never a custom domain — Cloudflare rejects
+      // A wildcard is a ZONE route, never a custom domain—Cloudflare rejects
       // `custom_domain: true` on a pattern containing `*`, which is precisely
       // why `hosts` cannot express this.
       p("    // Wildcard tenant hosts (`tenancy.hostPattern`). A zone route, NOT a");
@@ -169,7 +169,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   }
   if (usesRealtime(config)) {
     // The per-page live editing session (ADR 0002). Two halves, and BOTH are
-    // required — a binding with no migration is a deploy error, and the class
+    // required—a binding with no migration is a deploy error, and the class
     // must also be exported from the worker entry (the generated src/worker.ts
     // re-exports it) or wrangler can't resolve `class_name`.
     p("  // Durable Object: the per-page live editing session (realtime module).");
@@ -190,7 +190,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   }
   // Crons. ONE `scheduled` handler receives all of them and tells them apart by
   // `controller.cron`, so this list and the handler's dispatch must agree
-  // exactly — both come from `astroidCrons`, which is why it exists.
+  // exactly—both come from `astroidCrons`, which is why it exists.
   //
   // Daily: the site-health scan (broken links, missing alt text, SEO gaps).
   // Hourly (commerce only): the catalog re-sync safety net, so a missed or DLQ'd
@@ -257,8 +257,8 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   // Email Sending. NOT optional decoration: `src/env.d.ts` declares EMAIL as a
   // required member, and Better Auth's magic-link path console-logs the link in
   // dev but calls `env.EMAIL.send(...)` unconditionally in production. Without
-  // this binding that call is a TypeError on a binding that was never created —
-  // so sign-in was impossible on every DEPLOYED site, while every local build
+  // this binding that call is a TypeError on a binding that was never created—so
+  // sign-in was impossible on every DEPLOYED site, while every local build
   // and every CI scaffold passed. Nothing in this repo runs a deployed scaffold,
   // which is why it survived.
   p("  // Cloudflare Email Sending — magic-link sign-in + inquiry notifications.");
@@ -284,7 +284,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("    // undo — this feature was reverted twice for exactly that.");
   p('    "ASTROID_EDGE_CACHE": "false",');
   for (const v of astroidCheckoutVars(config)) {
-    // Public, not secret — the app id ships to the browser to mount the card
+    // Public, not secret—the app id ships to the browser to mount the card
     // field, and the environment is a choice. Keeping them out of the secret
     // roster also keeps them out of the dormancy gate, which asks whether we can
     // safely CALL Square, not whether a card field can render.
@@ -293,7 +293,7 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  },");
   // Secrets are NOT vars: they belong in .dev.vars locally and in `wrangler
   // secret put` / Secrets Store when deployed. Listing the names here is
-  // deliberate — this is the file someone opens when provisioning, and the list
+  // deliberate—this is the file someone opens when provisioning, and the list
   // is generated from the same declaration the runtime dormancy gate reads.
   const secretNames = commerceSecretNames(config.commerce);
   if (secretNames.length > 0) {

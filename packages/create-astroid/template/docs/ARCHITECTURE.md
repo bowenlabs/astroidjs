@@ -4,7 +4,7 @@ How __BRAND_NAME__ is put together: what happens to a request, where content
 lives, and which pieces are the framework's rather than yours.
 
 > Scaffolded by `create-astroid`. Describe what is TRUE of this site, not what
-> Astroid does in general — that is documented at
+> Astroid does in general—that is documented at
 > <https://docs.astroidjs.org>. The useful content here is the part that would
 > surprise someone who knows the framework.
 
@@ -25,14 +25,14 @@ request → middleware (session, edit mode, rate limits)
 
 <!-- The collections this site defines and what each one is for. Note which
      fields are rich text, which are structured, and anything a section depends
-     on being present. The schema is generated from astroid.config.ts — link to
+     on being present. The schema is generated from astroid.config.ts—link to
      it rather than restating it, and record the REASONING here. -->
 
 ## Editing
 
 <!-- Which parts of a page are editable and how they are marked. Sections vs
      inline fields vs settings. If a section is deliberately not editable, that
-     is worth a line — the next person will assume it was an oversight. -->
+     is worth a line—the next person will assume it was an oversight. -->
 
 ## Auth
 

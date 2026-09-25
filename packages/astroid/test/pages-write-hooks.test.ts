@@ -4,7 +4,7 @@
 //
 // `versionsRoute` enforces the section catalog because it takes the collection
 // `config` and runs its `beforeChange` hook. `pagesRoute` takes NO config and
-// runs no hook — so a direct POST/PATCH to /api/louise/pages persisted an
+// runs no hook—so a direct POST/PATCH to /api/louise/pages persisted an
 // unknown section `_type`, a setting outside its options, or unsanitized section
 // rich text, and `<Sections>` then dropped the bad section with no error
 // anywhere. `astroidPagesWriteHooks` closes that gap by giving pagesRoute the
@@ -29,7 +29,7 @@ const config: AstroidConfig = {
 
 const hooks = astroidPagesWriteHooks(config);
 
-// Run the collection's own beforeChange hook — the versionsRoute path — so each
+// Run the collection's own beforeChange hook—the versionsRoute path—so each
 // case below can be asserted against BOTH write paths from one input.
 const collectionHook = astroidPagesCollection(config).hooks?.beforeChange?.[0];
 const runCollectionHook = (data: Record<string, unknown>) => {
@@ -48,7 +48,7 @@ describe("astroidPagesWriteHooks — validate", () => {
   });
 
   it("rejects a _settings token outside its declared options", async () => {
-    // `heading` is present so the ONLY violation is the colorway token — proving
+    // `heading` is present so the ONLY violation is the colorway token—proving
     // it's the setting that's rejected, not a missing required field.
     const bad = {
       sections: [{ _type: "hero", heading: "Hi", _settings: { colorway: "chartreuse" } }],
@@ -91,7 +91,7 @@ describe("astroidPagesWriteHooks — sanitize", () => {
   });
 
   it("sanitizes richText inside an array item field (faq.items[].answer)", () => {
-    // faq.items[].answer is richText rendered with set:html — the exact field the
+    // faq.items[].answer is richText rendered with set:html—the exact field the
     // live probe injected into, and the reason richField body-only sanitizing was
     // not enough.
     const out = sanitizeAstroidPageSections(config, {
@@ -134,9 +134,9 @@ describe("assertAstroidPageSections", () => {
 
 // ADR 0005 block layer. Both write paths have to resolve a block's def to check
 // (or scrub) it, and unlike the section catalog there's no built-in vocabulary to
-// fall back on — block types are wholly site-defined. So `config.blockCatalog` is
+// fall back on—block types are wholly site-defined. So `config.blockCatalog` is
 // load-bearing: without it the on-canvas block toolbar appears to work and every
-// save 422s.
+// save returns 422.
 describe("astroidPagesWriteHooks — block catalog (ADR 0005)", () => {
   const sectionCatalog = {
     content: { label: "Content", fields: {}, blocks: { allow: ["text"] } },
@@ -187,7 +187,7 @@ describe("astroidPagesWriteHooks — block catalog (ADR 0005)", () => {
 describe("site sectionCatalog injection (FW-2)", () => {
   // A site with bespoke sections (coracle's `homeHero` etc.) registers its own
   // catalog; the write hooks must then validate ITS `_type`s, not the built-in
-  // vocabulary — and still reject anything outside the site's own catalog.
+  // vocabulary—and still reject anything outside the site's own catalog.
   const siteConfig: AstroidConfig = {
     ...config,
     sectionCatalog: {

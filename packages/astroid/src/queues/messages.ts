@@ -29,7 +29,7 @@ export function astroidCron(config: AstroidConfig): string | null {
 
 /**
  * Daily, at an off-peak-ish minute. The health scan crawls the site's own pages,
- * so it is deliberately NOT on the hourly catalog cron — hourly would be a
+ * so it is deliberately NOT on the hourly catalog cron—hourly would be a
  * self-inflicted crawl 24× a day to recompute counts that move slowly.
  */
 export const ASTROID_HEALTH_CRON = "17 4 * * *";
@@ -57,7 +57,7 @@ export function astroidCrons(config: AstroidConfig): string[] {
 /** Binding name for the project's queue producer. */
 export const ASTROID_QUEUE_BINDING = "COMMERCE_QUEUE";
 
-/** Queue names derived from the project key — the main queue and its DLQ. */
+/** Queue names derived from the project key—the main queue and its DLQ. */
 export function astroidQueueNames(config: AstroidConfig): { queue: string; dlq: string } {
   return { queue: `${config.key}-commerce`, dlq: `${config.key}-commerce-dlq` };
 }
@@ -70,9 +70,9 @@ export function astroidQueueNames(config: AstroidConfig): { queue: string; dlq: 
  */
 export interface WebhookMessage {
   kind: "webhook";
-  /** Which integration sent it — `"square"`, `"stripe"`, `"fourthwall"`. */
+  /** Which integration sent it—`"square"`, `"stripe"`, `"fourthwall"`. */
   provider: string;
-  /** The provider's event type, e.g. `"catalog.version.updated"`. */
+  /** The provider's event type, for example, `"catalog.version.updated"`. */
   type: string;
   payload: unknown;
 }

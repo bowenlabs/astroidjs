@@ -3,7 +3,7 @@
 // The catalog mirror: an external provider is the source of truth, D1 is the
 // editable overlay on top of it.
 //
-// Every consuming site landed on the same split — a set of fields PULLED from
+// Every consuming site landed on the same split—a set of fields PULLED from
 // the provider and overwritten on every sync, and a disjoint set the owner edits
 // which must survive every sync. Get that boundary wrong in either direction and
 // you either clobber the owner's copy on the next cron tick, or serve a price
@@ -12,13 +12,13 @@
 // What the sites did NOT agree on is how much to store, and it turns out to be
 // one primitive with two settings rather than two designs:
 //
-//   mirror   — pulled + owned columns both live in D1 (themidwestartist.com).
+//   mirror: pulled + owned columns both live in D1 (themidwestartist.com).
 //              Reads are one local query. The catalog can be stale between syncs.
-//   overlay  — only the owned columns live in D1, keyed by the provider's id.
+//   overlay: only the owned columns live in D1, keyed by the provider's id.
 //              The catalog is read live from the provider and joined at read
 //              time: never stale, but every read costs a provider round-trip
 //              (cache accordingly).
-//   live     — Astroid manages NO catalog table at all: the catalog is read live
+//   live: Astroid manages NO catalog table at all: the catalog is read live
 //              from the provider (cached), and any owner-side overlay table is
 //              the SITE's own (coracle.coffee's `product_display_meta`, declared
 //              in schema.site.ts and joined in the site's loader). Use when the
@@ -57,8 +57,8 @@ export interface CatalogMirrorConfig {
 
 /**
  * Columns Astroid always PULLS, overwriting each sync. Fixed rather than
- * configurable because they're the intersection of what every provider returns —
- * a project that wants a provider-specific field puts it in `owned` and fills it
+ * configurable because they're the intersection of what every provider returns—a
+ * project that wants a provider-specific field puts it in `owned` and fills it
  * itself, which also stops the sync from clobbering it.
  */
 export const PULLED_COLUMNS = [
@@ -99,7 +99,7 @@ export function astroidCatalogMirror(
   return {
     mode: mirror.mode ?? "mirror",
     table: mirror.table ?? "products",
-    // Built-ins first so a project can override one (e.g. widen `status`)
+    // Built-ins first so a project can override one (for example, widen `status`)
     // without restating the rest.
     owned: { ...BUILT_IN_OWNED, ...mirror.owned },
   };
@@ -136,7 +136,7 @@ function ownedColumnSource(key: string, col: OwnedColumn): string {
 /**
  * Drizzle source for the catalog table.
  *
- * `externalId` is unique — it's the sync's idempotency key, so a webhook and the
+ * `externalId` is unique—it's the sync's idempotency key, so a webhook and the
  * cron re-sync racing on the same product can only ever collide into one row.
  */
 export function generateCatalogTable(config: AstroidConfig): string | null {
@@ -215,7 +215,7 @@ function ownedColumnSql(key: string, col: OwnedColumn): string {
  *
  * It has to exist at all because nothing else creates this table. `--commerce`
  * put `products` in `src/schema.ts` and the queue seam told you to sync into it,
- * but no migration anywhere in the toolkit created it — so the first catalog
+ * but no migration anywhere in the toolkit created it—so the first catalog
  * sync hit a missing table, and (because `astroidCatalogSync` swallows per-item
  * errors) reported success while writing nothing. The documented fallback,
  * `drizzle-kit generate`, could not help: the template ships a hand-authored

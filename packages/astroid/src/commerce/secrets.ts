@@ -3,7 +3,7 @@
 // What each commerce provider needs before it can do anything, and the gate
 // derived from it.
 //
-// The rest of this module is deliberately credential-free — the adapters are
+// The rest of this module is deliberately credential-free—the adapters are
 // pure, the mirror and the loader only touch D1, and `verifyCheckout` takes a
 // price lookup rather than a token. That's the right shape: it keeps the parts
 // testable and lets the caller own how the fetch happens.
@@ -13,7 +13,7 @@
 // the commerce half of the dormant-until-provisioned convention (#252): the
 // names below are the single source of truth for what a provider requires, so
 // the wrangler generator can seed them, `astroid doctor` can report them, and a
-// storefront can decide between a live catalog and a simulated one — all from
+// storefront can decide between a live catalog and a simulated one—all from
 // one declaration instead of three hand-maintained lists.
 //
 // The webhook secret lives here too, rather than beside the verifier in
@@ -34,7 +34,7 @@ import {
  *
  * `credentials` is what the provider's `louise-toolkit/commerce/*` client needs
  * to make a call at all; `webhook` is the signing secret its receiver verifies
- * with. They're separable on purpose — a site can receive verified webhooks
+ * with. They're separable on purpose—a site can receive verified webhooks
  * before it has finished provisioning API access, and the reverse is the normal
  * state of a brand-new integration.
  *
@@ -50,7 +50,7 @@ export const COMMERCE_PROVIDER_SECRETS: Record<
   // leaves checkout broken rather than dormant. Requiring both is what makes
   // "configured" mean "can actually take money".
   //
-  // UNLESS the project is multi-location — see `commerceProviderCredentials`.
+  // UNLESS the project is multi-location—see `commerceProviderCredentials`.
   square: {
     credentials: ["SQUARE_ACCESS_TOKEN", "SQUARE_LOCATION_ID"],
     webhook: "SQUARE_WEBHOOK_SECRET",
@@ -61,7 +61,7 @@ export const COMMERCE_PROVIDER_SECRETS: Record<
   },
   // Fourthwall's storefront token is public-safe (it's sent as a query param
   // from the browser in their own SDK), but it is still provisioned, so it
-  // follows the same gate — an absent token means no catalog.
+  // follows the same gate—an absent token means no catalog.
   fourthwall: {
     credentials: ["FOURTHWALL_STOREFRONT_TOKEN"],
     webhook: "FOURTHWALL_WEBHOOK_SECRET",
@@ -91,7 +91,7 @@ export const COMMERCE_PROVIDER_SETUP: Record<CommerceProvider, string> = {
  * Only Square varies, and only on one name. `SQUARE_LOCATION_ID` is required
  * for a single-location project because Square's orders and payments endpoints
  * refuse a request without one. Under `square.locations: "multi"` the location
- * is a property of the *request* — which merchant's storefront is this? — so an
+ * is a property of the *request*—which merchant's storefront is this?—so an
  * ambient id is not just unnecessary, it is dangerous: any code path that
  * defaulted to it would ring one merchant's sale against another merchant's
  * books, and the sale would look perfectly successful while doing it.
@@ -129,11 +129,11 @@ export function commerceSecretNames(commerce: CommerceConfig | undefined): strin
 /** One provider's resolved gate. */
 export interface ProviderStatus {
   provider: CommerceProvider;
-  /** Which role(s) this provider fills for the project. */
+  /** Which roles this provider fills for the project. */
   roles: CommerceRole[];
-  /** API credentials — false means no live call can be made. */
+  /** API credentials—false means no live call can be made. */
   credentials: ModuleSecrets<string>;
-  /** Webhook signing secret — false means the receiver answers 503. */
+  /** Webhook signing secret—false means the receiver answers 503. */
   webhook: ModuleSecrets<string>;
   /** True only when both halves resolved. */
   configured: boolean;
@@ -143,7 +143,7 @@ export interface ProviderStatus {
 export interface CommerceStatus {
   /** True when the project has commerce configured AND every provider is live. */
   configured: boolean;
-  /** True when the project declares no commerce at all — not the same as dormant. */
+  /** True when the project declares no commerce at all—not the same as dormant. */
   enabled: boolean;
   providers: ProviderStatus[];
   /** Every unprovisioned secret name across all providers, in declaration order. */
@@ -227,8 +227,8 @@ export async function resolveCommerceStatus(
  *
  * `CommerceStatus.configured` is an all-or-nothing aggregate (`every`), which is
  * the right answer for "is the whole module ready" and the wrong one for gating
- * a single call site. A two-provider project — Fourthwall for the storefront,
- * Square for invoicing — reads `configured: false` the moment either half is
+ * a single call site. A two-provider project—Fourthwall for the storefront,
+ * Square for invoicing—reads `configured: false` the moment either half is
  * unprovisioned, so gating the working Fourthwall checkout on the aggregate
  * would silently simulate it because SQUARE's secrets are still placeholders.
  *
@@ -240,7 +240,7 @@ export function providerConfigured(status: CommerceStatus, provider: CommercePro
 
 /**
  * Is the provider filling this ROLE live? The role-shaped question, for code
- * that cares about the capability rather than the vendor — "can I take a
+ * that cares about the capability rather than the vendor—"can I take a
  * checkout?" rather than "is Square up?".
  */
 export function roleConfigured(status: CommerceStatus, role: CommerceRole): boolean {

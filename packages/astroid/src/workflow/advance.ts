@@ -1,20 +1,20 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The guarded advance — the one piece of a staged pipeline that is genuinely
+// The guarded advance—the one piece of a staged pipeline that is genuinely
 // hard to get right.
 //
 // Two operators standing at two stations both press "sign off" on the same job.
 // A read-then-write advance runs the item forward two stages and writes two
 // audit rows, and nobody notices until the numbers stop adding up. The fix is
-// optimistic concurrency: make the write itself assert the stage it expected —
-// `UPDATE … SET stage = ? WHERE id = ? AND stage = ?` — and treat "0 rows
+// optimistic concurrency: make the write itself assert the stage it
+// expected—`UPDATE … SET stage = ? WHERE id = ? AND stage = ?`—and treat "0 rows
 // changed" as the conflict signal rather than checking first and hoping.
 //
 // ORDERING MATTERS, and the reference gets it wrong. ghostfire's floor route
 // inserts the sign-off row and THEN runs the guarded update, so a double submit
 // writes two audit rows even though only one advance lands. Here the guarded
 // update goes first and the audit row is written only if it actually moved the
-// item — so the audit table can't record work that didn't happen. The unique
+// item—so the audit table can't record work that didn't happen. The unique
 // index the schema generator emits on `(entity_id, stage)` is the belt to that
 // braces.
 
@@ -55,7 +55,7 @@ export interface AdvanceOptions {
   db: WorkflowDatabase;
   /** Table holding the `stage` column. */
   table: string;
-  /** Audit table — one row per completed stage. */
+  /** Audit table—one row per completed stage. */
   auditTable: string;
   /** Primary key column on `table`. Default `"id"`. */
   idColumn?: string;
@@ -144,7 +144,7 @@ export async function advanceWorkflowStage(options: AdvanceOptions): Promise<Adv
   const next = expectedStage + 1;
 
   // The guard. `changes === 0` means the row is gone or someone else already
-  // moved it — the two cases are told apart below, but only after the write,
+  // moved it—the two cases are told apart below, but only after the write,
   // so there is no window between the check and the update.
   const advanced = await db
     .prepare(`UPDATE ${table} SET stage = ? WHERE ${idColumn} = ? AND stage = ?`)
@@ -192,14 +192,14 @@ export interface OverrideOptions extends Omit<AdvanceOptions, "specs" | "expecte
   action: OverrideAction;
   /** Override log table. */
   overrideTable: string;
-  /** Where the item is now, from the operator's page — the same staleness guard. */
+  /** Where the item is now, from the operator's page—the same staleness guard. */
   expectedStage: number;
   /** Optional station/context label recorded with the override. */
   station?: string;
 }
 
 /**
- * Move an item out of band — back a stage, or skip one — and log it.
+ * Move an item out of band—back a stage, or skip one—and log it.
  *
  * Sending an item BACK deletes the audit row for the stage being reopened, so
  * "a sign-off exists" keeps meaning "that stage is genuinely done". Leaving it

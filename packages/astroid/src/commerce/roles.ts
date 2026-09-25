@@ -4,14 +4,14 @@
 //
 // The obvious model is one commerce provider per site. It's wrong, and the
 // toolkit's own clients prove it: `louise-toolkit/commerce/stripe` has no
-// catalog API whatsoever — it exposes invoices, customers, and payment intents.
+// catalog API whatsoever—it exposes invoices, customers, and payment intents.
 // `fourthwall` is the mirror image: a catalog and a cart, no invoicing. Square
 // happens to do both. A single `CommerceProvider` abstraction that assumed
 // catalog + checkout would therefore have a permanent hole wherever Stripe sits.
 //
 // That's not hypothetical. themidwestartist.com runs Stripe for **invoicing**
-// (commissions, originals) alongside Fourthwall for the **storefront** (merch) —
-// two providers, one site, each doing the half it can do.
+// (commissions, originals) alongside Fourthwall for the **storefront**
+// (merch)—two providers, one site, each doing the half it can do.
 //
 // So a project assigns providers to roles, and Astroid validates the assignment
 // against what each provider's client can actually serve.
@@ -24,14 +24,14 @@ export type CommerceRole = "storefront" | "invoicing" | "pos";
 
 /**
  * Which roles each provider can serve, derived from the surface its
- * `louise-toolkit/commerce/*` client actually exposes — not from what the
+ * `louise-toolkit/commerce/*` client actually exposes—not from what the
  * vendor's full API could theoretically do.
  *
  *   square      catalog + orders + payments, `createInvoice`/`publishInvoice`,
  *               AND locations + per-location price overrides + inventory counts
  *   stripe      invoices + payment intents; NO catalog
- *   fourthwall  catalog + cart; NO invoicing, and NO locations or inventory —
- *               its Platform API is create-only for products, so it cannot
+ *   fourthwall  catalog + cart; NO invoicing, and NO locations or inventory—*
+               its Platform API is create-only for products, so it cannot
  *               model stock held at a place
  *
  * Square alone can serve `pos`, and that is a fact about the clients rather than
@@ -54,8 +54,8 @@ export interface ResolvedCommerceRoles {
 /**
  * Resolve a `commerce` block into role assignments.
  *
- * The `provider` shorthand assigns to the provider's *natural* role — the one it
- * can serve — so `{ provider: "square" }` is a storefront and
+ * The `provider` shorthand assigns to the provider's *natural* role—the one it
+ * can serve—so `{ provider: "square" }` is a storefront and
  * `{ provider: "stripe" }` is invoicing. Guessing "storefront" for both would
  * produce a storefront with no catalog API behind it.
  */
@@ -83,19 +83,19 @@ export function astroidCommerceProviders(commerce: CommerceConfig | undefined): 
 }
 
 /**
- * True when this project sells in person — the switch for locations,
+ * True when this project sells in person—the switch for locations,
  * per-location pricing and inventory.
  */
 export const hasPos = (commerce: CommerceConfig | undefined): boolean =>
   Boolean(astroidCommerceRoles(commerce).pos);
 
 /**
- * True when Square is used with more than one Location, i.e. the location id
+ * True when Square is used with more than one Location, that is, the location id
  * comes from the request rather than the environment.
  *
  * Deliberately independent of which ROLE Square fills: a project could run
- * multi-location invoicing without a `pos` storefront, and the consequence —
- * no ambient `SQUARE_LOCATION_ID` — is the same either way.
+ * multi-location invoicing without a `pos` storefront, and the consequence—no
+ * ambient `SQUARE_LOCATION_ID`—is the same either way.
  */
 export const hasMultiLocation = (commerce: CommerceConfig | undefined): boolean =>
   commerce?.square?.locations === "multi";
@@ -107,7 +107,7 @@ export const hasStorefront = (commerce: CommerceConfig | undefined): boolean =>
 /**
  * Reject a role assignment the provider's client cannot serve. Called from
  * `defineAstroid`, so `invoicing: "fourthwall"` fails at config load with a
- * message naming the alternatives — rather than at runtime, on the first
+ * message naming the alternatives—rather than at runtime, on the first
  * invoice, as a missing function.
  */
 export function assertCommerceRoles(commerce: CommerceConfig | undefined): void {

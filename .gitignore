@@ -16,3 +16,6 @@ coverage/
 
 # Astro build artifacts
 .astro/
+
+# Vale styles, fetched by `vale sync` from the packages pinned in .vale.ini.
+.vale/

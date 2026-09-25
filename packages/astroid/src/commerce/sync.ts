@@ -10,7 +10,7 @@
 // the provider's own id (unique in the table) means a re-run is a no-op update
 // rather than a duplicate row.
 //
-// **The owned set is never in an UPDATE.** Not "usually not" — never. A sync
+// **The owned set is never in an UPDATE.** Not "usually not"—never. A sync
 // that writes an owned column is a sync that silently reverts the owner's work,
 // and they find out days later when someone notices the description is back to
 // the vendor's default. So the update statement is built from the pulled set
@@ -28,7 +28,7 @@ export interface CatalogItem {
   price: number;
   images?: string[];
   variants?: unknown;
-  /** The provider's own slug, when it has one — for re-fetching a single item. */
+  /** The provider's own slug, when it has one—for re-fetching a single item. */
   externalSlug?: string;
 }
 
@@ -44,7 +44,7 @@ export interface SyncDatabase {
 
 export interface CatalogSyncOptions {
   db: SyncDatabase;
-  /** Mirror table name — must match the generated schema. */
+  /** Mirror table name—must match the generated schema. */
   table: string;
   /**
    * `overlay` mode writes only the key and `synced_at`: the catalog fields live
@@ -56,7 +56,7 @@ export interface CatalogSyncOptions {
 }
 
 export interface CatalogSyncResult {
-  /** Rows created — new products, landing as `draft`. */
+  /** Rows created—new products, landing as `draft`. */
   created: number;
   /** Rows whose pulled fields were refreshed. */
   updated: number;
@@ -65,7 +65,7 @@ export interface CatalogSyncResult {
   /**
    * One error per failed item, in order, for logging.
    *
-   * Capped — a catalog-wide failure would otherwise build an array as long as
+   * Capped—a catalog-wide failure would otherwise build an array as long as
    * the catalog just to describe the same fault N times.
    */
   errors: { externalId: string; message: string }[];
@@ -113,7 +113,7 @@ async function allocateSlug(
 /**
  * Upsert one item. Returns whether it created a row.
  *
- * The UPDATE branch lists pulled columns ONLY — see the note at the top of this
+ * The UPDATE branch lists pulled columns ONLY—see the note at the top of this
  * file. In `overlay` mode there are no pulled columns, so an existing row is
  * touched only to stamp `synced_at`.
  */
@@ -201,7 +201,7 @@ const MAX_RECORDED_ERRORS = 10;
  * Items are written one at a time and a single failure doesn't abandon the rest:
  * a partial catalog is strictly better than a stale one, and the next cron tick
  * retries whatever didn't land. Rows whose product has vanished upstream are
- * left alone — deciding whether a missing item is delisted or just a failed page
+ * left alone—deciding whether a missing item is delisted or just a failed page
  * of an API response is the project's call, not the sync's, and unpublishing
  * someone's whole catalog on a bad response is unrecoverable.
  *
@@ -213,7 +213,7 @@ const MAX_RECORDED_ERRORS = 10;
  * with nothing in `wrangler tail`. Throwing when nothing at all landed is what
  * makes the queue's retry and DLQ do their job.
  *
- * Partial failures do NOT throw — they come back in `failed`/`errors` for the
+ * Partial failures do NOT throw—they come back in `failed`/`errors` for the
  * caller to log, because retrying the whole batch to re-attempt a few rows would
  * undo the tolerance this loop exists to provide.
  */
@@ -228,7 +228,7 @@ export async function astroidCatalogSync(
       if (created) result.created++;
       else result.updated++;
     } catch (cause) {
-      // Skip this item; the next run retries it — but record it, so "nothing
+      // Skip this item; the next run retries it—but record it, so "nothing
       // synced" can be told apart from "nothing to sync".
       result.failed++;
       if (result.errors.length < MAX_RECORDED_ERRORS) {

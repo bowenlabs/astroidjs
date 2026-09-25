@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The `astroid` CLI — the meta-framework's project commands:
+// The `astroid` CLI—the meta-framework's project commands:
 //
 //   astroid generate [--config <path>] [--cwd <dir>]   regenerate schema/worker/middleware from the config
 //   astroid doctor   [--config <path>] [--cwd <dir>]   validate config + bindings + generated-file freshness
@@ -11,7 +11,7 @@
 //
 // It loads the project's `astroid.config.ts` with Node's native TypeScript
 // stripping (the config only imports the built `astroidjs`, so it resolves), and
-// consumes this package's own built generators from ../dist — the same version the
+// consumes this package's own built generators from ../dist—the same version the
 // CLI ships in, no dependency on node_modules layout (mirrors the louise bin).
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
@@ -89,7 +89,7 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
 
   // Scaffold-once files for whatever modules the config switched on.
   //
-  // Written only when ABSENT — each is a seam the project owns, so overwriting
+  // Written only when ABSENT—each is a seam the project owns, so overwriting
   // one would destroy the edit it exists to hold. But a MISSING one is not a
   // choice the user made: the trio above emits static imports of `./queue.js`
   // and `./portal-auth.js`, so a config that gained a module after scaffold
@@ -138,7 +138,7 @@ async function cmdDoctor(cwd, flags) {
 
   ok(`config loads and validates (${rel(cwd, configPath)})`);
 
-  // 1. Generated trio freshness — regenerate in memory, diff against disk.
+  // 1. Generated trio freshness—regenerate in memory, diff against disk.
   for (const file of generateAstroidProject(config)) {
     const abs = join(cwd, file.path);
     if (!existsSync(abs)) {
@@ -146,7 +146,7 @@ async function cmdDoctor(cwd, flags) {
     } else if (readFileSync(abs, "utf8") !== file.contents) {
       // An ERROR, not a warning. These three carry a "do not hand-edit" banner
       // and are a pure function of the config, so "stale" means the project on
-      // disk is not the project the config describes — which is the single
+      // disk is not the project the config describes—which is the single
       // condition doctor exists to catch. As a warning it printed "healthy" and
       // exited 0, so `pnpm doctor` could not gate CI on it.
       err(`${file.path} is stale (out of sync with your config) — run \`astroid generate\`.`);
@@ -159,14 +159,14 @@ async function cmdDoctor(cwd, flags) {
   //     emits static imports of `./queue.js` / `./portal-auth.js`, so a config
   //     that names a module whose seam was never written produces a project that
   //     cannot resolve its own imports. This is precisely the state that used to
-  //     report "healthy, 2 warning(s)" and exit 0.
+  //     report "healthy" with two warnings and exit 0.
   for (const file of generateAstroidScaffoldFiles(config)) {
-    if (file.apply === "append-once") continue; // accumulated, not owned — see below
+    if (file.apply === "append-once") continue; // accumulated, not owned—see below
     if (existsSync(join(cwd, file.path))) ok(`${file.path} present`);
     else err(`${file.path} is missing (required by your config) — run \`astroid generate\`.`);
   }
 
-  // 2. wrangler.jsonc bindings — presence checks + placeholder detection. Read as
+  // 2. wrangler.jsonc bindings—presence checks + placeholder detection. Read as
   //    text (JSONC with comments/trailing commas) rather than parse, to stay robust.
   const wranglerPath = join(cwd, "wrangler.jsonc");
   if (!existsSync(wranglerPath)) {
@@ -209,7 +209,7 @@ async function cmdDoctor(cwd, flags) {
     // Email Sending declares its binding as `"name"`, not `"binding"`, so the
     // regex above cannot see it. Checked separately because sign-in depends on
     // it: the magic link is console-logged in dev and EMAILED in production, so
-    // a missing binding is a site nobody can sign in to — and it fails only once
+    // a missing binding is a site nobody can sign in to—and it fails only once
     // deployed, which is the one place nothing in this repo exercises.
     if (/"send_email"\s*:/.test(w)) ok("wrangler: Email Sending `EMAIL` binding present");
     else
@@ -228,8 +228,8 @@ async function cmdDoctor(cwd, flags) {
     // Cron triggers. The generated `scheduled` handler dispatches on a fixed set
     // of cron strings (`astroidCrons`); every one of them MUST be declared here
     // or Cloudflare never fires it and that job silently never runs. Because
-    // wrangler.jsonc is scaffold-once, a config that gains a cron (e.g. the daily
-    // health scan alongside the hourly catalog sync) can't update it — the exact
+    // wrangler.jsonc is scaffold-once, a config that gains a cron (for example, the daily
+    // health scan alongside the hourly catalog sync) can't update it—the exact
     // drift that shipped a dead daily scan while the handler dispatched on it and
     // doctor reported healthy. Parse the array from the JSONC text rather than
     // JSON.parse (comments/trailing commas), matching the binding checks above.
@@ -268,14 +268,14 @@ async function cmdDoctor(cwd, flags) {
   if (existsSync(join(cwd, "migrations"))) ok("migrations/ directory present");
   else warn("no migrations/ directory — create your D1 schema migrations there.");
 
-  // 4. Local secret provisioning — which modules will run dormant under
+  // 4. Local secret provisioning—which modules will run dormant under
   //    `astroid dev`, and what to set to wake them.
   //
   //    Scoped deliberately to SECRETS, read from .dev.vars. Doctor is a static
   //    CLI: it cannot see runtime bindings (EMAIL, the queue), so claiming
   //    "email is dormant" here would be reporting its own blindness as the
   //    project's state. What it CAN say for certain is whether a value is still
-  //    the placeholder — and that is the half developers actually forget.
+  //    the placeholder—and that is the half developers actually forget.
   //
   //    A dormant module is never an error. It is the documented default, and a
   //    fresh scaffold is expected to report every module dormant.
@@ -295,7 +295,7 @@ async function cmdDoctor(cwd, flags) {
       const value = (devVars?.[name] ?? "").trim();
       return value === "" || value === ASTROID_SECRET_PLACEHOLDER;
     });
-    // `core` is not a module — its secrets each gate their own thing (sessions
+    // `core` is not a module—its secrets each gate their own thing (sessions
     // fail closed off localhost, Turnstile needs a matched pair), so a blanket
     // "dormant" line would be wrong. Report it as provisioning, not dormancy.
     if (unset.length === 0) ok(`${moduleName}: all secrets provisioned in .dev.vars`);
@@ -337,7 +337,7 @@ async function cmdAstro(cwd, subcommand, flags, rest) {
 }
 
 /** Resolve a project-local CLI bin (astro, wrangler) to an absolute path via the
- *  project's own dependency resolution — so we run the version it ships. */
+ *  project's own dependency resolution—so we run the version it ships. */
 function resolveBin(cwd, pkgName, binName) {
   try {
     const require = createRequire(join(cwd, "package.json"));
@@ -353,14 +353,14 @@ function resolveBin(cwd, pkgName, binName) {
 // --- deploy ----------------------------------------------------------------
 // `astroid deploy` orchestrates the one-time platform bring-up: provision the
 // bindings that still hold placeholder ids (D1/R2/KV), apply migrations, prompt
-// for secrets, and deploy — all by shelling out to the project's own `wrangler`.
+// for secrets, and deploy—all by shelling out to the project's own `wrangler`.
 // It's plan-first: it prints exactly what it will run, and only proceeds past the
 // irreversible steps on an interactive `y` (or `--yes`). `--dry-run` prints the
 // plan and stops; `--local` targets the local D1 for migrations.
 
 const isPlaceholder = (v) => !v || /^<.*>$/.test(v);
 
-/** Pull the deploy-relevant bits out of wrangler.jsonc by regex — robust against
+/** Pull the deploy-relevant bits out of wrangler.jsonc by regex—robust against
  *  its JSONC comments + trailing commas (a strict JSON.parse would throw). */
 function readWranglerFacts(text) {
   return {
@@ -373,8 +373,8 @@ function readWranglerFacts(text) {
       id: m[2],
     })),
     // Queue names, from the producer + the consumer's dead_letter_queue. Unlike
-    // D1/R2/KV these are referenced BY NAME, so there's no id to patch back —
-    // creating them is the whole job.
+    // D1/R2/KV these are referenced BY NAME, so there's no id to patch back—creating
+    // them is the whole job.
     queues: [
       ...new Set([
         ...[...text.matchAll(/"queue":\s*"([^"]+)"/g)].map((m) => m[1]),
@@ -400,7 +400,7 @@ function provisionPlan(facts) {
       steps.push({ kind: "kv", name: binding, args: ["kv", "namespace", "create", binding] });
     }
   }
-  // Queues carry no id, so there's no placeholder to test — creating one that
+  // Queues carry no id, so there's no placeholder to test—creating one that
   // already exists just errors, which the runner tolerates (same as R2).
   for (const queue of facts.queues) {
     steps.push({ kind: "queue", name: queue, args: ["queues", "create", queue] });
@@ -437,9 +437,9 @@ async function cmdDeploy(cwd, flags, rest) {
   const wranglerPath = join(cwd, "wrangler.jsonc");
   if (!existsSync(wranglerPath)) fail("wrangler.jsonc not found — run inside an Astroid project.");
 
-  // Regenerate so the shipped worker/schema always match the config — but NOT
+  // Regenerate so the shipped worker/schema always match the config—but NOT
   // on a dry run. This used to sit above the `--dry-run` guard, so a command
-  // that ends by printing "(dry run — nothing executed)" had already rewritten
+  // that ends by printing "(dry run—nothing executed)" had already rewritten
   // three files and silently discarded any local edits to them. Probing the
   // plan on a working branch is exactly when someone has local edits.
   if (!dryRun) await cmdGenerate(cwd, flags, { quiet: true });
@@ -494,8 +494,8 @@ async function cmdDeploy(cwd, flags, rest) {
   for (const s of plan) {
     out(`\n▸ wrangler ${s.args.join(" ")}`);
     const res = runInherit(s.args);
-    // R2 bucket + queue creates are idempotent-ish (an existing one errors) —
-    // tolerate those so a re-run of `astroid deploy` isn't a hard stop.
+    // R2 bucket + queue creates are idempotent-ish (an existing one errors)—tolerate
+    // those so a re-run of `astroid deploy` isn't a hard stop.
     if (res.status !== 0 && s.kind !== "r2" && s.kind !== "queue") {
       fail(`Provisioning failed at: wrangler ${s.args.join(" ")}`);
     }
@@ -551,7 +551,7 @@ async function cmdDeploy(cwd, flags, rest) {
 
 // --- helpers ---------------------------------------------------------------
 /**
- * Minimal KEY=VALUE reader for .dev.vars. Not a dotenv implementation — doctor
+ * Minimal KEY=VALUE reader for .dev.vars. Not a dotenv implementation—doctor
  * only needs to know whether a value is absent, empty, or the placeholder, so
  * expansion, multiline values, and `export` prefixes are out of scope. Quotes
  * are stripped because wrangler accepts them and a quoted placeholder must

@@ -1,24 +1,24 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// `src/actions/index.ts` — the Astro-native, typed mutation surface (ADR 0001
+// `src/actions/index.ts`—the Astro-native, typed mutation surface (ADR 0001
 // layer 2), beside the framework-agnostic `/api/louise/*` routes.
 //
 // Astroid generated only the route half. That is not a missing convenience: the
 // two entrypoints write the SAME rows, and the whole reason `@louise-toolkit/astro`
-// exposes these factories is that each one shares the raw route's store path —
-// `applyFieldSave`, `applySettingsPatch`, `applySaveDraft`. A project that wired
+// exposes these factories is that each one shares the raw route's store
+// path—`applyFieldSave`, `applySettingsPatch`, `applySaveDraft`. A project that wired
 // its own Actions by hand would get a second write path, and a second write path
 // is where validation, sanitization, and draft-merge semantics drift apart
 // silently (#138).
 //
-// So this file is SCAFFOLD-ONCE and is meant to be added to — the reference site
-// keeps its own bespoke actions right beside these — but the three below come
+// So this file is SCAFFOLD-ONCE and is meant to be added to—the reference site
+// keeps its own bespoke actions right beside these—but the three below come
 // pre-wired against the same tables and the same collection config the generated
 // worker uses.
 
 import type { AstroidConfig } from "../config.js";
 
-/** `src/actions/index.ts` — the typed mutation surface, scaffolded once. */
+/** `src/actions/index.ts`—the typed mutation surface, scaffolded once. */
 export function generateAstroidActions(config: AstroidConfig): string {
   const customKeys = config.settings?.customKeys ?? [];
   const extraImageKeys = config.settings?.imageKeys ?? [];

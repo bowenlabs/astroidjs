@@ -6,7 +6,7 @@
 // rather than importing `maplibre-gl` (a megabyte) or `protomaps-themes-base`
 // for its types. astroidjs stays installable by a project that will never draw
 // a map, and a project that wants Protomaps' full maintained theme can swap
-// this out — the only contract is "an object MapLibre accepts".
+// this out—the only contract is "an object MapLibre accepts".
 //
 // The layer set is the quiet-basemap subset: land, water, green space, a road
 // ramp with casings, buildings, and admin boundaries. Labels are opt-in and
@@ -59,19 +59,19 @@ export interface MapStyleOptions {
   pmtilesUrl: string;
   colors?: MapColors;
   /**
-   * SDF glyph URL template (e.g. `"/map/fonts/{fontstack}/{range}.pbf"`).
-   * Omit for an unlabelled map — which is the honest default, since labels
+   * SDF glyph URL template (for example, `"/map/fonts/{fontstack}/{range}.pbf"`).
+   * Omit for an unlabelled map—which is the honest default, since labels
    * without self-hosted glyphs mean an external font host and a looser CSP.
    */
   glyphs?: string;
   /** Font stack for labels. Only used when `glyphs` is set. */
   fontstack?: string;
   /** Attribution shown in the corner. Protomaps basemaps derive from OSM, and
-   *  the licence requires the credit — so it defaults to present, not absent. */
+   *  the licence requires the credit—so it defaults to present, not absent. */
   attribution?: string;
 }
 
-/** A MapLibre style. Typed loosely on purpose — see the header. */
+/** A MapLibre style. Typed loosely on purpose—see the header. */
 export interface MapStyle {
   version: 8;
   glyphs?: string;

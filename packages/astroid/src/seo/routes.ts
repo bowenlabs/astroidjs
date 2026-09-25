@@ -21,7 +21,7 @@ import { ASTROID_PORTAL_BASE_PATH } from "../security/rate-rules.js";
  * API always, plus the portal's account + auth surfaces and checkout when those
  * are enabled.
  *
- * These are *prefixes* — `robots.txt` matches by prefix, so `/api/` covers every
+ * These are *prefixes*—`robots.txt` matches by prefix, so `/api/` covers every
  * endpoint beneath it.
  */
 export function astroidNoindexPaths(config: AstroidConfig): string[] {
@@ -35,7 +35,7 @@ export function astroidNoindexPaths(config: AstroidConfig): string[] {
     paths.push(ASTROID_PORTAL_BASE_PATH, "/account", "/login", "/register", "/reset-password");
   }
   if (config.commerce) {
-    // The checkout PAGE, not `ASTROID_CHECKOUT_PATH` — that's the POST endpoint,
+    // The checkout PAGE, not `ASTROID_CHECKOUT_PATH`—that's the POST endpoint,
     // already covered by the `/api/` prefix. What a crawler would actually reach
     // is the UI route.
     paths.push("/checkout", "/cart");
@@ -44,9 +44,9 @@ export function astroidNoindexPaths(config: AstroidConfig): string[] {
 }
 
 export interface RobotsOptions {
-  /** Serving origin, e.g. `new URL(request.url).origin`. */
+  /** Serving origin, for example, `new URL(request.url).origin`. */
   origin: string;
-  /** Paths to disallow — defaults to {@link astroidNoindexPaths}. */
+  /** Paths to disallow—defaults to {@link astroidNoindexPaths}. */
   disallow?: string[];
   /**
    * Disallow the entire site. Pass `settings.disableIndexing` so the same
@@ -76,7 +76,7 @@ export function astroidRobotsTxt(config: AstroidConfig, options: RobotsOptions):
 export interface SitemapEntry {
   /** Site-root-relative path (`"/shop/beans"`) or an absolute URL. */
   path: string;
-  /** Last modified — a Date or an ISO string. */
+  /** Last modified—a Date or an ISO string. */
   lastmod?: Date | string;
 }
 
@@ -100,7 +100,7 @@ const escapeXml = (value: string) => value.replace(/[&<>"']/g, (c) => XML_ESCAPE
  *
  * Entries are de-duplicated and sorted (a stable document diffs cleanly and
  * caches predictably), excluded paths are dropped by prefix, and every `loc` is
- * XML-escaped — a slug containing `&` would otherwise produce a malformed
+ * XML-escaped—a slug containing `&` would otherwise produce a malformed
  * document that search engines reject wholesale.
  */
 export function astroidSitemapXml(

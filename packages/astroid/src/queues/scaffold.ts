@@ -3,7 +3,7 @@
 // The two SCAFFOLD-ONCE files the queue pipeline needs: the consumer seam
 // (`src/queue.ts`) and the provider webhook receiver.
 //
-// Deliberately not part of the regenerated trio. Both exist to be edited — the
+// Deliberately not part of the regenerated trio. Both exist to be edited—the
 // consumer is where a project says what a catalog refresh actually does, and the
 // webhook route is where it narrows which events it cares about. Regenerating
 // over them would erase exactly the work they're for. The same boundary
@@ -18,7 +18,7 @@ import { ASTROID_QUEUE_BINDING } from "./messages.js";
 /**
  * Per-provider webhook facts: the header, the verifier, and how it's called.
  *
- * The signing-secret NAME is deliberately not here — it's one field of a
+ * The signing-secret NAME is deliberately not here—it's one field of a
  * provider's secret set, which `commerce/secrets.ts` owns so the wrangler
  * generator, the status report, and this scaffold all read the same list.
  */
@@ -79,7 +79,7 @@ export function generateAstroidEnvBindings(config: AstroidConfig): string {
     // One secret SET per provider: a site running Stripe for invoicing and
     // Fourthwall for the storefront talks to both, credentialed and signed
     // independently. Every one is optional, because every one is allowed to be
-    // absent — that's what leaves the module dormant rather than broken.
+    // absent—that's what leaves the module dormant rather than broken.
     ...providers.flatMap((provider) => [
       `  /** ${provider} API credentials. Absent or still holding the`,
       "   *  DUMMY_REPLACE_ME sentinel reads as unconfigured, which leaves commerce",
@@ -94,7 +94,7 @@ export function generateAstroidEnvBindings(config: AstroidConfig): string {
 }
 
 /**
- * `src/queue.ts` — the consumer seam the generated worker imports.
+ * `src/queue.ts`—the consumer seam the generated worker imports.
  *
  * `astroidQueueHandler` already owns the dispatch every site wrote (periodic
  * refresh, catalog-affecting webhook, no-op for everything else); what's left
@@ -102,7 +102,7 @@ export function generateAstroidEnvBindings(config: AstroidConfig): string {
  * a generated constant.
  */
 export function generateAstroidQueueSeam(config: AstroidConfig): string {
-  // The STOREFRONT provider — it's the one with a catalog to re-sync. An
+  // The STOREFRONT provider—it's the one with a catalog to re-sync. An
   // invoicing-only provider has nothing for this hook to do.
   const provider = astroidCommerceRoles(config.commerce).storefront;
   const table = astroidCatalogMirror(config).table;
@@ -184,14 +184,14 @@ export function generateAstroidQueueSeam(config: AstroidConfig): string {
 }
 
 /**
- * The provider webhook receiver — `src/pages/api/webhooks/<provider>.ts`.
+ * The provider webhook receiver—`src/pages/api/webhooks/<provider>.ts`.
  *
  * Thin on purpose: `handleWebhook` owns the ordering (verify the raw body before
  * parsing) and the status-code contract (which codes ask the provider to retry
  * and which tell it to stop). What's here is the provider's own header and
  * verifier, plus the secret read.
  *
- * Returns null when the project has no commerce provider — nothing to receive.
+ * Returns null when the project has no commerce provider—nothing to receive.
  */
 export function generateAstroidWebhookRoute(
   config: AstroidConfig,
@@ -241,7 +241,7 @@ export function generateAstroidWebhookRoute(
  *
  * Plural because roles are: a site running Stripe for invoicing beside
  * Fourthwall for the storefront receives from both, each with its own signing
- * secret and header. One route per provider, not per role — a provider filling
+ * secret and header. One route per provider, not per role—a provider filling
  * two roles still has one endpoint and one secret.
  */
 export function generateAstroidWebhookRoutes(

@@ -34,9 +34,11 @@ jobs:
       - name: Dead-code check (Knip)
         run: corepack pnpm run knip
 
-      # Prose style for the published docs, against the Google developer
-      # documentation style guide. `vale sync` fetches the style package into a
-      # gitignored .vale/ — pinned and reproducible rather than vendored.
+      # Prose style for every doc and all prose in code (Markdown, MDX, and the
+      # comments and JSDoc in TypeScript and JavaScript), against the Google
+      # developer documentation style guide and the Louise house package
+      # (louise-toolkit ADR 0013). `vale sync` fetches both packages into a
+      # gitignored .vale/, pinned and reproducible rather than vendored.
       - name: Documentation style (Vale + Google)
         run: |
           corepack pnpm --package=@vvago/vale@3.17.1 dlx vale sync

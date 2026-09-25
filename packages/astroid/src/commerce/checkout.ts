@@ -3,7 +3,7 @@
 // Server-authoritative checkout.
 //
 // A cart arrives from the browser, so every number in it is a claim, not a fact.
-// The rule this encodes — taken from coracle.coffee's working checkout — is that
+// The rule this encodes—taken from coracle.coffee's working checkout—is that
 // the client's price is a **staleness check**, never an input to the charge:
 // look the price up server-side, and if it disagrees with what the customer was
 // shown, refuse rather than silently charging a different amount. Refusing is
@@ -16,7 +16,7 @@
 // The comparison itself is the toolkit's `cartIssues`, which reports EVERY
 // stale line rather than the first: a refusal that names one problem at a time
 // is how a customer ends up fixing a line, retrying, and being refused over the
-// next. What this adds is the opinion — policing the untrusted body, and the
+// next. What this adds is the opinion—policing the untrusted body, and the
 // sentence a customer sees.
 
 import { type CartIssue, cartIssues } from "louise-toolkit/commerce";
@@ -53,8 +53,8 @@ export interface VerifiedLine {
  * worth a notify-me. Collapsing them tells someone to remove an item the shop
  * will restock on Tuesday.
  *
- * A lookup can only produce `"out-of-stock"` by saying so — see
- * {@link ScopedPriceLookup} — because a bare `Map` has no way to distinguish
+ * A lookup can only produce `"out-of-stock"` by saying so—see
+ * {@link ScopedPriceLookup}—because a bare `Map` has no way to distinguish
  * them and guessing would put the wrong sentence on the screen.
  */
 export type CheckoutRefusal =
@@ -65,7 +65,7 @@ export type CheckoutRefusal =
   | "invalid";
 
 /**
- * One way the cart disagrees with the live catalog — the toolkit's
+ * One way the cart disagrees with the live catalog—the toolkit's
  * `CartIssue`, less the add-on case (checkout lines carry no add-ons yet).
  * Hand the list to `repairCart` from `louise-toolkit/commerce` to fix the cart
  * in one step.
@@ -80,7 +80,7 @@ export type CheckoutVerification =
       reason: CheckoutRefusal;
       message: string;
       /**
-       * Every problem, in cart order, with what the catalog says now — empty
+       * Every problem, in cart order, with what the catalog says now—empty
        * for `"empty"` and `"invalid"`, which are about the request, not the
        * catalog.
        */
@@ -92,7 +92,7 @@ export type CheckoutVerification =
 export type PriceLookup = (variantIds: string[]) => Promise<Map<string, number>>;
 
 /** Where the sale is happening. Optional, and providers without a location
- *  dimension ignore it — a single-merchant Square account or Fourthwall store
+ *  dimension ignore it—a single-merchant Square account or Fourthwall store
  *  passes nothing and behaves exactly as before. */
 export interface CheckoutScope {
   /** Provider location id (Square) or equivalent merchant key. */
@@ -118,13 +118,13 @@ export interface ScopedPrices {
  * A price lookup that knows WHERE the sale is happening.
  *
  * This is the multi-merchant checkout guard. One shared catalog sold through
- * several merchants carries a different price per location — each shop's
- * commission is absorbed in its own override — so re-pricing a cart against
+ * several merchants carries a different price per location—each shop's
+ * commission is absorbed in its own override—so re-pricing a cart against
  * base prices lets a customer pay the cheapest merchant's price at the dearest
  * merchant's storefront. That is not a rounding error; it is the same class of
  * bug as trusting the client's `unitPriceCents`, just one level further back.
  *
- * `scope` is optional so a {@link PriceLookup} is still assignable here — an
+ * `scope` is optional so a {@link PriceLookup} is still assignable here—an
  * existing single-location lookup simply ignores the extra argument, which is
  * exactly what a function of lower arity does in JavaScript.
  *
@@ -234,7 +234,7 @@ export async function verifyCheckout(
   );
 
   // No `liveModifierIds`, so the add-on check is skipped and every issue is a
-  // variant one — which is what makes the narrowing to CheckoutIssue true.
+  // variant one—which is what makes the narrowing to CheckoutIssue true.
   const issues = cartIssues(parsed, { prices, outOfStock }) as CheckoutIssue[];
   const [first] = issues;
   if (first) return { ok: false, reason: first.kind, message: issueMessage(issues), issues };
@@ -253,7 +253,7 @@ export async function verifyCheckout(
 /**
  * A deterministic idempotency key for one buyer's checkout attempt.
  *
- * Providers dedupe on this, so the same key must mean the same charge — which
+ * Providers dedupe on this, so the same key must mean the same charge—which
  * cuts both ways, and the second direction is the one that costs money. It is
  * derived from the verified cart *and* `identity`, not from a random value or a
  * timestamp: a customer double-clicking Pay sends the same key twice and is
@@ -263,18 +263,18 @@ export async function verifyCheckout(
  * **`identity` is required, and it is what makes the key safe.** Without it the
  * key was a pure function of the cart contents, so two DIFFERENT customers
  * buying the same thing for the same price produced byte-identical keys. Stripe
- * and Square scope idempotency keys per account and retain them for ~24h, so the
+ * and Square scope idempotency keys per account and retain them for about 24 hours, so the
  * provider replayed the first customer's PaymentIntent instead of creating the
  * second's: the second buyer was never charged, no second order existed, and the
  * site reported success. On a single-SKU storefront that is ordinary traffic,
  * not an edge case.
  *
  * Pass something stable across a retry of THIS attempt and distinct between
- * buyers — a cart id, a checkout-session id, or a portal user id. Do not pass a
+ * buyers—a cart id, a checkout-session id, or a portal user id. Do not pass a
  * value that varies per request (a fresh uuid defeats the dedupe and a
  * double-click charges twice), and do not pass a constant.
  *
- * `scope` remains the OPERATION — `"order"` vs `"refund"` — so the two can never
+ * `scope` remains the OPERATION—`"order"` vs `"refund"`—so the two can never
  * collide for one buyer. It is not an identity and never was.
  */
 export async function checkoutIdempotencyKey(

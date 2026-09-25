@@ -1,11 +1,11 @@
 # __BRAND_NAME__
 
-An editable, multi-editor site on Cloudflare Workers — scaffolded with
+An editable, multi-editor site on Cloudflare Workers—scaffolded with
 [Astroid](https://github.com/bowenlabs/louise-toolkit) (Astro + Louise Toolkit).
 
 The whole shape of this site lives in one typed config, [`astroid.config.ts`](./astroid.config.ts).
 `src/schema.ts`, `src/worker.ts`, and `src/middleware.ts` are **generated** from it
-(they carry a "do not hand-edit" banner) — run `pnpm generate` after any config
+(they carry a "do not hand-edit" banner)—run `pnpm generate` after any config
 change, or just use `pnpm dev`/`pnpm build`, which regenerate first.
 
 ## Develop
@@ -19,26 +19,26 @@ pnpm dev                    # astroid dev: regenerate, then astro dev
 > **Previewing the built worker?** `pnpm dev` (astro dev) serves on localhost, so
 > an empty `SESSION_SECRET` is fine there. A local `wrangler dev` against the
 > built `dist/` output routes the request through your `hosts` domain instead of
-> localhost, so the editor routes need a real `SESSION_SECRET` in `.dev.vars` —
-> otherwise sign-in 500s with "SESSION_SECRET is not configured".
+> localhost, so the editor routes need a real `SESSION_SECRET` in `.dev.vars`—
+> otherwise sign-in returns 500 with "SESSION_SECRET is not configured".
 
 ## Deploy
 
 Astroid wrote `wrangler.jsonc` with placeholder binding ids. Pick a path to
-provision them and ship — then seed content + your first editor (below).
+provision them and ship—then seed content + your first editor (below).
 
-### Zero-CLI — Deploy to Cloudflare
+### Zero-CLI—Deploy to Cloudflare
 
 Push this repo to GitHub and drop this button in place (swap in your repo URL).
 Cloudflare clones the repo, provisions the D1/R2/KV bindings declared in
-`wrangler.jsonc`, and deploys — no local tooling:
+`wrangler.jsonc`, and deploys—no local tooling:
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=<YOUR_GITHUB_REPO_URL>)
 
-### One command — `astroid deploy`
+### One command—`astroid deploy`
 
 Provisions the still-placeholder bindings, applies migrations, prompts for
-secrets, and deploys — through your local `wrangler`:
+secrets, and deploys—through your local `wrangler`:
 
 ```sh
 pnpm astroid deploy --dry-run   # preview the exact commands it will run
@@ -79,10 +79,10 @@ There are no passwords and no editor list in env to keep in sync.
 
 1. Go to **`/login`** and enter a seeded editor's email. In local dev there's no
    email binding, so the magic link is printed to the `wrangler`/`astro dev`
-   console — open it from there. In production it's emailed.
-2. The link signs you in and drops you at **`/?louise`** — edit mode. The **edit
+   console—open it from there. In production it's emailed.
+2. The link signs you in and drops you at **`/?louise`**—edit mode. The **edit
    bar** appears with **Settings** and **Done**.
-3. The home page's **title and body are editable in place** — click into them and
+3. The home page's **title and body are editable in place**—click into them and
    type. Edits stage a **draft**; **Publish** (in the edit bar) promotes it live.
    **Settings** opens the drawer: **Pages** (create/edit other pages), **Media**,
    **Settings** (brand, nav, contact, SEO), and **Users** (invite/remove editors).
@@ -107,9 +107,9 @@ wrangler deploy     # or: pnpm astroid deploy
 
 Storefront sites (`--commerce square`) are scaffolded with a server-authoritative
 payment route at `src/pages/api/checkout.ts` and a `<SquareCard>` input. **Keep
-its sequence** — extend it (shipping, tax, an order row, a receipt), don't replace
+its sequence**—extend it (shipping, tax, an order row, a receipt), don't replace
 it. It re-prices every line from the D1 catalog mirror (the client's price is a
-_staleness check_, never an input to the charge — accept a `unitPrice` from the
+_staleness check_, never an input to the charge—accept a `unitPrice` from the
 request body and anyone buys anything for a penny) and derives the Square
 idempotency key from the verified cart **and** the cart id. Hand-rolling
 `createPayment` without a stable, cart-scoped idempotency key is the failure this
@@ -121,27 +121,27 @@ single charge.
 
 | Path | What |
 | --- | --- |
-| `astroid.config.ts` | The one typed config — brand, archetype, sections. |
-| `src/schema.ts` · `src/worker.ts` · `src/middleware.ts` | **Generated** — don't hand-edit. |
-| `wrangler.jsonc` | Yours to edit — real binding ids, routes, secrets. |
+| `astroid.config.ts` | The one typed config—brand, archetype, sections. |
+| `src/schema.ts` · `src/worker.ts` · `src/middleware.ts` | **Generated**—don't hand-edit. |
+| `wrangler.jsonc` | Yours to edit—real binding ids, routes, secrets. |
 | `src/auth.ts` | The editor auth seam (Better Auth, DB-managed editors). |
 | `src/pages/` · `src/components/` · `src/layouts/` | Your Astro app. |
 | `migrations/` | `0000_content.sql` (content + FTS) · `0001_auth.sql` (Better Auth). |
 | `scripts/seed-editors.mjs` | Bootstrap the first editor. |
-| `docs/` | ARCHITECTURE · RUNBOOK · DECISIONS — stubs to fill in as you go. |
+| `docs/` | ARCHITECTURE · RUNBOOK · DECISIONS—stubs to fill in as you go. |
 
 ## The docs/ trio
 
 Three near-empty documents, scaffolded on purpose. Three production Astroid sites
 each wrote the same three without coordinating, and converged on the same
-headings — so you inherit the questions rather than a blank directory.
+headings—so you inherit the questions rather than a blank directory.
 
 | | What goes in it |
 | --- | --- |
-| `docs/ARCHITECTURE.md` | How this site is put together — request flow, content model, bindings. |
-| `docs/RUNBOOK.md` | Operating it — local dev, migrations, secrets, deploy, and **common breakages**. |
+| `docs/ARCHITECTURE.md` | How this site is put together—request flow, content model, bindings. |
+| `docs/RUNBOOK.md` | Operating it—local dev, migrations, secrets, deploy, and **common breakages**. |
 | `docs/DECISIONS.md` | Choices the framework leaves open, and why you made yours. |
 
 `DECISIONS.md` ships with a list of the questions every Astroid site has to
-answer — editors, rich-text storage, sections, commerce, migrations, CSP, edge
+answer—editors, rich-text storage, sections, commerce, migrations, CSP, edge
 caching. Delete each one as it becomes a real entry.

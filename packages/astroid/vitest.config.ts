@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 
-// Astroid's own suite. Everything under test here is pure Node — the config
-// validator, the string generators, and the secret-convention helpers — so
+// Astroid's own suite. Everything under test here is pure Node—the config
+// validator, the string generators, and the secret-convention helpers—so
 // there's no DOM project (unlike louise, whose Solid client needs happy-dom).
 // The `.astro` section library ships as source and is exercised by the scaffold
 // smoke test in CI, not here.
@@ -14,7 +14,7 @@ import { defineConfig } from "vitest/config";
 //
 // Losing the aliases is an upgrade, not a compromise. Aliasing to source meant
 // the suite tested symbols that existed in `src/` whether or not they were ever
-// re-exported publicly — the exact blindness `scripts/ci/checks/export-map.mjs`
+// re-exported publicly—the exact blindness `scripts/ci/checks/export-map.mjs`
 // exists to cover on the louise side. These tests now import astroidjs's
 // dependency the way a consumer does, so a subpath that stops resolving fails
 // here first.

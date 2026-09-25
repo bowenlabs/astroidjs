@@ -3,7 +3,7 @@
 // Wildcard host dispatch: the parts that are the same for every site, and
 // nothing that decides anything.
 //
-// Astroid owns two things a site cannot own on its own — the wildcard Worker
+// Astroid owns two things a site cannot own on its own—the wildcard Worker
 // route (`hosts` can only express custom domains) and the single middleware file
 // Astro permits. What a subdomain MEANS, whether the lookup is cached, and what
 // an unknown host should do are all site policy, and live in the scaffolded
@@ -47,7 +47,7 @@ export function tenancyZone(tenancy: TenancyConfig): string {
 }
 
 /**
- * The single subdomain label under the wildcard, before any policy — or `null`
+ * The single subdomain label under the wildcard, before any policy—or `null`
  * for the apex, an off-pattern host, or a dotted label. Shared by
  * {@link tenantLabel} and {@link appPrefix} so their host handling (port,
  * case, one-level-only) cannot drift.
@@ -60,7 +60,7 @@ function hostLabel(host: string, tenancy: TenancyConfig): string | null {
 
   const label = hostname.slice(0, -(suffix.length + 1));
   // Only a single label counts. `a.b.example.com` under `*.example.com` is
-  // not `a.b` — Cloudflare's wildcard matches one level, and treating a dotted
+  // not `a.b`—Cloudflare's wildcard matches one level, and treating a dotted
   // string as a slug would put a `/` in a rewrite path.
   if (!label || label.includes(".")) return null;
   return label;
@@ -72,7 +72,7 @@ function hostLabel(host: string, tenancy: TenancyConfig): string | null {
  *
  * `null` covers four distinct cases that all mean "not a tenant": the apex
  * itself (a wildcard does not match its own apex), a host outside the pattern
- * (a preview domain, `localhost`), a reserved label, and an app label — which
+ * (a preview domain, `localhost`), a reserved label, and an app label—which
  * has its own static rewrite via {@link appPrefix} instead of a lookup.
  *
  * Exported and pure so a site can unit-test its own reserved list without
@@ -87,7 +87,7 @@ export function tenantLabel(host: string, tenancy: TenancyConfig): string | null
 
 /**
  * The internal path prefix an app host rewrites to, or `null` when the host is
- * not an app host — `appPrefix("studio.example.com", …)` → `"/studio"` under
+ * not an app host—`appPrefix("studio.example.com", …)` → `"/studio"` under
  * `apps: { studio: "/studio" }`.
  *
  * Static by design: an app exists whether or not any tenant does, so there is
@@ -103,7 +103,7 @@ export function appPrefix(host: string, tenancy: TenancyConfig): string | null {
 }
 
 /**
- * The scaffold-once `src/tenancy.ts` — the seam holding every decision Astroid
+ * The scaffold-once `src/tenancy.ts`—the seam holding every decision Astroid
  * refuses to make for a site.
  *
  * Written once and then yours: what a label resolves to, whether the lookup is

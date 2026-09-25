@@ -1,4 +1,4 @@
-// sitemap.xml — the published `pages` rows, plus whatever else this site serves.
+// sitemap.xml—the published `pages` rows, plus whatever else this site serves.
 // Scaffolded once and yours to edit: add your own routes (a product catalog, a
 // gallery) to the `entries` array below.
 //
@@ -20,7 +20,7 @@ export const GET: APIRoute = async (context) => {
       "SELECT slug, updated_at FROM pages WHERE status = 'published' AND noindex = 0",
     ).all<{ slug: string; updated_at: number | null }>();
     for (const row of results ?? []) {
-      // `home` is served at "/", which is already listed — never at "/home".
+      // `home` is served at "/", which is already listed—never at "/home".
       if (row.slug === "home") continue;
       // Drizzle stores `updated_at` as a Unix timestamp in SECONDS; <lastmod>
       // wants a W3C datetime, so a raw epoch number would be invalid.
@@ -28,7 +28,7 @@ export const GET: APIRoute = async (context) => {
       entries.push({ path: `/${row.slug}`, lastmod });
     }
   } catch {
-    // No DB binding yet (pre-provision) — ship the root-only sitemap.
+    // No DB binding yet (pre-provision)—ship the root-only sitemap.
   }
 
   return new Response(astroidSitemapXml(astroidConfig, entries, { origin }), {

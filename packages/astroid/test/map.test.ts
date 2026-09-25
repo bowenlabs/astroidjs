@@ -8,7 +8,7 @@ import { astroidMapStyle } from "../src/map/style.js";
 const SIZE = 10_000;
 
 /** A reader over a fixed-size object, honouring offset/length/suffix the way R2
- *  does — including clamping a range that runs past the end. */
+ *  does—including clamping a range that runs past the end. */
 function bucket(size: number | null = SIZE): { read: RangeReader; asked: unknown[] } {
   const asked: unknown[] = [];
   return {
@@ -47,7 +47,7 @@ describe("parseRangeHeader", () => {
     // `bytes=-20000` means "the last n bytes", which is how a client reads a
     // footer without knowing the length. The implementation this generalizes
     // matched only `<start>-<end?>`, so this fell through to serving the ENTIRE
-    // archive — a correct-looking response and a catastrophic one.
+    // archive—a correct-looking response and a catastrophic one.
     expect(parseRangeHeader("bytes=-2000", SIZE)).toEqual({ kind: "suffix", suffix: 2000 });
   });
 
@@ -119,7 +119,7 @@ describe("servePmtiles", () => {
   });
 
   it("404s a missing archive rather than erroring", async () => {
-    // The module is usable before anyone uploads a basemap — dormant, not broken.
+    // The module is usable before anyone uploads a basemap—dormant, not broken.
     expect((await servePmtiles(get(), opts(bucket(null)))).status).toBe(404);
     expect((await servePmtiles(get({ range: "bytes=0-10" }), opts(bucket(null)))).status).toBe(404);
   });
@@ -171,7 +171,7 @@ describe("astroidMapStyle", () => {
   });
 
   it("draws road casings beneath the roads", () => {
-    // Order is the whole trick — casings on top would draw over the fills.
+    // Order is the whole trick—casings on top would draw over the fills.
     const style = astroidMapStyle({ pmtilesUrl: "/x" });
     const ids = style.layers.map((l) => l.id);
     expect(ids.indexOf("roads-casing")).toBeLessThan(ids.indexOf("roads"));
@@ -229,7 +229,7 @@ describe("map scaffold", () => {
     const component = generateMapEmbedComponent(config(["map"])) as string;
     // `init` is async and the IntersectionObserver callback never awaits it, so
     // an uncaught rejection is invisible: a failed maplibre-gl/pmtiles chunk
-    // fetch — a page load racing a deploy is enough — leaves an empty tinted
+    // fetch—a page load racing a deploy is enough—leaves an empty tinted
     // box and a clean console, with nothing to explain it. Assert at the CALL
     // SITE, because a `.catch` anywhere else in the file would not cover it.
     expect(component).toContain("init(entry.target as HTMLElement).catch(");
@@ -251,7 +251,7 @@ describe("map scaffold", () => {
   it("registers the pmtiles protocol before constructing the map", () => {
     const component = generateMapEmbedComponent(config(["map"])) as string;
     // Without the protocol handler MapLibre treats `pmtiles://…` as a tile URL
-    // template and every tile 404s — a blank canvas that looks like a styling
+    // template and every tile returns 404—a blank canvas that looks like a styling
     // bug. Registration must also precede `new Map`, or the first tile requests
     // go out unhandled.
     const registered = component.indexOf('addProtocol("pmtiles"');

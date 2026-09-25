@@ -5,7 +5,7 @@
 // coracle and ghostfire independently built the same thing: a declarative table
 // of `prefix → roles`, walked once per request. Declarative rather than a guard
 // call inside each page, because a guard you have to remember to write is a
-// guard someone eventually forgets — and the page that forgets it is the one
+// guard someone eventually forgets—and the page that forgets it is the one
 // that leaks.
 //
 // Three answers, and which one you give matters:
@@ -14,7 +14,7 @@
 //   not signed in, API    → 401 JSON (a redirect to an HTML login page is
 //                           useless to fetch(); it looks like success)
 //   signed in, wrong role → 403 for API, and for HTML a redirect to the area
-//                           this user DOES have — not back to login, which
+//                           this user DOES have—not back to login, which
 //                           reads as "your password failed" when it didn't
 
 /** A signed-in portal user. The guard only reads `role`; `id` + `email` are the
@@ -31,7 +31,7 @@ export interface PortalUser {
 
 /** One rule: everything under `prefix` requires one of `roles`. */
 export interface PortalRoute {
-  /** Path prefix, e.g. `/portal` — matches the prefix itself and everything
+  /** Path prefix, for example, `/portal`—matches the prefix itself and everything
    *  beneath it, but NOT `/portalling`. */
   prefix: string;
   /** Roles allowed through. Empty means "any signed-in user". */
@@ -43,7 +43,7 @@ export interface PortalGuardConfig {
   routes: PortalRoute[];
   /** Where to send a signed-out visitor. Default `/login`. */
   loginPath?: string;
-  /** Landing page for a signed-in user, by role — used to bounce someone who
+  /** Landing page for a signed-in user, by role—used to bounce someone who
    *  reached an area they don't belong in. Default `/portal` for everyone. */
   home?: (role: string) => string;
 }
@@ -54,7 +54,7 @@ export type GuardDecision =
   | { kind: "redirect"; location: string }
   | { kind: "json"; status: 401 | 403; body: { ok: false; error: string } };
 
-/** Prefix match on a path SEGMENT boundary — `/portal` covers `/portal` and
+/** Prefix match on a path SEGMENT boundary—`/portal` covers `/portal` and
  *  `/portal/orders`, but never `/portalling`. */
 export function matchesPrefix(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
@@ -63,7 +63,7 @@ export function matchesPrefix(path: string, prefix: string): boolean {
 /**
  * Decide whether a request may proceed.
  *
- * Pure — it returns a decision rather than a `Response`, so it's testable
+ * Pure—it returns a decision rather than a `Response`, so it's testable
  * without an Astro context and the middleware stays responsible for turning a
  * decision into a redirect or a body.
  */

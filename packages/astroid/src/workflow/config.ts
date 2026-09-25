@@ -1,11 +1,11 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// `defineWorkflow` — staged, audited pipelines.
+// `defineWorkflow`—staged, audited pipelines.
 //
 // The shape this generalizes is ghostfire.coffee's production floor, and the
 // framing correction in #256 is the important part: despite the name "order
 // tracker", it is NOT queue- or Durable-Object-driven. It is a synchronous SSR
-// + D1 state machine — an integer `stage` column advanced by sign-off rows,
+// + D1 state machine—an integer `stage` column advanced by sign-off rows,
 // where "liveness" is an email plus a page reload. That maps to a workflow
 // module, distinct from the queues module and from #71's realtime DO. If live
 // push is wanted later it layers on top; it is not required for the pattern.
@@ -15,7 +15,7 @@
 // the same four things:
 //
 //   1. an ordered list of stages, and one integer saying which is in progress;
-//   2. exactly one audit row per completed stage — who, when, and what they
+//   2. exactly one audit row per completed stage—who, when, and what they
 //      recorded;
 //   3. an advance that is safe when two operators press the button at once;
 //   4. a per-stage side-effect hook (issue the invoice on packaging).
@@ -39,7 +39,7 @@ export interface WorkflowField {
 
 export interface WorkflowConfig {
   /**
-   * Base name for the generated tables and routes — `"orders"` gives an
+   * Base name for the generated tables and routes—`"orders"` gives an
    * `orders.stage` column, an `orders_signoffs` audit table, and
    * `/api/orders/advance`.
    */
@@ -50,15 +50,15 @@ export interface WorkflowConfig {
    * Per-stage fields recorded on sign-off, keyed by stage key. A stage with no
    * entry records only actor + timestamp.
    *
-   * These are the "specs" in the reference — brew ratio, water activity. They
+   * These are the "specs" in the reference—brew ratio, water activity. They
    * are stored as a JSON blob on the audit row rather than as columns, because
    * they are documentation of what happened, not something the pipeline
    * branches on, and every stage wants a different set.
    */
   stationFields?: Record<string, WorkflowField[]>;
   /**
-   * Emit an override log table. Every out-of-band move — sending an item back a
-   * stage, skipping one — is recorded with the actor's initials. Default true:
+   * Emit an override log table. Every out-of-band move—sending an item back a
+   * stage, skipping one—is recorded with the actor's initials. Default true:
    * a pipeline you can override without a trace is one nobody trusts.
    */
   overrides?: boolean;
@@ -115,7 +115,7 @@ export function defineWorkflow(config: WorkflowConfig): WorkflowConfig {
       );
     }
     // Duplicates would make `stationFields` ambiguous and an audit row's stage
-    // key non-unique — both silent, both awful to debug later.
+    // key non-unique—both silent, both awful to debug later.
     if (seen.has(stage.key)) {
       throw new AstroidConfigError(
         `Workflow ${JSON.stringify(config.key)} has a duplicate stage ${JSON.stringify(stage.key)}`,

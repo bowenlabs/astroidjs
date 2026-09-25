@@ -1,25 +1,25 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// Real-visitor Core Web Vitals (#106 CWV) — the field-data half of the health
+// Real-visitor Core Web Vitals (#106 CWV)—the field-data half of the health
 // co-pilot.
 //
 // `HealthSummary` has carried an optional `cwv` field since the health module
 // landed, and the Health panel renders a "not measured yet" badge when it's
 // absent. Astroid never populated it, so that badge was permanently accurate and
-// permanently useless — the same dead-UI shape as the missing overview route.
+// permanently useless—the same dead-UI shape as the missing overview route.
 //
 // The loop has three parts and needs all three to close:
 //
-//   1. INGEST — a beacon in the page POSTs LCP/CLS/INP to `/api/louise/vitals`,
+//   1. INGEST—a beacon in the page POSTs LCP/CLS/INP to `/api/louise/vitals`,
 //      which writes a data point to an Analytics Engine dataset.
-//   2. STORE — the `analytics_engine_datasets` binding. Free, and the route
+//   2. STORE—the `analytics_engine_datasets` binding. Free, and the route
 //      degrades to accept-and-drop without it.
-//   3. READ BACK — the daily health scan queries the p75 over the last day via
+//   3. READ BACK—the daily health scan queries the p75 over the last day via
 //      the Analytics Engine SQL API and folds it into the summary.
 //
 // Step 3 is the one with credentials: the SQL API is account-scoped and needs an
 // API token, which no binding provides. So it follows the dormant-until-
-// provisioned convention — collection runs regardless, and the badge stays "not
+// provisioned convention—collection runs regardless, and the badge stays "not
 // measured yet" until the pair is real, rather than the scan erroring.
 
 import type { AstroidConfig } from "../config.js";
@@ -34,7 +34,7 @@ export function astroidVitalsDataset(config: AstroidConfig): string {
 }
 
 /**
- * Credentials the CWV READ-BACK needs — not the collection.
+ * Credentials the CWV READ-BACK needs—not the collection.
  *
  * The Analytics Engine SQL API is account-scoped and has no binding, so a token
  * is unavoidable. Both are required together: an account id without a token (or
@@ -48,7 +48,7 @@ export const ASTROID_VITALS_SECRET_NAMES = ["CF_ACCOUNT_ID", "CF_API_TOKEN"] as 
  *
  * A FILE rather than an inline script, and that is a CSP decision, not a style
  * one: Astro hashes the scripts it processes into `script-src`, and an
- * `is:inline` script carrying generated content cannot be hashed — it would be
+ * `is:inline` script carrying generated content cannot be hashed—it would be
  * blocked. Served from `public/`, it is same-origin and covered by
  * `script-src 'self'` with no policy change at all.
  */
@@ -78,7 +78,7 @@ export function generateAstroidVitalsBeacon(
 /**
  * The health scan's CWV read-back, as source for the generated worker.
  *
- * Returns `undefined` — so the badge stays "not measured yet" — when the API
+ * Returns `undefined`—so the badge stays "not measured yet"—when the API
  * credentials aren't set, the query fails, or there is no field data yet. Never
  * throws: a failed vitals query must not take down the rest of the health scan,
  * which is mostly cheap COUNTs that have nothing to do with it.

@@ -5,12 +5,12 @@
 // The middleware resolves it (to gate routes) and so does whatever handler runs
 // next (to know who's asking). Both hitting the session store is a wasted D1
 // round-trip on every authenticated request, so the in-flight promise is shared
-// per request via a `WeakMap` — keyed on the `Request`, which means entries
+// per request via a `WeakMap`—keyed on the `Request`, which means entries
 // disappear with the request rather than needing eviction.
 //
 // `requireCustomer` then adds the check a session alone doesn't give you:
 // same-origin on mutations. A cookie is attached by the browser to any request
-// to this origin, including one a third-party page triggered — so a session
+// to this origin, including one a third-party page triggered—so a session
 // proves identity, and the origin check proves intent.
 
 import type { PortalUser } from "./guard.js";
@@ -39,7 +39,7 @@ export function resolvePortalSession(
   return promise;
 }
 
-/** JSON response helper — the shape every portal API route returns. */
+/** JSON response helper—the shape every portal API route returns. */
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -57,7 +57,7 @@ export function isSameOrigin(request: Request): boolean {
   if (origin) return origin === target;
   // No Origin header: browsers always send one on cross-origin mutations, so
   // its absence means a same-origin or non-browser caller. Fall back to Referer
-  // when present, and allow otherwise — being stricter would break legitimate
+  // when present, and allow otherwise—being stricter would break legitimate
   // server-to-server callers without stopping a real CSRF, which always carries
   // an Origin.
   const referer = request.headers.get("referer");
@@ -76,7 +76,7 @@ export type CustomerGuardResult =
   | { ok: false; response: Response };
 
 /**
- * Guard a portal API handler: a signed-in user, and — on mutations — a
+ * Guard a portal API handler: a signed-in user, and—on mutations—a
  * same-origin request.
  *
  * ```ts

@@ -2,7 +2,7 @@
 //
 // Deriving a `MailTheme` from the project's brand.
 //
-// The toolkit's email shell takes a fully-specified theme — ten palette slots, a
+// The toolkit's email shell takes a fully-specified theme—ten palette slots, a
 // colour band, three font stacks. Every site hand-picked all of it, which is
 // exactly the kind of work a config should absorb: an Astroid project already
 // declares `theme.colors`, and that is enough to produce a mail theme that looks
@@ -11,7 +11,7 @@
 // Two decisions here are load-bearing:
 //
 //   1. **Neutrals are fixed, brand colours are derived.** Page background, ink,
-//      rules — those are typography choices, not brand ones, and a site that
+//      rules—those are typography choices, not brand ones, and a site that
 //      wants different ones passes an override. What varies per brand is the
 //      accent and the colour band, and both come from `theme.colors`.
 //   2. **The accent is contrast-corrected.** A pale brand colour used verbatim
@@ -74,7 +74,7 @@ function contrast(a: Rgb, b: Rgb): number {
 /**
  * Darken `color` until it clears `minRatio` against `bg`. A brand colour is
  * chosen to look good on a website, and plenty of good ones (yellows, pale
- * teals) are illegible as 11px uppercase text on a near-white email card — mail
+ * teals) are illegible as 11px uppercase text on a near-white email card—mail
  * clients offer no dark-mode escape hatch, so this is corrected up front.
  */
 function readableOn(color: Rgb, bg: Rgb, minRatio = 4.5): Rgb {
@@ -144,7 +144,7 @@ export interface MailThemeOverrides {
  * ```
  *
  * An invalid or missing brand colour falls back to the ink neutral rather than
- * throwing — a malformed hex in settings should not take out password reset.
+ * throwing—a malformed hex in settings should not take out password reset.
  */
 export function astroidMailTheme(
   config: AstroidConfig,

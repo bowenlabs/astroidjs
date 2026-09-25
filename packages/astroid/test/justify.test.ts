@@ -51,7 +51,7 @@ describe("justifyRows", () => {
   it("lands rows near the target height", () => {
     const rows = justifyRows(square(20), { containerWidth: 1000, targetHeight: 200, gap: 8 });
     // Rows close as soon as the fitted height drops to the target, so they sit
-    // at or just below it — never far above.
+    // at or just below it—never far above.
     for (const row of rows.slice(0, -1)) {
       expect(row.height).toBeLessThanOrEqual(200);
       expect(row.height).toBeGreaterThan(100);
@@ -70,7 +70,7 @@ describe("justifyRows", () => {
   });
 
   it("does stretch a last row that is nearly full", () => {
-    // 7 squares at target 300: a row of 4 closes, leaving 3 — which fit at
+    // 7 squares at target 300: a row of 4 closes, leaving 3—which fit at
     // h≈328, inside the slack allowance, so they justify to the full width.
     const rows = justifyRows(square(7), { containerWidth: 1000, targetHeight: 300, gap: 8 });
     const last = rows[rows.length - 1];
@@ -80,7 +80,7 @@ describe("justifyRows", () => {
 
   it("substitutes a sane aspect for an image that hasn't decoded yet", () => {
     // A zero/NaN ratio would divide the row height to Infinity and take the
-    // whole grid with it — this is the SSR-before-decode case, not an edge case.
+    // whole grid with it—this is the SSR-before-decode case, not an edge case.
     const rows = justifyRows([{ aspect: 0 }, { aspect: Number.NaN }, { aspect: 1 }], {
       containerWidth: 900,
       targetHeight: 200,
@@ -146,7 +146,7 @@ describe("generateAstroidGalleryPage", () => {
 
   it("emits balanced frontmatter fences", () => {
     // An unbalanced `---` turns the whole component into frontmatter and the
-    // page renders blank — a failure that only shows up at build time.
+    // page renders blank—a failure that only shows up at build time.
     const page = generateAstroidGalleryPage(config("portfolio")) as string;
     expect(page.split("\n").filter((l) => l.trim() === "---")).toHaveLength(2);
     expect(page.startsWith("---\n")).toBe(true);

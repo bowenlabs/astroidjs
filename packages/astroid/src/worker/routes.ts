@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The editor route plan — which louise-toolkit/editor routes a project needs, in
+// The editor route plan—which louise-toolkit/editor routes a project needs, in
 // the ONE order that avoids matcher collisions. This is where the "versionsRoute
 // and searchRoute MUST precede pagesRoute" tribal knowledge lives: encoded once,
 // as data, instead of re-derived by hand (and mis-ordered) in every site's

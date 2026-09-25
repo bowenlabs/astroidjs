@@ -5,7 +5,7 @@
 // Astroid's optional modules are opt-in at the CONFIG level but not at the
 // account level: switching `commerce` on in `defineAstroid` must not require a
 // Square account before `pnpm dev` will boot. So every module here follows one
-// rule — a module whose secrets are unprovisioned is DORMANT: it renders, it
+// rule—a module whose secrets are unprovisioned is DORMANT: it renders, it
 // serves, it says out loud that it is simulated, and it never calls upstream
 // with a dummy credential.
 //
@@ -13,7 +13,7 @@
 // absent / unreadable / empty / a placeholder reads as `null`). What lives here
 // is the *convention* over it, which is Astroid's opinion, not the toolkit's:
 //
-//   1. ONE sentinel — `ASTROID_SECRET_PLACEHOLDER` — seeded by `create-astroid`
+//   1. ONE sentinel—`ASTROID_SECRET_PLACEHOLDER`—seeded by `create-astroid`
 //      into every secret a scaffold declares, so a fresh clone has a complete,
 //      valid binding set and zero real credentials.
 //   2. `resolveModuleSecrets` collapses a module's whole secret set into one
@@ -28,7 +28,7 @@ export type { SecretSource };
 
 /**
  * The placeholder every Astroid scaffold seeds its unprovisioned secrets with.
- * Reading it back means "not configured yet", never a credential — the value is
+ * Reading it back means "not configured yet", never a credential—the value is
  * deliberately loud so it is obvious in a Secrets Store listing or a log line.
  *
  * It matches the sentinel `louise-toolkit`'s Turnstile gate already recognizes,
@@ -38,7 +38,7 @@ export const ASTROID_SECRET_PLACEHOLDER = "DUMMY_REPLACE_ME";
 
 /**
  * Read one secret under the Astroid convention: `null` unless it holds a real,
- * non-placeholder value. Thin by design — the reason to call this rather than
+ * non-placeholder value. Thin by design—the reason to call this rather than
  * `readSecret` directly is that it binds Astroid's sentinel for you.
  */
 export function readModuleSecret(source: SecretSource): Promise<string | null> {
@@ -49,14 +49,14 @@ export function readModuleSecret(source: SecretSource): Promise<string | null> {
 export interface ModuleSecrets<K extends string> {
   /**
    * True when EVERY secret the module declared resolved to a real value. The
-   * module's `isConfigured()` should be exactly this — partial provisioning is
+   * module's `isConfigured()` should be exactly this—partial provisioning is
    * treated as dormant, since a half-configured integration fails at the worst
    * possible moment (mid-checkout) rather than at boot.
    */
   configured: boolean;
   /** Each declared secret's resolved value, or `null` where unprovisioned. */
   values: Record<K, string | null>;
-  /** The still-unprovisioned names, in declaration order — the "why not" list. */
+  /** The still-unprovisioned names, in declaration order—the "why not" list. */
   missing: K[];
 }
 
@@ -93,10 +93,10 @@ export async function resolveModuleSecrets<K extends string>(
 }
 
 /**
- * A one-line, human-readable status for a module — what `astroid doctor`, a dev
+ * A one-line, human-readable status for a module—what `astroid doctor`, a dev
  * server banner, or a health endpoint should print. Naming the missing secrets
  * is the whole point: "commerce is off" sends someone reading source, "commerce
- * is dormant — set SQUARE_ACCESS_TOKEN" does not.
+ * is dormant—set SQUARE_ACCESS_TOKEN" does not.
  */
 export function describeModuleStatus<K extends string>(
   module: string,

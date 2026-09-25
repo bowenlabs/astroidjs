@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// `create-astroid` — scaffold a new Astroid site in one command:
+// `create-astroid`—scaffold a new Astroid site in one command:
 //
 //   pnpm create astroid@latest my-site
 //   pnpm create astroid@latest my-site --key coracle --name "Coracle Coffee" --color "#1f6f78" --host coracle.coffee
@@ -9,7 +9,7 @@
 // It writes the floor: the `defineAstroid` config, the generated
 // schema/worker/middleware trio + wrangler.jsonc (via astroidjs), the Better Auth
 // migration (via louise-toolkit/auth), and the baseline Astro app from ./template.
-// Binding ids are placeholders — provision them, then `astroid deploy` (or
+// Binding ids are placeholders—provision them, then `astroid deploy` (or
 // wrangler) fills them in. The generators are the SAME ones `astroid generate`
 // uses, so a fresh project is already in sync.
 
@@ -37,7 +37,7 @@ const TEMPLATE_DIR = join(dirname(fileURLToPath(import.meta.url)), "template");
 // Files (and dirs) whose leading `_` is stripped on copy (npm strips real
 // dotfiles from a published package, so they ship as `_gitignore` /
 // `_env.example` / `_github/…`). Applied per entry in `copyTemplate`, so a
-// directory renames too — `_github` becomes `.github` and its contents follow.
+// directory renames too—`_github` becomes `.github` and its contents follow.
 const DOTFILE_RENAMES = {
   _gitignore: ".gitignore",
   "_env.example": ".env.example",
@@ -46,7 +46,7 @@ const DOTFILE_RENAMES = {
 
 // Archetype → default editable home sections. Imported from astroidjs rather
 // than duplicated here: as a literal in this file it could name a section that
-// doesn't exist and nothing would say so (it did — `marquee`, `featured`,
+// doesn't exist and nothing would say so (it did—`marquee`, `featured`,
 // `story`, and `visit` had no component for months). Over there it's typed
 // against the section catalog, so a stale name fails the build. See #277.
 const ARCHETYPE_SECTIONS = ASTROID_ARCHETYPE_SECTIONS;
@@ -96,19 +96,19 @@ const slugify = (s) =>
  * every release, and when it rots the failure is silent and total: the template
  * imported `astroidjs/astro` while pinning `^0.1.0`, a range whose newest match
  * had no such export, so every scaffolded project died before Astro loaded its
- * config. CI could not see it — the clean-room smoke test pins both packages to
+ * config. CI could not see it—the clean-room smoke test pins both packages to
  * tarballs via pnpm `overrides`, which is exactly what erases these ranges.
  *
  * Three shapes reach the `declared` value, and all three have to end up as one
  * caret range:
  *
- *   - `workspace:*` — a sibling in this repo (`astroidjs`). Falls back to the
+ *   - `workspace:*`—a sibling in this repo (`astroidjs`). Falls back to the
  *     version of the copy actually resolved on disk, which is what the scaffold
  *     would install anyway. `pnpm pack` rewrites these to a concrete version, so
  *     a PUBLISHED create-astroid never carries one.
- *   - an exact version — what `pnpm pack` leaves behind for a former
+ *   - an exact version—what `pnpm pack` leaves behind for a former
  *     `workspace:*`.
- *   - an already-caretted range — what an external dependency is written as now
+ *   - an already-caretted range—what an external dependency is written as now
  *     that `louise-toolkit` and `@louise-toolkit/astro` live in another repo.
  *
  * That last one is why `stripRange` exists. Prefixing `^` onto `^0.27.0` yields
@@ -182,7 +182,7 @@ function astroidConfigSource(config) {
   const parts = [
     'import { defineAstroid } from "astroidjs";',
     "",
-    "// The whole shape of this site — one typed config. `astroid generate` (run by",
+    "// The whole shape of this site—one typed config. `astroid generate` (run by",
     "// `astroid dev`/`build`) turns it into src/schema.ts, src/worker.ts, and",
     "// src/middleware.ts; `astroid doctor` keeps them honest.",
     "export default defineAstroid({",
@@ -208,14 +208,14 @@ function astroidConfigSource(config) {
       : []),
     // Must be emitted, for the same reason the portal is: `astroid generate`
     // rebuilds the middleware and CSP from THIS file, so a config that dropped
-    // `modules` would regenerate a project missing whatever they contribute —
-    // for the map, a policy without `worker-src blob:`, which renders an empty
+    // `modules` would regenerate a project missing whatever they contribute—for
+    // the map, a policy without `worker-src blob:`, which renders an empty
     // canvas with no obvious cause.
     ...(config.modules?.length ? [`  modules: ${JSON.stringify(config.modules)},`] : []),
     // Must be emitted: `astroid generate` rebuilds the middleware from THIS
     // file, so a config that omitted the portal would regenerate a middleware
     // with no guard while src/portal-auth.ts sat there unused. And the FULL shape
-    // (tablePrefix, signUp) — not a bare `{ enabled: true }` — so a regenerate
+    // (tablePrefix, signUp)—not a bare `{ enabled: true }`—so a regenerate
     // reproduces the SAME unprefixed `user`/`session` seam the 0002_portal_auth
     // migration created, rather than defaulting the prefix back to `portal_`.
     ...(config.portal?.enabled
@@ -279,7 +279,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const { flags, positionals } = parseArgs(argv);
 
-  // Handle these before any prompting — otherwise `--help` reads as a truthy
+  // Handle these before any prompting—otherwise `--help` reads as a truthy
   // flag and drops the user into the interactive scaffold instead. The short
   // forms are read off argv directly: parseArgs only treats `--` as a flag, so
   // a bare `-h` would otherwise be taken as the target directory.
@@ -306,8 +306,8 @@ async function main() {
   const archetype = ARCHETYPES.includes(archetypeRaw) ? archetypeRaw : "marketing";
   const color = flags.color || (await prompt("Brand color (hex)", "#5b4bff"));
   const host = flags.host && flags.host !== true ? flags.host : undefined;
-  // The customer PORTAL is opt-in via --portal, but a storefront IMPLIES one — a
-  // shop has customers who sign in, reorder, and track orders — so enable it there
+  // The customer PORTAL is opt-in via --portal, but a storefront IMPLIES one—a
+  // shop has customers who sign in, reorder, and track orders—so enable it there
   // by default. (Commerce below stays opt-in: infra a marketing site shouldn't carry.)
   const portal = flags.portal === true || flags.portal === "true" || archetype === "storefront";
   // The map module is opt-in and pulls real weight (maplibre-gl is ~1 MB), so
@@ -336,7 +336,7 @@ async function main() {
   }
   // Refused, not ignored, without Square: the checkout route is scaffolded ONCE,
   // so a multi-merchant store that silently got the single-location route would
-  // ring every sale against one ambient SQUARE_LOCATION_ID — and look fine doing it.
+  // ring every sale against one ambient SQUARE_LOCATION_ID—and look fine doing it.
   const squareLocationsRaw = flags["square-locations"];
   const squareLocations =
     typeof squareLocationsRaw === "string" ? squareLocationsRaw.toLowerCase() : undefined;
@@ -371,7 +371,7 @@ async function main() {
           },
         }
       : {}),
-    // Unprefixed `user`/`session` (customers — email + password), so the studio's
+    // Unprefixed `user`/`session` (customers—email + password), so the studio's
     // `louise_`-prefixed tables and the portal's never collide (mirrors the
     // reference storefront). `signUp: true` because a shop lets customers register.
     ...(portal ? { portal: { enabled: true, tablePrefix: "", signUp: true } } : {}),
@@ -385,7 +385,7 @@ async function main() {
   const siteUrl = host ? `https://${host}` : `https://${key}.workers.dev`;
   const envBindings = generateAstroidEnvBindings(config);
   const portalLocals = generateAstroidPortalLocals(config);
-  // The realtime DO namespace, or nothing — same rule as the queue bindings: a
+  // The realtime DO namespace, or nothing—same rule as the queue bindings: a
   // declaration is a promise, so never type a binding wrangler.jsonc won't create.
   const realtimeEnv = generateAstroidRealtimeEnv(config);
   // The Square Web Payments public vars, or nothing.
@@ -397,17 +397,17 @@ async function main() {
     ARCHETYPE: archetype,
     SITE_URL: siteUrl,
     // Extra CloudflareEnv members the queue pipeline needs, or nothing. A
-    // declaration is a promise — a marketing site must not claim a binding its
+    // declaration is a promise—a marketing site must not claim a binding its
     // wrangler.jsonc never creates.
     ASTROID_ENV_BINDINGS: [envBindings, realtimeEnv, checkoutEnv].filter(Boolean).join("\n")
       ? `\n${[envBindings, realtimeEnv, checkoutEnv].filter(Boolean).join("\n")}`
       : "",
-    // The portal session on App.Locals, or nothing — a project that types a
+    // The portal session on App.Locals, or nothing—a project that types a
     // local it never sets invites a null-check nobody needs.
     ASTROID_PORTAL_LOCALS: portalLocals ? `\n${portalLocals}` : "",
     // Placeholder-seeded secrets for whichever modules this project enabled, so
-    // a fresh clone has a COMPLETE binding set that all reads as unconfigured —
-    // every module takes its dormant path deliberately rather than tripping over
+    // a fresh clone has a COMPLETE binding set that all reads as unconfigured—every
+    // module takes its dormant path deliberately rather than tripping over
     // an undefined binding. Empty for a project with no credentialed module.
     ASTROID_MODULE_SECRETS: generateAstroidSecretsEnv(config),
   };
@@ -419,11 +419,11 @@ async function main() {
   //
   //     Merged by PARSING the file rather than substituting a token into it:
   //     a `__TOKEN__` inside a JSON object makes template/package.json invalid
-  //     JSON, and everything that scans a repo for manifests — Snyk, Dependabot,
-  //     editors, workspace tooling — parses it and fails. (It did.)
+  //     JSON, and everything that scans a repo for manifests—Snyk, Dependabot,
+  //     editors, workspace tooling—parses it and fails. (It did.)
   //
   //     The `astroidjs` / `louise-toolkit` ranges are DERIVED (see
-  //     `toolkitRanges`), never taken from template/package.json — a hand-written
+  //     `toolkitRanges`), never taken from template/package.json—a hand-written
   //     range there silently rots into a scaffold that can't build. The literals
   //     it still carries are placeholders that keep the file valid JSON.
   //
@@ -446,15 +446,15 @@ async function main() {
   for (const file of generateAstroidProject(config)) write(dir, file.path, file.contents);
   write(dir, "wrangler.jsonc", generateAstroidWrangler(config));
 
-  // 3b. Every scaffold-once module file this config implies — the queue seam and
+  // 3b. Every scaffold-once module file this config implies—the queue seam and
   //     webhook receivers, the portfolio gallery page, the PWA service worker +
   //     manifest + headers, the map tile route + embed, the portal's second auth
   //     instance and its mounted catch-all.
   //
   //     ONE list, imported from astroidjs, because `astroid generate` writes the
   //     same files when a config gains a module after scaffold. Hand-listing them
-  //     here was the only way to produce them, so editing the config — the entire
-  //     premise of the framework — regenerated a trio importing `./queue.js` and
+  //     here was the only way to produce them, so editing the config—the entire
+  //     premise of the framework—regenerated a trio importing `./queue.js` and
   //     `./portal-auth.js` that nothing had written, and `astroid doctor` called
   //     it healthy. Sharing the list is what keeps the two paths honest.
   for (const file of generateAstroidScaffoldFiles(config)) {
@@ -471,7 +471,7 @@ async function main() {
     write(dir, file.path, file.contents);
   }
 
-  // 4. The Better Auth migration (louise-toolkit) — auth tables are fenced out of
+  // 4. The Better Auth migration (louise-toolkit)—auth tables are fenced out of
   //    drizzle-kit, so they're generated rather than diffed from schema.ts. Loaded
   //    dynamically: it pulls in `better-auth` (an optional peer), which may not be
   //    resolvable at scaffold time. If not, leave a stub + a one-liner to generate
@@ -479,12 +479,12 @@ async function main() {
   let authMigrationOk = false;
   try {
     const { generateAuthSchemaSql } = await import("louise-toolkit/auth");
-    // The EDITOR instance's tables — `louise_`-prefixed (the editor convention),
+    // The EDITOR instance's tables—`louise_`-prefixed (the editor convention),
     // leaving the unprefixed `user`/`session` names free for a second/portal
     // instance. Must match the `tablePrefix` in src/auth.ts and the `louise_user`
     // table the generated `editorsRoute` reads.
     write(dir, "migrations/0001_auth.sql", generateAuthSchemaSql({ tablePrefix: "louise_" }));
-    // The portal's own auth tables — a SECOND Better Auth instance sharing one D1
+    // The portal's own auth tables—a SECOND Better Auth instance sharing one D1
     // but never a row, so a portal account can't sign into the studio and an
     // editor doesn't appear in the portal. `customers: true` (email + password)
     // and the config's tablePrefix, so this schema matches the scaffolded
@@ -506,7 +506,7 @@ async function main() {
     );
     // Same stub for the portal's prefixed set. Without it a portal scaffold
     // looks complete, builds, and fails on the first sign-in with a missing
-    // table — the one failure mode a stub exists to prevent.
+    // table—the one failure mode a stub exists to prevent.
     if (config.portal?.enabled) {
       write(
         dir,

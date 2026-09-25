@@ -3,8 +3,8 @@
 // The catalog read, and the Live Content Collection loader over it.
 //
 // `defineCatalogLoader` (@louise-toolkit/astro) already owns the Astro-facing
-// plumbing. What each site then hand-wrote was the layer underneath — "read my
-// catalog out of D1" — and because that layer was per-site, so was the drift.
+// plumbing. What each site then hand-wrote was the layer underneath—"read my
+// catalog out of D1"—and because that layer was per-site, so was the drift.
 // It doesn't need to be: once the mirror table's shape is fixed (see mirror.ts),
 // reading it is the same query whatever provider filled it in.
 //
@@ -16,7 +16,7 @@ import type { CatalogItem } from "./sync.js";
 
 /** A product as the site renders it: the mirror row, decoded. */
 export interface CatalogProduct extends CatalogItem {
-  /** Public URL segment — owner-owned, stable across provider renames. */
+  /** Public URL segment—owner-owned, stable across provider renames. */
   slug: string;
   status: "draft" | "published";
   sortOrder: number;
@@ -123,7 +123,7 @@ export async function readCatalogItem(
  * );
  * ```
  *
- * Identical for every provider — which is the whole point.
+ * Identical for every provider—which is the whole point.
  */
 export function astroidCatalogLoaderConfig(options: CatalogReadOptions & { name?: string }) {
   return {

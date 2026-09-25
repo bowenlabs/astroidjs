@@ -143,7 +143,7 @@ describe("astroidStructuredData", () => {
       },
       siteUrl: "https://acme.coffee",
     });
-    // "@acme" is a handle, not a profile URL — schema.org sameAs wants URLs.
+    // "@acme" is a handle, not a profile URL—schema.org sameAs wants URLs.
     expect((asMap["@graph"] as Record<string, unknown>[])[0].sameAs).toEqual([
       "https://instagram.com/acme",
     ]);
@@ -170,7 +170,7 @@ describe("escapeJsonLd", () => {
     expect(payload).not.toContain("</script>");
     expect(payload).not.toContain("<");
     expect(payload).not.toContain(">");
-    // Still valid JSON — the escapes are \uXXXX, not mangling.
+    // Still valid JSON—the escapes are \uXXXX, not mangling.
     expect(JSON.parse(payload)).toEqual({
       description: "</script><img src=x onerror=alert(1)>",
     });

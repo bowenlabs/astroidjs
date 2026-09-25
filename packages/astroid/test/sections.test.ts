@@ -25,15 +25,15 @@ import { ASTROID_ARCHETYPE_SECTIONS, type SectionKind } from "../src/config.js";
  *
  * Reading the source is deliberate. A `.astro` file can't be imported from a
  * vitest run, but the failure this guards is real and silent: a catalog entry
- * with no arm in the dispatcher renders NOTHING — a hole in the page, no error
- * anywhere — and adding a section type means touching two files.
+ * with no arm in the dispatcher renders NOTHING—a hole in the page, no error
+ * anywhere—and adding a section type means touching two files.
  */
 function dispatcherTypes(): string[] {
   const src = readFileSync(new URL("../src/components/Section.astro", import.meta.url), "utf8");
   const start = src.indexOf("const COMPONENTS");
   if (start === -1) throw new Error("Section.astro no longer declares a COMPONENTS map");
   // Up to the line that closes the object literal, tolerating `};` or
-  // `} as const;` — the guard should survive a cosmetic edit to the map.
+  // `} as const;`—the guard should survive a cosmetic edit to the map.
   const rest = src.slice(start);
   const end = rest.search(/^\};?\s*(as const;)?\s*$/m);
   const block = end === -1 ? rest : rest.slice(0, end);
@@ -73,7 +73,7 @@ describe("astroidSectionCatalog", () => {
   it("archetype defaults name only sections that exist", () => {
     // The consequence the drift actually had: a scaffold's config listed
     // sections that could never render. Typed now, so a stale name is a compile
-    // error — this asserts the runtime shape agrees.
+    // error—this asserts the runtime shape agrees.
     for (const [archetype, sections] of Object.entries(ASTROID_ARCHETYPE_SECTIONS)) {
       for (const kind of sections) {
         expect(isRenderableSection(kind), `${archetype} → ${kind}`).toBe(true);
@@ -151,7 +151,7 @@ describe("astroidSectionCatalog", () => {
     // that differs from what the site can actually render.
     // `options` may be a resolver since louise-toolkit 0.22 (async pickers), so
     // narrow before reading it as a list. These are literal token sets and always
-    // will be — the whole point is that they're derived from the class map.
+    // will be—the whole point is that they're derived from the class map.
     const declared = astroidSectionCatalog.hero.settings?.colorway?.options;
     const options = Array.isArray(declared) ? declared : [];
     expect(options.length).toBeGreaterThan(0);
@@ -165,7 +165,7 @@ describe("astroidSectionCatalog", () => {
     // You can't point at a URL on the page, so it belongs in the inspector.
     expect(astroidSectionCatalog.hero.fields.ctaHref.inline).toBe(false);
     expect(astroidSectionCatalog.cta.fields.ctaHref.inline).toBe(false);
-    // Visible copy stays inline — expressed as the ABSENCE of the key, since
+    // Visible copy stays inline—expressed as the ABSENCE of the key, since
     // with `satisfies` the literal type simply has no `inline` property to read.
     expect("inline" in astroidSectionCatalog.hero.fields.heading).toBe(false);
   });
@@ -301,7 +301,7 @@ describe("collectSectionMediaUrls", () => {
       rich: {
         label: "Rich",
         fields: {
-          // NOT named `blocks` — that key is reserved for the structural block
+          // NOT named `blocks`—that key is reserved for the structural block
           // layer (`SectionItem.blocks: BlockItem[]`), so a catalog field of that
           // name would shadow it. The type checker catches this.
           parts: {
@@ -389,7 +389,7 @@ describe("resolveSectionMedia", () => {
     const urls = Array.from({ length: 250 }, (_, i) => `/media/${i}.jpg`);
     const stub = db([]);
     await resolveSectionMedia(stub, urls, "/media");
-    // 250 keys at 100 per statement — and no statement over the limit.
+    // 250 keys at 100 per statement—and no statement over the limit.
     expect(stub.calls).toHaveLength(3);
     for (const call of stub.calls) expect(call.binds.length).toBeLessThanOrEqual(100);
     expect(stub.calls.flatMap((c) => c.binds)).toHaveLength(250);
