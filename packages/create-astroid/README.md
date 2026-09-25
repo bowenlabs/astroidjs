@@ -58,11 +58,11 @@ pnpm create astroid [directory] [options]
 cd my-site
 pnpm install
 pnpm exec wrangler d1 create <name>   # then paste the ids into wrangler.jsonc
-pnpm doctor                           # validates config, bindings, generated files
+pnpm run doctor                       # validates config, bindings, generated files
 pnpm dev
 ```
 
-`pnpm doctor` flags any binding id you haven't filled in yet, plus generated
+`pnpm run doctor` flags any binding id you haven't filled in yet, plus generated
 files that have drifted from the config.
 
 ## How the pieces relate

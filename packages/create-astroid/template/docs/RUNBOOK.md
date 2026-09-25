@@ -44,7 +44,7 @@ wrangler kv namespace create DRAFTS
 ## Deploy
 
 ```sh
-pnpm doctor     # validate config, bindings, and the generated files
+pnpm run doctor # validate config, bindings, and the generated files
 wrangler deploy
 ```
 

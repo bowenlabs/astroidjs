@@ -95,6 +95,18 @@ check that guards it can each read a different input, name the one they share.
 pnpm 11 ignores `pnpm.overrides` in `package.json`, even for a project that
 isn't a workspace. Overrides and build approvals belong in `pnpm-workspace.yaml`.
 
+### A script named after a pnpm command needs `pnpm run`
+
+pnpm runs its own built-in before a script of the same name. The scaffold's
+`doctor` script collides with pnpm's `doctor`, so `pnpm doctor` printed pnpm's
+self-check (on pnpm 10, nothing at all) and exited 0 without running `astroid
+doctor`. The scaffold's CI step was green in every generated project while
+checking nothing, and a site's own CI found it, not this repo's. Call any such
+script as `pnpm run <name>`. The names that collide include `doctor`, `audit`,
+`outdated`, `why`, `list`, `store`, `setup`, `pack`, `publish`, and `deploy`, and
+`pnpm help` lists the rest. The scaffold smoke test now runs the template's CI
+doctor step and requires Astroid's `doctor:` summary line.
+
 ### A clean `pnpm audit` isn't a clean Snyk
 
 `pnpm audit` reads GitHub's advisory database, and Snyk has its own. An advisory

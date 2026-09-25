@@ -99,7 +99,7 @@ editable. Body HTML is sanitized on every save.
 Once provisioned, shipping changes is just:
 
 ```sh
-pnpm doctor         # validate config, bindings, and generated-file freshness
+pnpm run doctor     # validate config, bindings, and generated-file freshness
 wrangler deploy     # or: pnpm astroid deploy
 ```
 

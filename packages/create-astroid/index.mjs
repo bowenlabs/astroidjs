@@ -500,7 +500,7 @@ async function main() {
       "  OWNER_EMAIL=you@example.com pnpm seed:editors",
       "  # develop / ship:",
       "  pnpm dev            # astroid dev (regenerates, then astro dev)",
-      "  pnpm doctor         # validate config + bindings",
+      "  pnpm run doctor     # validate config + bindings (`run` is required)",
       "  wrangler deploy",
       "",
     ].join("\n"),
