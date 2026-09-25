@@ -35,7 +35,7 @@
     "@louise-toolkit/astro": "^0.2.3",
     "astroidjs": "workspace:*",
     "better-auth": "^1.7.2",
-    "louise-toolkit": "^0.31.1"
+    "louise-toolkit": "^0.32.0"
   },
   "engines": {
     "node": ">=26.0.0"
