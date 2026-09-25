@@ -1,5 +1,16 @@
 # create-astroid
 
+## 0.7.1
+
+### Patch Changes
+
+- 66f3c32: **Both packages now depend on `louise-toolkit` `^0.31.0`**, and create-astroid on `@louise-toolkit/astro` `^0.2.2`.
+
+  Before 1.0, a caret range stays within the same minor version, so `^0.30.1` could never resolve to 0.31. A site that upgraded the toolkit for 0.31's `client/studio-shell` got two copies of it, the site's 0.31.0 and astroidjs's 0.30.1, and a type error wherever the two met (`astroid.config.ts`, the generated `worker.ts`). Upgrade astroidjs alongside the toolkit.
+
+- Updated dependencies [66f3c32]
+  - astroidjs@0.12.1
+
 ## 0.7.0
 
 > **0.6.0 was never published to npm.** It was versioned but not released, so this is the first release after 0.5.1. Upgrading from 0.5.1 takes the 0.6.0 changes below as well, including its breaking ones.
