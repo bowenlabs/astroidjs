@@ -79,6 +79,15 @@ own and hid the failure. The smoke test now appends to the template's file
 instead of replacing it. Whenever a test rewrites something a user would receive
 untouched, ask what that rewrite hides.
 
+### A derived value and its check must agree on the source
+
+`toolkitRanges()` once read create-astroid's declared range (`^0.31.0`), while
+`scaffold-versions.mjs` expected a caret on the resolved version. They agreed
+until the day `louise-toolkit` 0.31.1 shipped. After that, the smoke test failed
+on every PR with no code change. The declared value had been exact in the
+monorepo, and the repo split turned it into a range. When a derivation and the
+check that guards it can each read a different input, name the one they share.
+
 ### pnpm 11 reads settings only from `pnpm-workspace.yaml`
 
 pnpm 11 ignores `pnpm.overrides` in `package.json`, even for a project that

@@ -23,7 +23,8 @@
   },
   "files": [
     "index.mjs",
-    "template"
+    "template",
+    "toolkit-ranges.mjs"
   ],
   "type": "module",
   "publishConfig": {

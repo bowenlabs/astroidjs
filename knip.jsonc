@@ -35,6 +35,9 @@
     // TypeScript standalone. Every one of them is unused *here* and load-bearing
     // *there*, so knip must not see them at all. Same reasoning as .oxfmtignore.
     "packages/create-astroid/template/**",
+    // Types for toolkit-ranges.mjs. The TypeScript checker reads it when the test
+    // suite imports the .mjs, and knip does not follow that lookup.
+    "packages/create-astroid/toolkit-ranges.d.mts",
   ],
   "ignoreDependencies": [
     // Configuration, not an import: `jsxImportSource` in tsconfig.base.json.
