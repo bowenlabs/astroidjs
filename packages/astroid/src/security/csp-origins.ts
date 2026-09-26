@@ -39,14 +39,13 @@ const COMMERCE_ORIGINS: Record<string, CspOrigins> = {
 // build time, the secret is a runtime value.
 const TURNSTILE: CspOrigins = turnstileCsp();
 
-// The map module. MapLibre spins its tile-decoding workers up from blob: URLs,
-// so `worker-src blob:` is not optional—without it the map renders an empty
-// canvas and the console fills with worker-construction errors.
-//
-// Nothing else is needed, and that's the whole argument for the self-hosted
-// basemap: the PMTiles archive is served same-origin, so `connect-src` stays
-// `'self'` with no tile host and no API key to allow.
-const MAP: CspOrigins = { worker: ["blob:"] };
+// The map module adds nothing, and that's the whole argument for the
+// self-hosted basemap: the PMTiles archive is served same-origin, so
+// `connect-src` stays `'self'` with no tile host and no API key to allow. The
+// generated `<MapEmbed>` hands MapLibre 6 a same-origin worker URL, which it
+// constructs directly, so `worker-src 'self'` covers it with no `blob:`.
+// (MapLibre 5 built its workers from blob: URLs; a site still on 5 adds
+// `worker: ["blob:"]` to its own `security.cspOrigins`.)
 
 const DIRECTIVE_KEYS = ["script", "style", "frame", "connect", "font", "img", "worker"] as const;
 
@@ -67,7 +66,6 @@ function mergeOrigins(...sets: CspOrigins[]): Required<CspOrigins> {
 export function astroidCspOrigins(config: AstroidConfig): Required<CspOrigins> {
   return mergeOrigins(
     TURNSTILE,
-    ...((config.modules ?? []).includes("map") ? [MAP] : []),
     // EVERY provider in play, not "the" provider: a site can run Stripe for
     // invoicing beside Fourthwall for the storefront, and a policy that allowed
     // only one of them blocks the other's SDK at runtime.
