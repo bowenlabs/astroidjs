@@ -339,11 +339,13 @@ Astro app—in one step.
 
 ## Roadmap
 
-1. ✅ **Config surface** (`defineAstroid`)—single brand per project.
-2. ✅ Config → generated Drizzle schema.
-3. ✅ Config → generated `worker.ts` + middleware (no hand-wired route ordering).
-4. ✅ `<Section>` / `<Editable>` / `<Collection>` component primitives.
-5. ✅ **CLI**—`astroid generate / doctor / dev / build / deploy`; `create-astroid`
+Every item on the first roadmap has shipped:
+
+1. **Config surface** (`defineAstroid`)—single brand per project.
+2. Config → generated Drizzle schema.
+3. Config → generated `worker.ts` + middleware (no hand-wired route ordering).
+4. `<Section>` / `<Editable>` / `<Collection>` component primitives.
+5. **CLI**—`astroid generate / doctor / dev / build / deploy`; `create-astroid`
    scaffold (`pnpm create astroid`).
 
 ## License
