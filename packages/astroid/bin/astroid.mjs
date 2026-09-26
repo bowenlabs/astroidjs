@@ -8,6 +8,7 @@
 //   astroid dev      [...astro args]                   generate, then `astro dev`
 //   astroid build    [...astro args]                   generate, then `astro build`
 //   astroid deploy   [--dry-run] [--yes] [--local]     provision + migrate + secrets + deploy
+//   astroid ship     production | preview              migrate, then deploy or preview (Workers Builds)
 //
 // It loads the project's `astroid.config.ts` with Node's native TypeScript
 // stripping (the config only imports the built `astroidjs`, so it resolves), and
@@ -22,6 +23,16 @@ import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
 
 const GENERATORS_URL = new URL("../dist/index.js", import.meta.url).href;
+
+/** The repository root, where `.github/` lives, or null outside a git checkout.
+ *  A site's Astroid project can sit below it (`workers/site`). */
+function gitRoot(cwd) {
+  try {
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" }).trim();
+  } catch {
+    return null;
+  }
+}
 
 // --- tiny arg parser -------------------------------------------------------
 // Splits at the first non-flag token into { command, flags, rest }. `rest` is
@@ -77,7 +88,12 @@ async function loadConfig(cwd, explicit) {
 
 // --- commands --------------------------------------------------------------
 async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
-  const { generateAstroidProject, generateAstroidScaffoldFiles } = await import(GENERATORS_URL);
+  const {
+    generateAstroidProject,
+    generateAstroidScaffoldFiles,
+    generateAstroidReleaseWorkflow,
+    ASTROID_RELEASE_WORKFLOW_PATH,
+  } = await import(GENERATORS_URL);
   const { config } = await loadConfig(cwd, flags.config);
   const files = generateAstroidProject(config);
   for (const file of files) {
@@ -85,6 +101,16 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, file.contents);
     if (!quiet) out(`  ✓ ${file.path}`);
+  }
+
+  // The release workflow, at the repository root rather than the project,
+  // because GitHub reads workflows only from there. Regenerated like the trio.
+  const root = gitRoot(cwd);
+  if (root) {
+    const abs = join(root, ASTROID_RELEASE_WORKFLOW_PATH);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, generateAstroidReleaseWorkflow());
+    if (!quiet) out(`  ✓ ${ASTROID_RELEASE_WORKFLOW_PATH} (repository root)`);
   }
 
   // Scaffold-once files for whatever modules the config switched on.
@@ -124,8 +150,15 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
 }
 
 async function cmdDoctor(cwd, flags) {
-  const { generateAstroidProject, generateAstroidScaffoldFiles, astroidUsesQueues, astroidCrons } =
-    await import(GENERATORS_URL);
+  const {
+    generateAstroidProject,
+    generateAstroidScaffoldFiles,
+    astroidUsesQueues,
+    astroidCrons,
+    checkWranglerPreviews,
+    generateAstroidReleaseWorkflow,
+    ASTROID_RELEASE_WORKFLOW_PATH,
+  } = await import(GENERATORS_URL);
   const { config, path: configPath } = await loadConfig(cwd, flags.config);
 
   const problems = []; // { level: "error" | "warn", msg }
@@ -262,6 +295,31 @@ async function cmdDoctor(cwd, flags) {
           `(create the bindings, e.g. \`wrangler d1 create\`, then fill the ids).`,
       );
     }
+  }
+
+  // 1c. The release workflow at the repository root: a tag on `main` moves
+  //     `deploy/production`, which Workers Builds deploys. Stale is an error for
+  //     the same reason the trio's is: it decides which commits reach production.
+  const root = gitRoot(cwd);
+  if (!root) {
+    warn(`not in a git checkout, so ${ASTROID_RELEASE_WORKFLOW_PATH} can't be checked.`);
+  } else {
+    const abs = join(root, ASTROID_RELEASE_WORKFLOW_PATH);
+    if (!existsSync(abs))
+      err(`${ASTROID_RELEASE_WORKFLOW_PATH} is missing — run \`astroid generate\`.`);
+    else if (readFileSync(abs, "utf8") !== generateAstroidReleaseWorkflow())
+      err(`${ASTROID_RELEASE_WORKFLOW_PATH} is stale — run \`astroid generate\`.`);
+    else ok(`${ASTROID_RELEASE_WORKFLOW_PATH} is up to date`);
+  }
+
+  // 2b. Staging: the `previews` block (louise-toolkit ADR 0017). A Preview
+  //     inherits nothing, so a binding left out crashes it and one copied from
+  //     production writes production data; see src/project/previews.ts.
+  if (existsSync(wranglerPath)) {
+    const previews = checkWranglerPreviews(readFileSync(wranglerPath, "utf8"));
+    for (const m of previews.ok) ok(m);
+    for (const m of previews.warnings) warn(m);
+    for (const m of previews.errors) err(m);
   }
 
   // 3. migrations directory: the D1 `migrations_dir` wrangler.jsonc declares,
@@ -597,9 +655,85 @@ Usage:
   astroid dev      [...astro args]                   regenerate, then run \`astro dev\`
   astroid build    [...astro args]                   regenerate, then run \`astro build\`
   astroid deploy   [--dry-run] [--yes] [--local]     provision bindings + migrate + secrets + deploy
+  astroid ship     production | preview              migrate D1, then deploy or preview (Workers Builds runs this)
 
 New project:  pnpm create astroid@latest
 `;
+
+// `astroid ship` is what Workers Builds runs, so the deploy logic lives in the
+// repository instead of a dashboard field. An account move once rewrote a
+// site's dashboard deploy command to a bare `wrangler deploy`, and migrations
+// silently stopped. Migrations run first, so new code never meets an old schema.
+//
+//   astroid ship production   the deploy/production build: migrate D1, then deploy
+//   astroid ship preview      every other branch: migrate the staging D1, then
+//                             `wrangler preview`, named for the branch
+async function cmdShip(cwd, target) {
+  if (target !== "production" && target !== "preview") {
+    fail("Usage: astroid ship production | preview");
+  }
+  const wranglerBin = resolveBin(cwd, "wrangler", "wrangler");
+  if (!wranglerBin) fail("Could not find `wrangler` in this project.");
+  const run = (args) => {
+    out(`\n▸ wrangler ${args.join(" ")}`);
+    const res = spawnSync(process.execPath, [wranglerBin, ...args], { cwd, stdio: "inherit" });
+    if (res.status !== 0) process.exit(res.status ?? 1);
+  };
+  const wranglerPath = join(cwd, "wrangler.jsonc");
+  if (!existsSync(wranglerPath)) fail("wrangler.jsonc not found — run inside an Astroid project.");
+
+  if (target === "production") {
+    run(["d1", "migrations", "apply", "DB", "--remote"]);
+    run(["deploy"]);
+    return;
+  }
+
+  // The staging database is declared only inside `previews`, and wrangler's
+  // migrations command reads top-level `d1_databases`. So write a throwaway
+  // config naming it, derived from wrangler.jsonc on every run, rather than a
+  // second committed file that could drift from the binding.
+  const { parseJsonc } = await import(GENERATORS_URL);
+  const config = parseJsonc(readFileSync(wranglerPath, "utf8"));
+  const prodDb = (config.d1_databases ?? []).find((d) => d.binding === "DB");
+  const stagingDb = (config.previews?.d1_databases ?? []).find((d) => d.binding === "DB");
+  if (stagingDb && prodDb) {
+    const migrationsDir = resolve(cwd, prodDb.migrations_dir ?? "migrations");
+    const tmp = join(cwd, ".wrangler", "astroid-preview-migrations.jsonc");
+    mkdirSync(dirname(tmp), { recursive: true });
+    writeFileSync(
+      tmp,
+      JSON.stringify(
+        {
+          d1_databases: [
+            {
+              binding: "PREVIEW_DB",
+              database_name: stagingDb.database_name,
+              database_id: stagingDb.database_id,
+              migrations_dir: migrationsDir,
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    run(["d1", "migrations", "apply", "PREVIEW_DB", "--remote", "--config", tmp]);
+  } else {
+    out("\n(no staging D1 in `previews`, so no staging migrations to apply)");
+  }
+
+  // Workers Builds names the branch in WORKERS_CI_BRANCH; a Preview name is a
+  // DNS label, so a branch like feature/12-login becomes feature-12-login.
+  const branch = process.env.WORKERS_CI_BRANCH;
+  const name = branch
+    ? branch
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 63)
+    : undefined;
+  run(["preview", ...(name ? ["--name", name] : [])]);
+}
 
 async function main() {
   const { command, flags, rest } = parseArgs(process.argv.slice(2));
@@ -621,6 +755,9 @@ async function main() {
       break;
     case "deploy":
       await cmdDeploy(cwd, flags, rest);
+      break;
+    case "ship":
+      await cmdShip(cwd, rest[0]);
       break;
     case "help":
     case "--help":
