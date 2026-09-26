@@ -652,7 +652,7 @@ function assertCrons(config: AstroidConfig): void {
     const owner = seen.get(expression);
     if (owner) {
       throw new AstroidConfigError(
-        `Duplicate cron \`${expression}\` — it already belongs to ${owner}. One \`scheduled\` ` +
+        `Duplicate cron \`${expression}\`: it already belongs to ${owner}. One \`scheduled\` ` +
           "handler dispatches on the expression, so the first branch wins and this one would " +
           "never run. Use a different minute.",
       );
@@ -675,11 +675,13 @@ function assertTenancy(config: AstroidConfig): void {
 
   const pattern = tenancy.hostPattern?.trim();
   if (!pattern) {
-    throw new AstroidConfigError('`tenancy.hostPattern` is required, e.g. `"*.example.com"`');
+    throw new AstroidConfigError(
+      '`tenancy.hostPattern` is required: a wildcard such as `"*.example.com"`',
+    );
   }
   if (!pattern.startsWith("*.")) {
     throw new AstroidConfigError(
-      `\`tenancy.hostPattern\` must be a wildcard starting with "*." — got "${pattern}". ` +
+      `\`tenancy.hostPattern\` must be a wildcard starting with "*.", but it's "${pattern}". ` +
         "A fixed host is a custom domain: put it in `hosts` instead.",
     );
   }
@@ -707,21 +709,21 @@ function assertTenancy(config: AstroidConfig): void {
   for (const [label, prefix] of Object.entries(tenancy.apps ?? {})) {
     if (!label || label.includes(".")) {
       throw new AstroidConfigError(
-        `\`tenancy.apps\` label "${label}" must be a single subdomain label — ` +
-          "Cloudflare's wildcard matches one level.",
+        `\`tenancy.apps\` label "${label}" must be a single subdomain label, ` +
+          "because Cloudflare's wildcard matches one level.",
       );
     }
     if ((tenancy.reserved ?? []).includes(label)) {
       throw new AstroidConfigError(
         `"${label}" is in both \`tenancy.apps\` and \`tenancy.reserved\`. ` +
-          "An app label is implicitly reserved — keep it in `apps` only, or the " +
+          "An app label is implicitly reserved, so keep it in `apps` only, or the " +
           "two lists drift and `reserved` silently wins.",
       );
     }
     if (!prefix.startsWith("/") || prefix === "/" || prefix.endsWith("/")) {
       throw new AstroidConfigError(
         `\`tenancy.apps.${label}\` must be an internal path prefix like "/studio" ` +
-          `(leading slash, no trailing slash, not "/") — got "${prefix}". ` +
+          `(leading slash, no trailing slash, not "/"), but it's "${prefix}". ` +
           'The rewrite is `prefix + pathname`, so "/" or a trailing slash produces "//…".',
       );
     }
@@ -794,9 +796,9 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
 
   if (config.portal?.gated) {
     throw new AstroidConfigError(
-      "`portal.gated` is not implemented — it is accepted but wires no guard, so the site " +
+      "`portal.gated` is not implemented: it is accepted but wires no guard, so the site " +
         "would be fully public while appearing gated. Remove it, and gate the whole site by " +
-        'listing the prefixes you mean in `portal.routes` (e.g. `[{ prefix: "/" }]` with your ' +
+        'listing the prefixes you mean in `portal.routes` (for example, `[{ prefix: "/" }]` with your ' +
         "login and auth paths ahead of it).",
     );
   }

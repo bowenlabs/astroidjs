@@ -240,8 +240,9 @@ export async function astroidCatalogSync(
     }
   }
   if (items.length > 0 && result.failed === items.length) {
+    const scope = items.length === 1 ? "the only item" : `all ${items.length} items`;
     throw new AstroidUsageError(
-      `Catalog sync failed for all ${items.length} item(s) — nothing was written. ` +
+      `Catalog sync failed for ${scope}, so nothing was written. ` +
         `First error: ${result.errors[0]?.message ?? "unknown"}. ` +
         "This is usually an unapplied migration (the catalog table doesn't exist yet) " +
         "or an unavailable D1 binding.",
