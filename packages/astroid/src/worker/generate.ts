@@ -219,6 +219,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     "astroidPagesCollection",
     "astroidPagesWriteHooks",
     "readModuleSecret",
+    "setAstroidMediaBase",
     ...(inquiries ? ["sendInquiryMail"] : []),
     ...(queues ? ["type AstroidQueueMessage"] : []),
   ].sort();
@@ -254,6 +255,10 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("// Preview, so nothing that differs between them can be a constant.");
   p("const mediaBaseOf = (env: CloudflareEnv): string =>");
   p('  (env.MEDIA_URL || DEFAULT_MEDIA_BASE).replace(/\\/+$/, "");');
+  p("// The checks built once from the config (the page sanitizers, the settings");
+  p("// action) read the base when they run. Recorded at startup, since an isolate");
+  p("// runs one deployment and `MEDIA_URL` is fixed per deployment.");
+  p("setAstroidMediaBase(env.MEDIA_URL);");
   p("const pagesCollection = astroidPagesCollection(astroidConfig);");
   p("// Sanitize + section-catalog validation for the raw pagesRoute, which runs");
   p("// no collection hook—the same contract versionsRoute gets from the config.");

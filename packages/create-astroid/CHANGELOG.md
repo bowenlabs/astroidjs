@@ -16,6 +16,13 @@
 - Updated dependencies [9e6cd3b]
   - astroidjs@0.16.0
 
+- The page sanitizers and the settings action now check images against the running deployment's media base, so a staging Preview keeps the images uploaded on it. They were built once from `deploy.mediaBase`, which names production's media host, so on a Preview, which serves media from its own `/media`, every uploaded image was dropped from page content as a hotlink, and every image setting was rejected.
+
+  - The generated `worker.ts` records `vars.MEDIA_URL` at startup with `setAstroidMediaBase`, and the checks read it through `astroidMediaBase(config)` when they run. An isolate runs one deployment, and `MEDIA_URL` is fixed per deployment, so production still checks against its own host.
+  - New scaffolds' settings action reads `mediaBase` through a getter, and the portfolio gallery builds image URLs from `MEDIA_URL`.
+
+  **What to do:** run `astroid generate` and commit the regenerated `worker.ts`. If your `src/actions/index.ts` passes `mediaBase: astroidConfig.deploy?.mediaBase ?? "/media"` to `louiseSettingsAction`, replace it with `get mediaBase() { return astroidMediaBase(astroidConfig); }`, importing `astroidMediaBase` from `astroidjs`. A portfolio site's gallery page takes the same change the scaffold made: build `src` from `env.MEDIA_URL`.
+
 ## 0.8.0
 
 ### Minor Changes

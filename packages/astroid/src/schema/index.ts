@@ -5,3 +5,4 @@
 export * from "./collections.js";
 export * from "./framework.js";
 export * from "./generate.js";
+export * from "./media-base.js";

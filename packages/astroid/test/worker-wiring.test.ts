@@ -284,6 +284,12 @@ describe("media asset route", () => {
     expect(worker).toContain("mediaBase: mediaBaseOf(env)");
     expect(worker).not.toMatch(/\bMEDIA_BASE\b/);
   });
+
+  it("records the deployment's media base at startup, for the checks built from the config", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain("setAstroidMediaBase(env.MEDIA_URL);");
+    expect(worker).toMatch(/import \{[^}]*\bsetAstroidMediaBase\b[^}]*\} from "astroidjs";/);
+  });
 });
 
 describe("AI assists", () => {
