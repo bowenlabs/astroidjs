@@ -461,7 +461,10 @@ function provisionPlan(facts) {
   }
   for (const { binding, id } of facts.kv) {
     if (isPlaceholder(id)) {
-      steps.push({ kind: "kv", name: binding, args: ["kv", "namespace", "create", binding] });
+      // The placeholder names the namespace (`<run: wrangler kv namespace
+      // create acme-rl>`); an older one without a name falls back to the binding.
+      const title = id.match(/kv namespace create ([^\s>]+)/)?.[1] ?? binding;
+      steps.push({ kind: "kv", name: title, binding, args: ["kv", "namespace", "create", title] });
     }
   }
   // Queues carry no id, so there's no placeholder to test—creating one that
@@ -589,7 +592,7 @@ async function cmdDeploy(cwd, flags, rest) {
         (rows) => rows.find((r) => typeof r.title === "string" && r.title.endsWith(s.name))?.id,
       );
       if (id) {
-        wrangler = patchKvId(wrangler, s.name, id);
+        wrangler = patchKvId(wrangler, s.binding, id);
         writeFileSync(wranglerPath, wrangler);
         out(`  ↳ ${s.name} id = ${id}`);
       } else {
@@ -656,9 +659,95 @@ Usage:
   astroid build    [...astro args]                   regenerate, then run \`astro build\`
   astroid deploy   [--dry-run] [--yes] [--local]     provision bindings + migrate + secrets + deploy
   astroid ship     production | preview              migrate D1, then deploy or preview (Workers Builds runs this)
+  astroid provision [--dry-run] [--yes]              create the resources wrangler.jsonc names by placeholder, staging included
 
 New project:  pnpm create astroid@latest
 `;
+
+// `astroid provision` creates what `wrangler.jsonc` still names by placeholder,
+// top level and `previews` alike, and writes each new ID back in place of its
+// placeholder. It never deploys, so it's safe to run before a site's first
+// release, and re-running it only creates what's still missing. Secrets and
+// dashboard settings need a person, so it prints those instead.
+async function cmdProvision(cwd, rest) {
+  const dryRun = rest.includes("--dry-run");
+  const assumeYes = rest.includes("--yes") || rest.includes("-y");
+  const wranglerPath = join(cwd, "wrangler.jsonc");
+  if (!existsSync(wranglerPath)) fail("wrangler.jsonc not found — run inside an Astroid project.");
+
+  const { provisionPlan, applyProvisionedId } = await import(GENERATORS_URL);
+  let text = readFileSync(wranglerPath, "utf8");
+  const plan = provisionPlan(text);
+
+  out("astroid provision — plan:\n");
+  if (plan.steps.length === 0) out("  (nothing to create: every binding has an ID)");
+  for (const s of plan.steps) {
+    const note = s.kind === "r2" ? "   (an existing bucket is fine)" : "";
+    out(`  wrangler ${s.args.join(" ")}${note}`);
+  }
+  if (!plan.hasAccount && !process.env.CLOUDFLARE_ACCOUNT_ID) {
+    out(
+      "\n  ! No account_id in wrangler.jsonc and no CLOUDFLARE_ACCOUNT_ID, so wrangler picks one.",
+    );
+  }
+  const printSecrets = () => {
+    if (plan.secrets.length === 0) return;
+    out("\nSecrets Store secrets it binds; create any that don't exist yet:");
+    for (const s of plan.secrets) {
+      out(
+        `  [${s.environment}] wrangler secrets-store secret create ${s.storeId} ` +
+          `--name ${s.secretName} --scopes workers --remote`,
+      );
+    }
+  };
+
+  if (dryRun) {
+    printSecrets();
+    out("\n(dry run — nothing created)");
+    return;
+  }
+  if (plan.steps.length > 0 && !assumeYes) {
+    if (!process.stdin.isTTY)
+      fail("Refusing to create resources non-interactively. Re-run with --yes.");
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const answer = (await rl.question("\nCreate the above? [y/N] ")).trim().toLowerCase();
+    rl.close();
+    if (answer !== "y" && answer !== "yes") {
+      out("Aborted.");
+      return;
+    }
+  }
+
+  const wranglerBin = resolveBin(cwd, "wrangler", "wrangler");
+  if (!wranglerBin) fail("Could not find `wrangler` in this project.");
+  for (const s of plan.steps) {
+    out(`\n▸ wrangler ${s.args.join(" ")}`);
+    // A create that fails because the resource exists is fine: the lookup
+    // below finds it, so a re-run after a partial one picks up where it was.
+    spawnSync(process.execPath, [wranglerBin, ...s.args], { cwd, stdio: "inherit" });
+    if (s.kind === "r2") continue;
+    const id =
+      s.kind === "d1"
+        ? lookupId(
+            wranglerBin,
+            cwd,
+            ["d1", "list", "--json"],
+            (rows) => rows.find((r) => r.name === s.name)?.uuid,
+          )
+        : lookupId(
+            wranglerBin,
+            cwd,
+            ["kv", "namespace", "list"],
+            (rows) => rows.find((r) => r.title === s.name)?.id,
+          );
+    if (!id) fail(`Couldn't find the ID of ${s.name} after creating it. Fill it in by hand.`);
+    text = applyProvisionedId(text, s.placeholder, id);
+    writeFileSync(wranglerPath, text);
+    out(`  ↳ ${s.name} = ${id}`);
+  }
+  printSecrets();
+  out("\n✓ Provisioned. Commit wrangler.jsonc; the dashboard steps are in the site's RUNBOOK.");
+}
 
 // `astroid ship` is what Workers Builds runs, so the deploy logic lives in the
 // repository instead of a dashboard field. An account move once rewrote a
@@ -758,6 +847,9 @@ async function main() {
       break;
     case "ship":
       await cmdShip(cwd, rest[0]);
+      break;
+    case "provision":
+      await cmdProvision(cwd, rest);
       break;
     case "help":
     case "--help":

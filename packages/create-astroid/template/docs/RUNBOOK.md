@@ -29,13 +29,15 @@ edit mode.
 
 ## Provisioning (first deploy)
 
-Create the resources, then paste the ids into `wrangler.jsonc`:
+`pnpm exec astroid provision` creates every resource `wrangler.jsonc` still
+names by placeholder and fills in its ID. It asks first; `--dry-run` shows the
+plan. By hand, it's:
 
 ```sh
 wrangler d1 create __KEY__
 wrangler r2 bucket create __KEY__-media
-wrangler kv namespace create RL
-wrangler kv namespace create DRAFTS
+wrangler kv namespace create __KEY__-rl
+wrangler kv namespace create __KEY__-drafts
 ```
 
 <!-- Record anything that was NOT obvious: custom domains, DNS, account ids when
