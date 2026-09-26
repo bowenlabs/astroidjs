@@ -9,3 +9,4 @@ export * from "./scaffold.js";
 export * from "./seed.js";
 export * from "./previews.js";
 export * from "./release.js";
+export * from "./provision.js";
