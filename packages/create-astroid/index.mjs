@@ -148,9 +148,7 @@ function astroidConfigSource(config) {
       : []),
     // Must be emitted, for the same reason the portal is: `astroid generate`
     // rebuilds the middleware and CSP from THIS file, so a config that dropped
-    // `modules` would regenerate a project missing whatever they contribute—for
-    // the map, a policy without `worker-src blob:`, which renders an empty
-    // canvas with no obvious cause.
+    // `modules` would regenerate a project missing whatever they contribute.
     ...(config.modules?.length ? [`  modules: ${JSON.stringify(config.modules)},`] : []),
     // Must be emitted: `astroid generate` rebuilds the middleware from THIS
     // file, so a config that omitted the portal would regenerate a middleware
