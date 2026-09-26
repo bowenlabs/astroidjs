@@ -449,9 +449,8 @@ describe("AstroidConfig.crons (#306)", () => {
   });
 
   it("dispatches every declared cron — the invariant the whole feature is for", () => {
-    // Same check `scripts/ci/checks/crons-dispatched.mjs` runs against a real
-    // scaffold: a trigger with no matching branch is a job Cloudflare fires and
-    // nothing handles, with no error anywhere.
+    // A trigger with no matching branch is a job Cloudflare fires and nothing
+    // handles, with no error anywhere.
     const worker = generateAstroidWorker(withCrons);
     for (const cron of astroidCrons(withCrons)) {
       expect(worker, `cron ${cron} is declared but never dispatched`).toContain(
