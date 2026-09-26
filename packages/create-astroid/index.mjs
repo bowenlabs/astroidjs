@@ -488,10 +488,8 @@ async function main() {
                 ]
               : []),
           ]),
-      "  # provision the Cloudflare bindings, then fill the ids in wrangler.jsonc:",
-      "  wrangler d1 create " + key,
-      "  wrangler r2 bucket create " + key + "-media",
-      "  wrangler kv namespace create RL && wrangler kv namespace create DRAFTS",
+      "  # create the Cloudflare resources wrangler.jsonc names, filling in their ids:",
+      "  pnpm exec astroid provision",
       "  # apply migrations, seed the home page + your first editor:",
       "  wrangler d1 migrations apply DB --remote",
       "  wrangler d1 execute DB --remote --file seed/home.seed.sql",

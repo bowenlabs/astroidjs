@@ -249,10 +249,11 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   p("  // KV: RL = the security rate limiter (it also holds the daily site-health");
   p("  // summary under its own key—one small singleton blob, not worth a binding");
   p("  // someone has to remember to provision); DRAFTS = the autosave write-buffer.");
-  p("  // Create each: `wrangler kv namespace create <RL|DRAFTS>`.");
+  p("  // Named for the project, so two sites in one account don't collide.");
+  p("  // `astroid provision` creates each and fills in its id.");
   p('  "kv_namespaces": [');
-  p('    { "binding": "RL", "id": "<run: wrangler kv namespace create RL>" },');
-  p('    { "binding": "DRAFTS", "id": "<run: wrangler kv namespace create DRAFTS>" },');
+  p(`    { "binding": "RL", "id": "<run: wrangler kv namespace create ${key}-rl>" },`);
+  p(`    { "binding": "DRAFTS", "id": "<run: wrangler kv namespace create ${key}-drafts>" },`);
   p("  ],");
   // Email Sending. NOT optional decoration: `src/env.d.ts` declares EMAIL as a
   // required member, and Better Auth's magic-link path console-logs the link in

@@ -51,6 +51,22 @@ export interface WebhookRouteOptions {
   /** The queue binding, or null/undefined when Queues aren't provisioned. */
   queue?: QueueProducer | null;
   /**
+   * Run a message in the request instead, when `queue` is absent. A staging
+   * Preview leaves the queue unbound, because a queue consumer can't target a
+   * Preview (louise-toolkit ADR 0017), so without this every webhook a Preview
+   * receives answers 503 and the provider retries it forever.
+   *
+   * Pass the same handler the queue consumer runs: `(message) =>
+   * handleQueueMessage(env, message)`. Throwing answers 503, so the provider
+   * redelivers, which is the retry the queue would have given it.
+   *
+   * It's a fallback, not an alternative: a sync that outlasts the provider's
+   * delivery timeout reads to the provider as a failure, which is why
+   * production enqueues. On staging, with a sandbox catalog, that's a fair
+   * trade, and the queue wins whenever both are there.
+   */
+  inline?: (message: AstroidQueueMessage) => Promise<void>;
+  /**
    * Pull the event type out of the parsed payload. Defaults to a `type` field;
    * override for providers that name it differently (Fourthwall's `testMode`
    * envelope, Stripe's nested object).
@@ -123,10 +139,27 @@ export async function handleWebhook(
     return text("Ignored", 202);
   }
 
-  if (!options.queue) return text("Queue not configured", 503);
+  const message: AstroidQueueMessage = {
+    kind: "webhook",
+    provider: options.provider,
+    type,
+    payload,
+  };
+
+  if (!options.queue) {
+    if (!options.inline) return text("Queue not configured", 503);
+    try {
+      await options.inline(message);
+    } catch {
+      // Same contract as a failed send: the event is real, so ask for it again.
+      return text("Processing failed", 503);
+    }
+    // 200, not 202: the work already happened.
+    return text("Processed", 200);
+  }
 
   try {
-    await options.queue.send({ kind: "webhook", provider: options.provider, type, payload });
+    await options.queue.send(message);
   } catch {
     // The signature was good, so this event is real and worth keeping. 503 asks
     // the provider to redeliver rather than dropping it.

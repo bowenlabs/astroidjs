@@ -19,3 +19,6 @@ coverage/
 
 # Vale styles, fetched by `vale sync` from the packages pinned in .vale.ini.
 .vale/
+
+# JetBrains IDE settings, per machine.
+.idea/
