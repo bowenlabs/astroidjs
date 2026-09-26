@@ -21,6 +21,15 @@
 
   **What to do:** run `astroid generate` after upgrading, and commit the regenerated `worker.ts` and the new `.github/workflows/release.yml`; `doctor` reports both until you do. The release workflow does nothing until you move Workers Builds to `deploy/production`, so adding it changes no deploy. The webhook route is scaffolded once, so an existing site adds the `inline` line and the `handleQueueMessage` import (from `src/queue.ts`) to it by hand before it turns Previews on. Nothing changes at runtime for a site whose `MEDIA_URL` matches its `deploy.mediaBase`, which is every site today.
 
+### Patch Changes
+
+- The page sanitizers and the settings action now check images against the running deployment's media base, so a staging Preview keeps the images uploaded on it. They were built once from `deploy.mediaBase`, which names production's media host, so on a Preview, which serves media from its own `/media`, every uploaded image was dropped from page content as a hotlink, and every image setting was rejected.
+
+  - The generated `worker.ts` records `vars.MEDIA_URL` at startup with `setAstroidMediaBase`, and the checks read it through `astroidMediaBase(config)` when they run. An isolate runs one deployment, and `MEDIA_URL` is fixed per deployment, so production still checks against its own host.
+  - New scaffolds' settings action reads `mediaBase` through a getter, and the portfolio gallery builds image URLs from `MEDIA_URL`.
+
+  **What to do:** run `astroid generate` and commit the regenerated `worker.ts`. If your `src/actions/index.ts` passes `mediaBase: astroidConfig.deploy?.mediaBase ?? "/media"` to `louiseSettingsAction`, replace it with `get mediaBase() { return astroidMediaBase(astroidConfig); }`, importing `astroidMediaBase` from `astroidjs`. A portfolio site's gallery page takes the same change the scaffold made: build `src` from `env.MEDIA_URL`.
+
 ## 0.15.0
 
 ### Minor Changes

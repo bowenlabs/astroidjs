@@ -22,6 +22,7 @@
 // `louise-toolkit/src/...`—that resolves only because the workspace aliases the
 // package to its source, and would break the moment astroid consumes a published
 // tarball (#327).
+import { astroidMediaBase } from "./media-base.js";
 import {
   type CollectionConfig,
   type ContentConfig,
@@ -47,10 +48,9 @@ import type { AstroidConfig } from "../config.js";
  * Validated by `defineCollection` at build time, so a malformed field shape throws
  * here rather than at codegen.
  */
-/** The media base a `pages` write sanitizes rich content against (config, `/media` default). */
-function pageMediaBase(config: AstroidConfig): string {
-  return config.deploy?.mediaBase ?? "/media";
-}
+/** The media base a `pages` write sanitizes rich content against, read when the
+ *  write runs so a Preview checks against its own base (see media-base.ts). */
+const pageMediaBase = astroidMediaBase;
 
 /**
  * The section catalog a `pages` write is validated + sanitized against: the
@@ -196,12 +196,11 @@ export function astroidPagesWriteHooks(
   validate: (data: Record<string, unknown>, ctx: AstroidPagesWriteContext) => Promise<void>;
   reservedSlugs: string[];
 } {
-  const mediaBase = pageMediaBase(config);
   return {
     // `body` is a richField, so it goes through pagesRoute's own sanitize seam—with
     // the project media base, matching the hook rather than the toolkit
     // default sanitizer that knows no media base.
-    sanitize: (html) => sanitizeRichHtml(html, { mediaBase }),
+    sanitize: (html) => sanitizeRichHtml(html, { mediaBase: pageMediaBase(config) }),
     // `sections` is not a richField, so it's sanitized here in the transform,
     // which pagesRoute runs BEFORE validate—the hook's sanitize-then-validate
     // order. The site's own transform runs first, so Astroid's sanitize sees
@@ -221,7 +220,6 @@ export function astroidPagesCollection(config: AstroidConfig): CollectionConfig 
   // staged as a draft, so sanitize it on every write—never store raw HTML. A
   // pasted `<img>` pointing off-origin (a hotlink) is dropped: body images must
   // live in the media library. Mirrors the reference site's pages-collection hook.
-  const mediaBase = pageMediaBase(config);
 
   const fields: Record<string, FieldConfig> = {};
   fields.slug = { type: "text", required: true };
@@ -245,7 +243,10 @@ export function astroidPagesCollection(config: AstroidConfig): CollectionConfig 
         async ({ data }) => {
           let next = data;
           if (typeof next.body === "string") {
-            next = { ...next, body: sanitizeRichHtml(next.body, { mediaBase }) };
+            next = {
+              ...next,
+              body: sanitizeRichHtml(next.body, { mediaBase: pageMediaBase(config) }),
+            };
           }
           // Sanitize BEFORE validating: a richText field stores HTML, and
           // validating the raw value would pass content the sanitizer is about
