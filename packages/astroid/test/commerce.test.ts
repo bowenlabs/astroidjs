@@ -710,6 +710,15 @@ describe("catalog sync — failure reporting", () => {
     ).rejects.toThrow(/no such table/);
   });
 
+  it("counts the items it failed on, in words that fit one item or several", async () => {
+    await expect(
+      astroidCatalogSync(items, { db: brokenDb() as never, table: "products" }),
+    ).rejects.toThrow(/failed for all 2 items, so nothing was written/);
+    await expect(
+      astroidCatalogSync(items.slice(0, 1), { db: brokenDb() as never, table: "products" }),
+    ).rejects.toThrow(/failed for the only item, so nothing was written/);
+  });
+
   it("reports a PARTIAL failure without throwing — tolerance is the point", async () => {
     let calls = 0;
     const flaky = {
