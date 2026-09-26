@@ -131,9 +131,17 @@ const STORAGE: StorageKind[] = [
   },
 ];
 
-/** API bindings with no resource behind them: a Preview needs the key, and no
- *  staging resource. */
-const API_BINDINGS = ["ai", "images", "browser", "send_email", "version_metadata"];
+/** Bindings with no staging resource behind them: a Preview needs the key, and
+ *  nothing to provision. A Durable Object namespace is one: Cloudflare gives
+ *  each Preview its own instances of the class. */
+const API_BINDINGS = [
+  "ai",
+  "images",
+  "browser",
+  "send_email",
+  "version_metadata",
+  "durable_objects",
+];
 
 /**
  * Check the `previews` block of a `wrangler.jsonc` against its production
@@ -222,7 +230,11 @@ export function checkWranglerPreviews(text: string): PreviewsFindings {
     findings.ok.push(`previews: all ${Object.keys(prodVars).length} vars have a staging value`);
   }
   for (const key of ["SITE_URL", "MEDIA_URL"]) {
-    if (key in prodVars && stagingVars[key] === prodVars[key]) {
+    const value = prodVars[key];
+    // A path such as `/media` resolves against whichever host serves it, so a
+    // Preview sharing production's path still serves its own bucket.
+    const isOrigin = typeof value === "string" && /^https?:\/\//.test(value);
+    if (key in prodVars && isOrigin && stagingVars[key] === value) {
       findings.errors.push(
         `\`previews.vars.${key}\` is production's (${String(prodVars[key])}), so a Preview ` +
           "links to or serves from production. Point it at staging.",

@@ -102,6 +102,27 @@ describe("checkWranglerPreviews", () => {
     ]);
   });
 
+  it("passes a path MEDIA_URL both share, since each host serves its own bucket", () => {
+    const config = {
+      ...good,
+      vars: { ...good.vars, MEDIA_URL: "/media" },
+    };
+    expect(check(config).errors).toEqual([]);
+  });
+
+  it("fails a Durable Object binding the block doesn't restate", () => {
+    const config = {
+      ...good,
+      durable_objects: { bindings: [{ name: "EDIT_SESSION", class_name: "EditSessionDO" }] },
+    };
+    expect(check(config).errors).toEqual([expect.stringContaining("no `durable_objects` binding")]);
+    const restated = {
+      ...config,
+      previews: { ...config.previews, durable_objects: config.durable_objects },
+    };
+    expect(check(restated).errors).toEqual([]);
+  });
+
   it("fails crons, routes, and queue consumers in the block, which target production only", () => {
     const { errors } = check(
       withPreviews({
