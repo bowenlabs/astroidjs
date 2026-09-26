@@ -124,8 +124,13 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
 }
 
 async function cmdDoctor(cwd, flags) {
-  const { generateAstroidProject, generateAstroidScaffoldFiles, astroidUsesQueues, astroidCrons } =
-    await import(GENERATORS_URL);
+  const {
+    generateAstroidProject,
+    generateAstroidScaffoldFiles,
+    astroidUsesQueues,
+    astroidCrons,
+    checkWranglerPreviews,
+  } = await import(GENERATORS_URL);
   const { config, path: configPath } = await loadConfig(cwd, flags.config);
 
   const problems = []; // { level: "error" | "warn", msg }
@@ -262,6 +267,16 @@ async function cmdDoctor(cwd, flags) {
           `(create the bindings, e.g. \`wrangler d1 create\`, then fill the ids).`,
       );
     }
+  }
+
+  // 2b. Staging: the `previews` block (louise-toolkit ADR 0017). A Preview
+  //     inherits nothing, so a binding left out crashes it and one copied from
+  //     production writes production data; see src/project/previews.ts.
+  if (existsSync(wranglerPath)) {
+    const previews = checkWranglerPreviews(readFileSync(wranglerPath, "utf8"));
+    for (const m of previews.ok) ok(m);
+    for (const m of previews.warnings) warn(m);
+    for (const m of previews.errors) err(m);
   }
 
   // 3. migrations directory: the D1 `migrations_dir` wrangler.jsonc declares,
