@@ -1,5 +1,39 @@
 # astroidjs
 
+## 0.19.0
+
+### Minor Changes
+
+- 8db2d6f: A new scaffold serves every page at its slug. A page an owner made in the Pages panel, such as `about`, used to have nowhere to render: `/about` answered 404 whether or not it was published, while the scaffold's `sitemap.xml` listed it.
+
+  - **`create-astroid`:** the template adds `src/pages/[...slug].astro` and `src/lib/pages.ts`, and the home page now reads through the same `readPage`.
+    - A visitor sees a page only while it's live (louise-toolkit's `isPageLive`); a hidden or never-published page answers the new branded "Page not found" page with a 404 and `noindex`. Because it's a 404, the middleware's `redirectFor` still answers a renamed page's old path with a 301.
+    - An editor in edit mode sees any page with its latest pending draft, and edits and publishes it like the home page.
+    - The head uses the page's own SEO fields, the edge cache follows the home page's rule, and `/home` redirects to `/`.
+    - Edit mode now skips a superseded draft (one at or below the newest published version) instead of resuming it. The home page behaves as before for visitors: it renders whether or not it's published.
+  - **`astroidjs`:** `ASTROID_RESERVED_SLUGS` adds `contact` and `login`, the scaffold's own file routes, which always win over the catch-all. `astroidReservedSlugs(config)` adds `work` on a portfolio, and `astroidPagesWriteHooks` uses it. The Pages route refuses those slugs with a 422, where it used to save a page nobody could reach.
+
+  **What to do:** the template is copied once, so an existing site doesn't get the route automatically. To add it, copy `src/pages/[...slug].astro` and `src/lib/pages.ts` from a new scaffold (`pnpm create astroid@latest`), and optionally point `src/pages/index.astro` at `readPage`. Add the slugs of any file routes of your own to `reservedSlugs` in `src/pages-hooks.ts`. After `astroid generate`, a page already saved as `contact`, `login`, or, on a portfolio, `work` gets a 422 when saved from the Pages panel with its slug. That page was already unreachable, because the file route wins, so rename it.
+
+- 5df2492: A site can serve `contact`, `login`, or `work` as a page with `pages.allowSlugs`. They're reserved because a new scaffold, or a portfolio, has a file route there, but a site without that file serves the path from its own catch-all route, and the Pages route refused every write that included the slug. An owner couldn't change the page's title or SEO in the Pages panel.
+
+  - `pages: { allowSlugs: ["contact"] }` in `defineAstroid` drops the slug from `astroidReservedSlugs`, so `astroidPagesWriteHooks` and the Pages route accept it.
+  - `defineAstroid` accepts only the slugs reserved for a scaffolded file route, exported as `ASTROID_SCAFFOLD_ROUTE_SLUGS`. Allowing `api` or `sitemap.xml` throws, because the platform serves those paths before any page, so a page there would be unreachable.
+
+  **What to do:** if your site has a page at `/contact`, `/login`, or `/work` and no file route of that name, add the slug to `pages.allowSlugs`. The generated worker reads the config at runtime, so nothing needs regenerating.
+
+### Patch Changes
+
+- c18b9b7: The comments, JSDoc, README, and examples no longer name the client sites Astroid's patterns came from. Each one keeps the reason it gave and describes the site generically instead, and the config examples use Google's example conventions: `key: "example"`, "Example Organization", and `example.com`. The JSDoc ships in the `.d.ts` files, so your editor's hover text changes. No code, default, or behavior changed, and there is nothing to do when you upgrade.
+- b57d185: `astroid generate` writes a scaffolded migration where Wrangler applies it. The catalog, page redirects, and alt text migrations always went to `migrations/`, so a site whose `DB` binding sets another `migrations_dir` got files that never ran, and the generated routes then queried a `page_redirects` table that didn't exist.
+
+  - A scaffolded migration goes into the `DB` binding's `migrations_dir`, or `migrations` when the binding sets none.
+  - It keeps its default number when that number is free and past the site's newest migration. Otherwise it takes the next number, so it never shares a number with the site's own migration and never sorts before one that already ran.
+  - A migration the site already has under any number, matched by the name after the number, isn't written again. `astroid doctor` checks for it the same way.
+  - `resolveAstroidScaffoldPaths` and `astroidMigrationsDir` are exported, and `ScaffoldFile` has a new `migration` flag.
+
+  **What to do:** on a site with its own `migrations_dir`, delete the `migrations/0004_page_redirects.sql` and `migrations/0005_media_alt_undecided.sql` that 0.18.0 wrote, and run `astroid generate` again. The two migrations land in your directory, and `astroid ship` applies them. A site that uses the default `migrations` directory has nothing to do.
+
 ## 0.18.0
 
 ### Minor Changes
