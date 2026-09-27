@@ -6,6 +6,7 @@ export {
   ASTROID_DEFAULT_CRON,
   ASTROID_HEALTH_CRON,
   ASTROID_QUEUE_BINDING,
+  ASTROID_QUEUE_RETRY_DELAY,
   type AstroidQueueMessage,
   astroidCron,
   astroidCrons,
@@ -21,6 +22,7 @@ export {
   generateAstroidWebhookRoutes,
 } from "./scaffold.js";
 export {
+  astroidQueue,
   handleWebhook,
   type QueueProducer,
   type WebhookRouteOptions,
