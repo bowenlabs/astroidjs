@@ -1,5 +1,68 @@
 # create-astroid
 
+## 0.9.2
+
+### Patch Changes
+
+- 056555b: The editor's AI assists can now route through AI Gateway, which is off until a site sets it. The generated worker passes `gateway: astroidAiGateway` to `aiRoute` and `seoFixRoute`. `astroidAiGateway(env)` reads the `AI_GATEWAY_ID` var and returns `{ id }`, or `undefined` when the var is unset, empty, or the placeholder, which keeps the direct Workers AI call. Before, no successful AI call was logged anywhere, with no latency, no error rate, and no cache. A gateway gives all three with no toolkit change.
+
+  - `astroidjs` exports `astroidAiGateway` and `ASTROID_AI_GATEWAY_VAR`. `astroidAiGateway` takes `env` as `unknown`, like the toolkit's `aiRunner`, so a site whose `CloudflareEnv` doesn't declare the variable still compiles.
+  - `create-astroid`: new scaffolds declare `"AI_GATEWAY_ID": ""` in `wrangler.jsonc` `vars` and `AI_GATEWAY_ID?: string` in `src/env.d.ts`.
+  - Alt text on upload stays direct, because `mediaRoute` has no gateway option.
+
+  **What to do:** run `astroid generate`. Nothing changes until you set the variable. To turn it on, create a gateway in the Cloudflare dashboard, say on the site's privacy page that the gateway's log holds the text editors send to the assists, then add `"AI_GATEWAY_ID": "<gateway id>"` to `vars` in `wrangler.jsonc`. If `wrangler.jsonc` has a `previews` block, add `"AI_GATEWAY_ID": ""` to `previews.vars` too, since `astroid doctor` requires every var there and an empty value keeps staging text out of the log.
+
+- 808bd57: Every generated worker now mounts louise-toolkit's `statusRoute` at `/api/louise/status`, so an outside probe can tell whether a site is up. It's a public route under ADR 0012, so an anonymous request passes the API gate. It answers 200 when every check passes and 503 when any fails, throws, or times out, with `Cache-Control: no-store`, and reports each check as a boolean, never as error text. Repeated probes reuse one result per isolate for 10 seconds.
+
+  Astroid supplies two checks:
+
+  - **`d1`**: the `DB` binding answers `SELECT 1`.
+  - **`content`**: the home page's `pages` row exists, so the site serves real content rather than the seed-me prompt. It fails on an unseeded database, or one whose migrations never ran.
+
+  A site adds its own checks with `status: { checks: true }` in `defineAstroid`. That scaffolds `src/status-checks.ts` once, and the worker spreads its `statusChecks` after Astroid's two. The scaffolded file shows an `ageCheck` on the last health scan as an example.
+
+  - `create-astroid`'s scaffolded `docs/RUNBOOK.md` gains an "Is it up?" section with the probe URL.
+  - The `louise-toolkit` peer range is unchanged: `statusRoute` and `d1Check` ship in 0.34.0.
+
+  **What to do:** run `astroid generate`. A site that hasn't seeded its home page answers 503 until it does, since that site serves the seed-me prompt rather than content. To watch a site from outside, point your uptime monitor at `https://<your-host>/api/louise/status`.
+
+- 78ca1cc: Astroid moves to louise-toolkit 0.35 and wires three of its opt-ins into every generated site: renamed pages keep their old URL, a Pages panel rename survives a publish, and decorative images leave the Health card's to-do list.
+
+  - **Page redirects (#84):** the generated schema exports louise-toolkit's `pageRedirects` table. `pagesRoute` and `versionsRoute` get `redirects: pageRedirects`, so a slug change records `/old → /new`, and the generated middleware's `redirectFor` answers a request for the old path with a 301. It runs only after the page answered 404, so a page created on the old path wins, and creating one clears the redirect. The visitor's query string carries over.
+  - **Pages panel rename (#83):** `pagesRoute` gets `drafts: { config: pagesCollection, bufferKv: (env) => env.DRAFTS }`, the same config and buffer `versionsRoute` uses. A rename or slug change made in the Pages panel while the page had a pending draft used to come undone at the next publish, which copies the whole draft snapshot onto the live row. Now the change is also saved into the pending draft.
+  - **Decorative alt text (#85):** the generated health scan counts missing alt text with louise-toolkit's `MEDIA_ALT_MISSING_SQL` (`"alt" IS NULL`) instead of `alt IS NULL OR alt = ''`, so an image the owner marked decorative (`""`) leaves the "missing a description" count.
+  - **Two scaffolded migrations,** numbered after the catalog's `0003`: `migrations/0004_page_redirects.sql` creates `page_redirects` (with `IF NOT EXISTS`), and `migrations/0005_media_alt_undecided.sql` is louise-toolkit's `MEDIA_ALT_UNDECIDED_SQL("media")`. That statement turns every existing `''` alt into `NULL`, because `''` used to mean both "not written" and "cleared", so nothing silently becomes decorative. `astroidjs` exports both as `ASTROID_PAGE_REDIRECTS_MIGRATION` and `ASTROID_MEDIA_ALT_MIGRATION`, and `AstroidFrameworkTable` gains `"pageRedirects"`.
+  - The `louise-toolkit` peer range is `^0.35.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.35.0` and `@louise-toolkit/astro` `^0.4.0`, and the adapter pins the toolkit exactly, so a new scaffold installs one copy.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.35 and `@louise-toolkit/astro` to 0.4 along with this release. Before 1.0, a caret range stays within one minor version.
+  2. Run `astroid generate`. It rewrites the trio and writes the two migrations, since a missing scaffold file is always written. Wrangler tracks migrations by filename, so a site that already has its own `0004_…` or `0005_…` keeps both.
+  3. Apply the migrations before the new code serves traffic. `astroid ship` does this on both targets. The alt migration must run before the new count goes live, or every `''` alt counts as decorative. A site with `deploy.migrations: false` needs the app that owns its database to ship the migrations first.
+  4. Read louise-toolkit 0.35's upgrade notes, especially the page lifecycle change (#672). Pages unpublished before 0.35 keep `status = 'published'`, so they're still public. List them with `SELECT id, slug FROM pages WHERE status = 'published' AND published_version_id IS NULL`, and unpublish the ones meant to be hidden. A write of `status` through `pagesRoute` now gets a 422; use publish and unpublish instead.
+
+- f20d9b1: Astroid moves to louise-toolkit 0.36 and @louise-toolkit/astro 0.5. Nothing in the generated trio changes; this release lets a site take the toolkit's new features without installing a second copy of it.
+
+  - The `louise-toolkit` peer range is `^0.36.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.36.0` and `@louise-toolkit/astro` `^0.5.0`.
+  - Among what 0.36 adds: `<Form>` posts without its script, `sitemap.xml` and `robots.txt` from the published pages, JSON-LD from settings and commerce, a health scan that crawls the site, and `SquareCatalogItem.images`, which lists every image on a Square item instead of only the primary.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.36 and `@louise-toolkit/astro` to 0.5 along with this release. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Run `astroid generate`, then `astroid doctor`.
+  3. Read louise-toolkit 0.36's upgrade notes. The ones a site is likely to meet: form validation messages changed, a `number` field in `<Form>` renders as a text input with `inputmode="decimal"`, and the editor's Hepta Slab font token is gone.
+
+- Updated dependencies [056555b]
+- Updated dependencies [b9ca406]
+- Updated dependencies [9f6bb98]
+- Updated dependencies [e9ffee1]
+- Updated dependencies [8022ef2]
+- Updated dependencies [e4fa179]
+- Updated dependencies [808bd57]
+- Updated dependencies [78ca1cc]
+- Updated dependencies [f20d9b1]
+  - astroidjs@0.18.0
+
 ## 0.9.1
 
 ### Patch Changes

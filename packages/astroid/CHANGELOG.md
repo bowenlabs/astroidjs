@@ -1,5 +1,125 @@
 # astroidjs
 
+## 0.18.0
+
+### Minor Changes
+
+- 056555b: The editor's AI assists can now route through AI Gateway, which is off until a site sets it. The generated worker passes `gateway: astroidAiGateway` to `aiRoute` and `seoFixRoute`. `astroidAiGateway(env)` reads the `AI_GATEWAY_ID` var and returns `{ id }`, or `undefined` when the var is unset, empty, or the placeholder, which keeps the direct Workers AI call. Before, no successful AI call was logged anywhere, with no latency, no error rate, and no cache. A gateway gives all three with no toolkit change.
+
+  - `astroidjs` exports `astroidAiGateway` and `ASTROID_AI_GATEWAY_VAR`. `astroidAiGateway` takes `env` as `unknown`, like the toolkit's `aiRunner`, so a site whose `CloudflareEnv` doesn't declare the variable still compiles.
+  - `create-astroid`: new scaffolds declare `"AI_GATEWAY_ID": ""` in `wrangler.jsonc` `vars` and `AI_GATEWAY_ID?: string` in `src/env.d.ts`.
+  - Alt text on upload stays direct, because `mediaRoute` has no gateway option.
+
+  **What to do:** run `astroid generate`. Nothing changes until you set the variable. To turn it on, create a gateway in the Cloudflare dashboard, say on the site's privacy page that the gateway's log holds the text editors send to the assists, then add `"AI_GATEWAY_ID": "<gateway id>"` to `vars` in `wrangler.jsonc`. If `wrangler.jsonc` has a `previews` block, add `"AI_GATEWAY_ID": ""` to `previews.vars` too, since `astroid doctor` requires every var there and an empty value keeps staging text out of the log.
+
+- 9f6bb98: `astroidjs` exports `ASTROID_GENERATED_FILES`, the paths of the regenerated trio (`src/schema.ts`, `src/worker.ts`, and `src/middleware.ts`), so a site can keep Astroid's generated code out of its test coverage. Those files are Astroid's code, tested here. Counting them in a site's coverage measured Astroid's release notes: a release that added lines to `src/worker.ts` dropped one site under its coverage floor with no change of its own. `generateAstroidProject` writes exactly this list, and a test holds the two together, so a generated file added in a later release joins the list too.
+
+  **What to do:** if your site measures coverage, spread the list into `coverage.exclude` in `vitest.config.ts`:
+
+  ```ts
+  import { ASTROID_GENERATED_FILES } from "astroidjs";
+  import { coverageConfigDefaults, defineConfig } from "vitest/config";
+
+  export default defineConfig({
+    test: {
+      coverage: { exclude: [...coverageConfigDefaults.exclude, ...ASTROID_GENERATED_FILES] },
+    },
+  });
+  ```
+
+  This usually raises your measured coverage, so a ratchet can move its floor up. A site that already excludes the trio by hand can switch to the list. The CLI guide's "Keep the generated files out of coverage" section has the details.
+
+- 8022ef2: Every queue producer can now run on a staging Preview, and the queue owns retries.
+
+  **`astroidQueue(queue, handler)`** returns the queue binding when it's bound, and otherwise a stand-in producer that runs `handler` on each message in the request. A Preview leaves the queue unbound, because a queue consumer can't target one, so any route that sent straight to `COMMERCE_QUEUE` (a checkout's follow-up work, a second webhook receiver) threw there. It's typed structurally like `QueueProducer`, so a real `Queue<T>` satisfies it. Running inline lasts only as long as the request, with no retry and no dead-letter queue, so it's a Preview fallback, not a production path.
+
+  - The scaffolded `src/queue.ts` exports `commerceQueue(env)`, built on `astroidQueue` with the consumer's own `handleQueueMessage`.
+  - The scaffolded webhook receiver passes `queue: commerceQueue(env)` instead of `queue` plus `inline`. On a Preview, a processed event now answers 202 rather than 200, and a failure still answers 503. `handleWebhook`'s `inline` option still works for sites that use it.
+
+  **Retries (#61).** The consumer seam used to advise Square sites to pass `retry: { attempts: 3 }` to the client, while the queue redelivered up to 5 times with no delay: up to 24 Square calls for one message, with no wait between deliveries. The seam now says to leave client retries off and let the queue retry. The generated `wrangler.jsonc` consumer sets `"retry_delay": 30`, which a new `queues.retryDelay` option changes, and `ASTROID_QUEUE_RETRY_DELAY` exports the default. A consumer that sets its own delay per message, as louise-toolkit's `processBatch` will once its backoff ships, overrides it.
+
+  **What to do:** `src/queue.ts`, the webhook receivers, and `wrangler.jsonc` are scaffolded once, so existing sites don't get these changes automatically.
+
+  1. Add `commerceQueue` to `src/queue.ts`:
+
+     ```ts
+     import { astroidQueue } from "astroidjs";
+
+     export function commerceQueue(env: CloudflareEnv) {
+       return astroidQueue(env.COMMERCE_QUEUE, (message) => handleQueueMessage(env, message));
+     }
+     ```
+
+  2. Send every message through `commerceQueue(env)` rather than `env.COMMERCE_QUEUE`, and in each webhook receiver replace `queue: env.COMMERCE_QUEUE, inline: …` with `queue: commerceQueue(env)`.
+  3. Add `"retry_delay": 30` to the consumer in `wrangler.jsonc`.
+  4. If a queue handler turns on `retry: { attempts: … }` in `SquareConfig`, remove it.
+
+- e4fa179: An app whose D1 database another app migrates can now skip migrations. Set `deploy: { platform: "cloudflare", migrations: false }` in `defineAstroid`, and `astroid ship production` and `astroid ship preview` print one line saying migrations are skipped, then deploy as before. `astroid deploy` skips its migrations step the same way.
+
+  Two Workers in one repository that bind the same database, such as a marketing site and an order-ahead app, used to both migrate. One release tag deploys both in no guaranteed order, and nothing serializes two `wrangler d1 migrations apply` runs against one ledger, so both could apply the same migration, and a non-idempotent statement such as `ALTER TABLE … ADD COLUMN` failed the second deploy.
+
+  `astroid doctor` no longer warns about a missing migrations directory for an app with `migrations: false`. Instead, it fails when that app's `wrangler.jsonc` still declares a `migrations_dir`, since that contradiction means someone expects the app to migrate.
+
+  - `astroidjs` exports `astroidShipPlan`, `astroidRunsMigrations`, `migrationsOwnershipError`, `ASTROID_SKIP_MIGRATIONS_NOTE`, `ASTROID_PREVIEW_MIGRATIONS_CONFIG`, and the `ShipStep` type. `astroid ship` runs the plan `astroidShipPlan` returns, and it now loads `astroid.config.ts` to read the option.
+
+  **What to do:** nothing, unless your site runs two apps on one database. The default is unchanged, and every existing project still migrates on both targets. If yours does, set `migrations: false` on the app that doesn't own the schema and remove `migrations_dir` from its `wrangler.jsonc`. The Releases guide explains the release order that shared schema requires.
+
+- 808bd57: Every generated worker now mounts louise-toolkit's `statusRoute` at `/api/louise/status`, so an outside probe can tell whether a site is up. It's a public route under ADR 0012, so an anonymous request passes the API gate. It answers 200 when every check passes and 503 when any fails, throws, or times out, with `Cache-Control: no-store`, and reports each check as a boolean, never as error text. Repeated probes reuse one result per isolate for 10 seconds.
+
+  Astroid supplies two checks:
+
+  - **`d1`**: the `DB` binding answers `SELECT 1`.
+  - **`content`**: the home page's `pages` row exists, so the site serves real content rather than the seed-me prompt. It fails on an unseeded database, or one whose migrations never ran.
+
+  A site adds its own checks with `status: { checks: true }` in `defineAstroid`. That scaffolds `src/status-checks.ts` once, and the worker spreads its `statusChecks` after Astroid's two. The scaffolded file shows an `ageCheck` on the last health scan as an example.
+
+  - `create-astroid`'s scaffolded `docs/RUNBOOK.md` gains an "Is it up?" section with the probe URL.
+  - The `louise-toolkit` peer range is unchanged: `statusRoute` and `d1Check` ship in 0.34.0.
+
+  **What to do:** run `astroid generate`. A site that hasn't seeded its home page answers 503 until it does, since that site serves the seed-me prompt rather than content. To watch a site from outside, point your uptime monitor at `https://<your-host>/api/louise/status`.
+
+- 78ca1cc: Astroid moves to louise-toolkit 0.35 and wires three of its opt-ins into every generated site: renamed pages keep their old URL, a Pages panel rename survives a publish, and decorative images leave the Health card's to-do list.
+
+  - **Page redirects (#84):** the generated schema exports louise-toolkit's `pageRedirects` table. `pagesRoute` and `versionsRoute` get `redirects: pageRedirects`, so a slug change records `/old → /new`, and the generated middleware's `redirectFor` answers a request for the old path with a 301. It runs only after the page answered 404, so a page created on the old path wins, and creating one clears the redirect. The visitor's query string carries over.
+  - **Pages panel rename (#83):** `pagesRoute` gets `drafts: { config: pagesCollection, bufferKv: (env) => env.DRAFTS }`, the same config and buffer `versionsRoute` uses. A rename or slug change made in the Pages panel while the page had a pending draft used to come undone at the next publish, which copies the whole draft snapshot onto the live row. Now the change is also saved into the pending draft.
+  - **Decorative alt text (#85):** the generated health scan counts missing alt text with louise-toolkit's `MEDIA_ALT_MISSING_SQL` (`"alt" IS NULL`) instead of `alt IS NULL OR alt = ''`, so an image the owner marked decorative (`""`) leaves the "missing a description" count.
+  - **Two scaffolded migrations,** numbered after the catalog's `0003`: `migrations/0004_page_redirects.sql` creates `page_redirects` (with `IF NOT EXISTS`), and `migrations/0005_media_alt_undecided.sql` is louise-toolkit's `MEDIA_ALT_UNDECIDED_SQL("media")`. That statement turns every existing `''` alt into `NULL`, because `''` used to mean both "not written" and "cleared", so nothing silently becomes decorative. `astroidjs` exports both as `ASTROID_PAGE_REDIRECTS_MIGRATION` and `ASTROID_MEDIA_ALT_MIGRATION`, and `AstroidFrameworkTable` gains `"pageRedirects"`.
+  - The `louise-toolkit` peer range is `^0.35.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.35.0` and `@louise-toolkit/astro` `^0.4.0`, and the adapter pins the toolkit exactly, so a new scaffold installs one copy.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.35 and `@louise-toolkit/astro` to 0.4 along with this release. Before 1.0, a caret range stays within one minor version.
+  2. Run `astroid generate`. It rewrites the trio and writes the two migrations, since a missing scaffold file is always written. Wrangler tracks migrations by filename, so a site that already has its own `0004_…` or `0005_…` keeps both.
+  3. Apply the migrations before the new code serves traffic. `astroid ship` does this on both targets. The alt migration must run before the new count goes live, or every `''` alt counts as decorative. A site with `deploy.migrations: false` needs the app that owns its database to ship the migrations first.
+  4. Read louise-toolkit 0.35's upgrade notes, especially the page lifecycle change (#672). Pages unpublished before 0.35 keep `status = 'published'`, so they're still public. List them with `SELECT id, slug FROM pages WHERE status = 'published' AND published_version_id IS NULL`, and unpublish the ones meant to be hidden. A write of `status` through `pagesRoute` now gets a 422; use publish and unpublish instead.
+
+- f20d9b1: Astroid moves to louise-toolkit 0.36 and @louise-toolkit/astro 0.5. Nothing in the generated trio changes; this release lets a site take the toolkit's new features without installing a second copy of it.
+
+  - The `louise-toolkit` peer range is `^0.36.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.36.0` and `@louise-toolkit/astro` `^0.5.0`.
+  - Among what 0.36 adds: `<Form>` posts without its script, `sitemap.xml` and `robots.txt` from the published pages, JSON-LD from settings and commerce, a health scan that crawls the site, and `SquareCatalogItem.images`, which lists every image on a Square item instead of only the primary.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.36 and `@louise-toolkit/astro` to 0.5 along with this release. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Run `astroid generate`, then `astroid doctor`.
+  3. Read louise-toolkit 0.36's upgrade notes. The ones a site is likely to meet: form validation messages changed, a `number` field in `<Form>` renders as a text input with `inputmode="decimal"`, and the editor's Hepta Slab font token is gone.
+
+### Patch Changes
+
+- b9ca406: `astroid build` now removes `legacy_env` from the Worker config that `@astrojs/cloudflare` writes. Some adapter versions write `legacy_env: true` from the Wrangler they bundle, and current Wrangler rejects the field, so a Workers Builds deploy running a newer Wrangler failed on the build's own output. `true` was always the default, so removing it changes nothing else.
+
+  After a successful `astro build`, it finds the built config the way Wrangler does, through the `configPath` in `.wrangler/deploy/config.json`, falling back to `dist/server/wrangler.json`. It deletes only `legacy_env`, only when present, keeps every other key and the file's indentation, and logs one line when it removes the field. When the file is missing or unreadable, it warns and the build still succeeds. A failed `astro build` keeps its exit code, and its output is left alone.
+
+  - `astroidjs` exports `builtWranglerConfigPath`, `stripLegacyEnv`, `ASTROID_BUILT_WRANGLER_CONFIG`, and `WRANGLER_DEPLOY_REDIRECT`.
+
+  **What to do:** if your repository deletes `legacy_env` after the build itself, for example with a script run after `build`, you can remove that step. Sites that build with `astroid build` need no other change.
+
+- e9ffee1: The generated `scheduled` handler now reports a failed site-health scan instead of discarding it. It used to run the scan with `.catch(() => {})`, so a scan that threw left no log line, and the Health panel kept showing the last good result with nothing to say it was stale. The handler now passes the error to louise-toolkit's `reportDegraded("health.scan", error)`, which logs one `[louise] degraded health.scan: …` line and reaches any `onDegraded` listener the site registers. A failed scan still doesn't retry the cron.
+
+  The comment on the generated `aiRoute` now names the toolkit's four rewrite modes (tighten, rephrase, simplify, and fix) instead of "rewrite/expand/shorten."
+
+  **What to do:** run `astroid generate` to rewrite `src/worker.ts`. To find failed scans in Workers Logs, search for `[louise] degraded health.scan`.
+
 ## 0.17.0
 
 ### Minor Changes
