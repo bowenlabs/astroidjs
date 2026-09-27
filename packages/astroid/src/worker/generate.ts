@@ -209,6 +209,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     p('import { aiRunner } from "louise-toolkit/ai";');
   }
   p('import { checkLinks } from "louise-toolkit/browser";');
+  p('import { reportDegraded } from "louise-toolkit/errors";');
   p(
     'import { readHealthSummary, summarizeHealth, writeHealthSummary } from "louise-toolkit/health";',
   );
@@ -508,7 +509,11 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p(`    if (controller.cron === ${JSON.stringify(ASTROID_HEALTH_CRON)}) {`);
   p("      // Daily site-health scan. `waitUntil` because the crawl outlives the");
   p("      // handler's return, and a scan that throws must not retry the cron.");
-  p("      ctx.waitUntil(runHealthScan(env).catch(() => {}));");
+  p("      // Reported rather than swallowed: the Health panel keeps showing the");
+  p("      // last good scan, so this log line is the only sign that one failed.");
+  p(
+    '      ctx.waitUntil(runHealthScan(env).catch((error) => reportDegraded("health.scan", error)));',
+  );
   p("      return;");
   p("    }");
   if (cron) {
