@@ -68,6 +68,7 @@ corepack pnpm run lint:solid
 corepack pnpm run fmt:check
 corepack pnpm run knip
 corepack pnpm run lint:release
+corepack pnpm run lint:names
 corepack pnpm --package=@vvago/vale@3.17.1 dlx vale sync   # once per pin, into .vale/
 corepack pnpm run lint:docs
 corepack pnpm run typecheck

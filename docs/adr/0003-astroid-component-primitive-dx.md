@@ -6,6 +6,11 @@
 > and renumbering would break every one of those citations silently. The
 > louise-toolkit copy is a tombstone pointing here.
 
+> **Amended (2026-09-27).** The Context section named the client sites this
+> prop surface serves. It now refers to them generically, because this
+> repository is public and names no client site (#34). The decision and its
+> reasoning are unchanged.
+
 - **Status:** Proposed (2026-07-17)
 - **Deciders:** Baylee (solo maintainer)
 - **Related:** ADR 0001 (opinionated Astro-on-Cloudflare, fully typed); astroid
@@ -32,8 +37,8 @@ section and per repo.
 Astroid roadmap item #4 turns that hand-work into four shipped primitives
 (`<Section>`, `<Editable>`, `<Collection>`, and the section-library components
 behind `SectionKind`). Those are a **public, opinionated API**—a solo
-maintainer will live with their prop surface across coracle, ghostfire, and
-themidwestartist. Astro `.astro` components plus TypeScript give real leverage
+maintainer will live with their prop surface across every client site Astroid
+serves. Astro `.astro` components plus TypeScript give real leverage
 here (polymorphic elements, union-literal props, types derived from token maps,
 typed attribute spreading), but only if applied deliberately. This ADR records
 that DX standard so the primitives are self-documenting, autocompleting, and hard

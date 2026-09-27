@@ -3,7 +3,7 @@
 // Server-authoritative checkout.
 //
 // A cart arrives from the browser, so every number in it is a claim, not a fact.
-// The rule this encodes—taken from coracle.coffee's working checkout—is that
+// The rule this encodes—taken from a client site's working checkout—is that
 // the client's price is a **staleness check**, never an input to the charge:
 // look the price up server-side, and if it disagrees with what the customer was
 // shown, refuse rather than silently charging a different amount. Refusing is

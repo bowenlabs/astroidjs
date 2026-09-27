@@ -9,9 +9,9 @@
 // happens to do both. A single `CommerceProvider` abstraction that assumed
 // catalog + checkout would therefore have a permanent hole wherever Stripe sits.
 //
-// That's not hypothetical. themidwestartist.com runs Stripe for **invoicing**
-// (commissions, originals) alongside Fourthwall for the **storefront**
-// (merch)—two providers, one site, each doing the half it can do.
+// A site that invoices through one provider (commissions, originals) and runs
+// its storefront through another (merch) needs exactly this: two providers,
+// one site, each doing the half it can do.
 //
 // So a project assigns providers to roles, and Astroid validates the assignment
 // against what each provider's client can actually serve.

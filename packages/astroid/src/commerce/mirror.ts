@@ -12,7 +12,7 @@
 // What the sites did NOT agree on is how much to store, and it turns out to be
 // one primitive with two settings rather than two designs:
 //
-//   mirror: pulled + owned columns both live in D1 (themidwestartist.com).
+//   mirror: pulled + owned columns both live in D1.
 //              Reads are one local query. The catalog can be stale between syncs.
 //   overlay: only the owned columns live in D1, keyed by the provider's id.
 //              The catalog is read live from the provider and joined at read
@@ -20,9 +20,10 @@
 //              (cache accordingly).
 //   live: Astroid manages NO catalog table at all: the catalog is read live
 //              from the provider (cached), and any owner-side overlay table is
-//              the SITE's own (coracle.coffee's `product_display_meta`, declared
-//              in schema.site.ts and joined in the site's loader). Use when the
-//              existing overlay shape predates Astroid and must be preserved 1:1.
+//              the SITE's own (for example, a `product_display_meta` table
+//              declared in schema.site.ts and joined in the site's loader).
+//              Use when the existing overlay shape predates Astroid and must
+//              be preserved 1:1.
 //
 // `overlay` is just `mirror` with an empty pulled set; `live` emits neither table
 // nor migration. One generator serves all three and a project switches by one word.

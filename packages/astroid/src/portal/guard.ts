@@ -2,7 +2,7 @@
 //
 // Role-gated routing for the portal.
 //
-// coracle and ghostfire independently built the same thing: a declarative table
+// Two client sites independently built the same thing: a declarative table
 // of `prefix → roles`, walked once per request. Declarative rather than a guard
 // call inside each page, because a guard you have to remember to write is a
 // guard someone eventually forgets—and the page that forgets it is the one

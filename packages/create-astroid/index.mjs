@@ -4,7 +4,7 @@
 // `create-astroid`—scaffold a new Astroid site in one command:
 //
 //   pnpm create astroid@latest my-site
-//   pnpm create astroid@latest my-site --key coracle --name "Coracle Coffee" --color "#1f6f78" --host coracle.coffee
+//   pnpm create astroid@latest my-site --key example --name "Example Organization" --color "#5b4bff" --host example.com
 //
 // It writes the floor: the `defineAstroid` config, the generated
 // schema/worker/middleware trio + wrangler.jsonc (via astroidjs), the Better Auth

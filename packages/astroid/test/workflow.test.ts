@@ -74,7 +74,7 @@ const base = (over: Partial<Parameters<typeof advanceWorkflowStage>[0]> = {}) =>
   table: "orders",
   auditTable: "orders_signoffs",
   auditIdColumn: "order_id",
-  id: "GF-1",
+  id: "ORD-1",
   expectedStage: 0,
   stageCount: 4,
   actor: { initials: "bb" },
@@ -83,17 +83,17 @@ const base = (over: Partial<Parameters<typeof advanceWorkflowStage>[0]> = {}) =>
 
 describe("advanceWorkflowStage", () => {
   it("advances one stage and records who did it", async () => {
-    const stub = db({ id: "GF-1", stage: 0 });
+    const stub = db({ id: "ORD-1", stage: 0 });
     const result = await advanceWorkflowStage({ ...base(), db: stub });
 
     expect(result).toEqual({ ok: true, stage: 1, complete: false });
     expect(stub.stage).toBe(1);
     // Initials are normalized on the way in.
-    expect(stub.audit).toEqual([{ id: "GF-1", stage: 0, specs: null, initials: "BB" }]);
+    expect(stub.audit).toEqual([{ id: "ORD-1", stage: 0, specs: null, initials: "BB" }]);
   });
 
   it("reports completion when the last stage is signed", async () => {
-    const stub = db({ id: "GF-1", stage: 3 });
+    const stub = db({ id: "ORD-1", stage: 3 });
     const result = await advanceWorkflowStage({ ...base({ expectedStage: 3 }), db: stub });
     expect(result).toEqual({ ok: true, stage: 4, complete: true });
   });
@@ -101,7 +101,7 @@ describe("advanceWorkflowStage", () => {
   it("409s the SECOND of two operators signing the same stage", async () => {
     // The failure this module exists to prevent: two stations, one job, both
     // pressing sign-off. Without the guard the item runs forward twice.
-    const stub = db({ id: "GF-1", stage: 2 });
+    const stub = db({ id: "ORD-1", stage: 2 });
     const first = await advanceWorkflowStage({ ...base({ expectedStage: 2 }), db: stub });
     const second = await advanceWorkflowStage({ ...base({ expectedStage: 2 }), db: stub });
 
@@ -114,7 +114,7 @@ describe("advanceWorkflowStage", () => {
   });
 
   it("names the real stage in the conflict, so the operator can recover", async () => {
-    const stub = db({ id: "GF-1", stage: 3 });
+    const stub = db({ id: "ORD-1", stage: 3 });
     const result = await advanceWorkflowStage({ ...base({ expectedStage: 1 }), db: stub });
     expect(result).toMatchObject({ ok: false, status: 409 });
     if (!result.ok) expect(result.error).toContain("stage 3");
@@ -123,20 +123,20 @@ describe("advanceWorkflowStage", () => {
   it("writes NO audit row when the advance was refused", async () => {
     // The ordering bug in the reference: it inserted the sign-off first, so a
     // stale submit recorded work that never happened.
-    const stub = db({ id: "GF-1", stage: 3 });
+    const stub = db({ id: "ORD-1", stage: 3 });
     await advanceWorkflowStage({ ...base({ expectedStage: 0 }), db: stub });
     expect(stub.audit).toEqual([]);
   });
 
   it("guards the UPDATE itself rather than checking first", async () => {
-    const stub = db({ id: "GF-1", stage: 0 });
+    const stub = db({ id: "ORD-1", stage: 0 });
     await advanceWorkflowStage({ ...base(), db: stub });
     // The very first statement must be the guarded write—a SELECT-then-UPDATE
     // leaves a window between the two.
     expect(stub.calls[0].sql).toMatch(
       /^UPDATE orders SET stage = \? WHERE id = \? AND stage = \?$/,
     );
-    expect(stub.calls[0].binds).toEqual([1, "GF-1", 0]);
+    expect(stub.calls[0].binds).toEqual([1, "ORD-1", 0]);
   });
 
   it("404s a row that no longer exists", async () => {
@@ -148,7 +148,7 @@ describe("advanceWorkflowStage", () => {
   });
 
   it("422s missing initials and an out-of-range stage", async () => {
-    const stub = db({ id: "GF-1", stage: 0 });
+    const stub = db({ id: "ORD-1", stage: 0 });
     expect(
       await advanceWorkflowStage({ ...base({ actor: { initials: "  " } }), db: stub }),
     ).toMatchObject({ ok: false, status: 422 });
@@ -165,7 +165,7 @@ describe("advanceWorkflowStage", () => {
   });
 
   it("stores recorded specs as JSON", async () => {
-    const stub = db({ id: "GF-1", stage: 0 });
+    const stub = db({ id: "ORD-1", stage: 0 });
     await advanceWorkflowStage({
       ...base({ specs: [{ k: "Brew ratio", v: "1:4.2" }] }),
       db: stub,
@@ -201,7 +201,7 @@ describe("overrideWorkflowStage", () => {
   });
 
   it("sends an item back and reopens that stage's sign-off", async () => {
-    const stub = db({ id: "GF-1", stage: 2 });
+    const stub = db({ id: "ORD-1", stage: 2 });
     await advanceWorkflowStage({ ...base({ expectedStage: 2 }), db: stub }); // now at 3, audit@2
     expect(stub.audit).toHaveLength(1);
 
@@ -214,11 +214,11 @@ describe("overrideWorkflowStage", () => {
     // The sign-off for the reopened stage is gone—otherwise the audit trail
     // would claim work that was undone.
     expect(stub.audit).toEqual([]);
-    expect(stub.overrides).toEqual([{ id: "GF-1", action: "back", initials: "BB" }]);
+    expect(stub.overrides).toEqual([{ id: "ORD-1", action: "back", initials: "BB" }]);
   });
 
   it("skips a stage forward without writing a sign-off for it", async () => {
-    const stub = db({ id: "GF-1", stage: 1 });
+    const stub = db({ id: "ORD-1", stage: 1 });
     const result = await overrideWorkflowStage({
       ...overrideBase({ action: "skip", expectedStage: 1 }),
       db: stub,
@@ -230,7 +230,7 @@ describe("overrideWorkflowStage", () => {
   });
 
   it("refuses to go back past the start or forward past the end", async () => {
-    const atStart = db({ id: "GF-1", stage: 0 });
+    const atStart = db({ id: "ORD-1", stage: 0 });
     expect(
       await overrideWorkflowStage({
         ...overrideBase({ action: "back", expectedStage: 0 }),
@@ -238,7 +238,7 @@ describe("overrideWorkflowStage", () => {
       }),
     ).toMatchObject({ ok: false, status: 422 });
 
-    const done = db({ id: "GF-1", stage: 4 });
+    const done = db({ id: "ORD-1", stage: 4 });
     expect(
       await overrideWorkflowStage({
         ...overrideBase({ action: "skip", expectedStage: 4 }),
@@ -248,7 +248,7 @@ describe("overrideWorkflowStage", () => {
   });
 
   it("409s a stale override the same way an advance does", async () => {
-    const stub = db({ id: "GF-1", stage: 3 });
+    const stub = db({ id: "ORD-1", stage: 3 });
     expect(
       await overrideWorkflowStage({
         ...overrideBase({ action: "back", expectedStage: 1 }),

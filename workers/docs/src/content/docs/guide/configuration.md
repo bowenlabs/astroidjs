@@ -14,9 +14,9 @@ into `src/schema.ts`, `src/worker.ts`, and `src/middleware.ts`.
 import { defineAstroid } from "astroidjs";
 
 export default defineAstroid({
-  key: "coracle",
+  key: "example",
   archetype: "storefront",
-  theme: { name: "Coracle Coffee", colors: { brand: "#1f6f78" } },
+  theme: { name: "Example Organization", colors: { brand: "#5b4bff" } },
   sections: ["hero", "banner", "productGrid", "locationHours", "contact"],
   commerce: { provider: "square" },
   deploy: { platform: "cloudflare" },

@@ -241,7 +241,7 @@ describe("astroidPagesWriteHooks — block catalog (ADR 0005)", () => {
 });
 
 describe("site sectionCatalog injection (FW-2)", () => {
-  // A site with bespoke sections (coracle's `homeHero` etc.) registers its own
+  // A site with bespoke sections (a `homeHero` and the like) registers its own
   // catalog; the write hooks must then validate ITS `_type`s, not the built-in
   // vocabulary—and still reject anything outside the site's own catalog.
   const siteConfig: AstroidConfig = {

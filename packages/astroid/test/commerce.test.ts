@@ -53,7 +53,7 @@ describe("commerce roles", () => {
     expect(astroidCommerceRoles({ provider: "stripe" })).toEqual({ invoicing: "stripe" });
   });
 
-  it("supports two providers at once — the tma topology", () => {
+  it("supports two providers at once — invoicing beside a storefront", () => {
     const roles = astroidCommerceRoles({ storefront: "fourthwall", invoicing: "stripe" });
     expect(roles).toEqual({ storefront: "fourthwall", invoicing: "stripe" });
     expect(astroidCommerceProviders({ storefront: "fourthwall", invoicing: "stripe" })).toEqual([
@@ -98,7 +98,7 @@ describe("catalog mirror schema", () => {
   });
 
   it("emits ONLY owned columns in overlay mode", () => {
-    // coracle's product_display_meta: the catalog stays at the provider.
+    // A site-named overlay table: the catalog stays at the provider.
     const sql =
       generateCatalogTable(
         shop({ provider: "square", catalog: { mode: "overlay", table: "product_display_meta" } }),
@@ -111,7 +111,7 @@ describe("catalog mirror schema", () => {
   });
 
   it("emits NO table or migration in live mode", () => {
-    // coracle's model: no Astroid-managed catalog table—the catalog is read
+    // A live-catalog site: no Astroid-managed catalog table—the catalog is read
     // live (KV-cached) from Square and any overlay table is the site's own
     // (product_display_meta in schema.site.ts).
     const cfg = shop({ provider: "square", catalog: { mode: "live" } });
@@ -1099,7 +1099,7 @@ describe("commerce role: pos", () => {
     expect(() => assertCommerceRoles({ pos: "square" })).not.toThrow();
   });
 
-  it("still accepts the real themidwestartist.com shape", () => {
+  it("still accepts a real multi-rail artist-site shape", () => {
     expect(() =>
       assertCommerceRoles({
         storefront: "fourthwall",

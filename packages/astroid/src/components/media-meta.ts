@@ -9,7 +9,7 @@
 //
 // So the whole page is resolved in ONE bounded `IN (...)` lookup before anything
 // renders, and the result is threaded down as `mediaMeta`. This is the pattern
-// ghostfire's `Sections.astro` arrived at independently, generalized.
+// a client site's `Sections.astro` arrived at independently, generalized.
 //
 // The collection step is SCHEMA-DRIVEN: it walks the catalog looking for fields
 // of `type: "image"` rather than hardcoding field names. That's what keeps it

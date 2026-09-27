@@ -35,17 +35,16 @@ project:** every site Astroid targets serves a single brand from a single deploy
 so the config describes one brand, not an array. What actually multiplexes is
 _editors_ (Louise's org plugin) and _audiences_ (a gated portal beside the public
 site)—both options on the one brand. The vocabulary is drawn from the real
-sites Astroid targets: a storefront (coracle.coffee), a wholesale front
-(ghostfire.coffee), an artist portfolio (themidwestartist.com), and a plain
-marketing baseline (louise-web).
+sites Astroid was built from: a storefront, a wholesale front, an artist
+portfolio, and a plain marketing baseline.
 
 ```ts
 import { defineAstroid } from "astroidjs";
 
 export default defineAstroid({
-  key: "coracle",
+  key: "example",
   archetype: "storefront",
-  theme: { name: "Coracle Coffee", colors: { brand: "#1f6f78" } },
+  theme: { name: "Example Organization", colors: { brand: "#5b4bff" } },
   sections: ["hero", "banner", "productGrid", "locationHours", "contact"],
   commerce: { provider: "square" },
   deploy: { platform: "cloudflare" },
@@ -56,9 +55,9 @@ A portfolio with a gated client area, for contrast:
 
 ```ts
 export default defineAstroid({
-  key: "megbowen",
+  key: "example-studio",
   archetype: "portfolio",
-  theme: { name: "Meg Bowen Studio", colors: { brand: "#2b2b2b" } },
+  theme: { name: "Example Studio", colors: { brand: "#2b2b2b" } },
   sections: ["hero", "gallery", "aboutIntro", "contact"],
   portal: { enabled: true },
   // The masters ARE the product here: 40 MB camera files upload once and only

@@ -10,7 +10,7 @@
 // expected—`UPDATE … SET stage = ? WHERE id = ? AND stage = ?`—and treat "0 rows
 // changed" as the conflict signal rather than checking first and hoping.
 //
-// ORDERING MATTERS, and the reference gets it wrong. ghostfire's floor route
+// ORDERING MATTERS, and the reference gets it wrong. Its floor route
 // inserts the sign-off row and THEN runs the guarded update, so a double submit
 // writes two audit rows even though only one advance lands. Here the guarded
 // update goes first and the audit row is written only if it actually moved the
