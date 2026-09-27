@@ -10,4 +10,5 @@ export * from "./seed.js";
 export * from "./previews.js";
 export * from "./release.js";
 export * from "./provision.js";
+export * from "./ship.js";
 export * from "./build-output.js";

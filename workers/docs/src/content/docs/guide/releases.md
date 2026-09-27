@@ -26,6 +26,46 @@ The workflow holds no Cloudflare credential. `astroid doctor` fails when the
 file is missing or stale, so a hand edit can't quietly change which commits
 reach production.
 
+## What Workers Builds runs
+
+Both Workers Builds deploy commands call `astroid ship`, so the deploy steps
+live in the repository rather than a dashboard field:
+
+- **`astroid ship production`**, on the `deploy/production` build, applies the
+  D1 migrations to the production database, then runs `wrangler deploy`.
+- **`astroid ship preview`**, on every other branch, applies them to the staging
+  database named in the `previews` block, then runs `wrangler preview`, named
+  for the branch.
+
+Migrations run first, so new code never meets an old schema.
+
+### Two apps on one database
+
+A repository can run two Workers that bind the same D1 database, such as a
+marketing site and an order-ahead app on its own subdomain. Only one of them
+owns the schema. Set `deploy.migrations` to `false` in the other app's
+`astroid.config.ts`:
+
+```ts
+deploy: { platform: "cloudflare", migrations: false },
+```
+
+That app's `astroid ship` then skips the migrations step on both targets and
+says so, and `astroid deploy` does the same. Remove `migrations_dir` from its
+`wrangler.jsonc`: `astroid doctor` fails when an app sets `migrations: false`
+but still names a migrations directory, because that means someone expects it
+to migrate.
+
+Both apps can't migrate. One release tag deploys both Workers, in no guaranteed
+order, and nothing serializes two `wrangler d1 migrations apply` runs against
+one ledger. Both can see a migration as pending, and a non-idempotent statement
+such as `ALTER TABLE … ADD COLUMN` then fails the second deploy.
+
+The same missing order constrains the schema. A migration the other app's code
+depends on must ship in an earlier release than that code. Keep each migration
+additive, release it, and only then release the code that reads the new column
+or table.
+
 ## Why a GitHub App pushes the branch
 
 A repository ruleset keeps everyone off `deploy/production` except the release

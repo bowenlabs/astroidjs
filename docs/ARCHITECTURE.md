@@ -103,6 +103,12 @@ that need no person: a random `SESSION_SECRET` for each site, and Turnstile's
 always-passes test secret as `TURNSTILE_SECRET`. It skips a secret that already
 exists and never touches a production one.
 
+`astroid ship` is what Workers Builds runs for both: it migrates, then deploys
+or previews. Its steps come from `astroidShipPlan`, which is pure and tested. An
+app whose database another app migrates sets `deploy.migrations: false`, because
+one tag deploys both Workers in no guaranteed order and two concurrent
+`migrations apply` runs against one ledger can both apply the same migration.
+
 Production deploys from `deploy/production`, which only the regenerated
 `.github/workflows/release.yml` moves, on a `v*` tag. It pushes with a GitHub
 App's token rather than `GITHUB_TOKEN`, because a ruleset can't name the GitHub
