@@ -19,6 +19,7 @@
 
 import type { RateRule } from "louise-toolkit/security";
 import type { AstroidConfig } from "../config.js";
+import { astroidHasEditor } from "../shape.js";
 
 export type { RateRule };
 
@@ -32,6 +33,13 @@ export const ASTROID_PORTAL_BASE_PATH = "/api/portal-auth";
 /** Path the commerce module's checkout POSTs to. */
 export const ASTROID_CHECKOUT_PATH = "/api/checkout";
 
+/**
+ * Where an app with no editor (`editor: false`) serves its versioned JSON API.
+ * A web client and a later native client call the same routes, so a new
+ * version is a new prefix rather than a change to the one clients already use.
+ */
+export const ASTROID_API_PREFIX = "/api/v1";
+
 /** Ten minutes. Every default budget uses this window—long enough that a
  *  burst can't wait it out, short enough that a false positive self-heals. */
 const WINDOW = 600;
@@ -40,8 +48,9 @@ const exact = (path: string) => (p: string) => p === path;
 
 /**
  * The rule set for a project, derived from its config: the editor sign-in
- * surface always, the portal's credential surfaces when a portal is enabled, and
- * checkout when commerce is configured.
+ * surface unless the project has no editor, the portal's credential surfaces
+ * when a portal is enabled, checkout when commerce is configured, and the
+ * versioned API for an app with no editor.
  *
  * Rules are matched first-wins, and `security.rateRules` from the config are
  * placed FIRST—so a site tightens or loosens any default by declaring its own
@@ -50,26 +59,29 @@ const exact = (path: string) => (p: string) => p === path;
 export function astroidRateRules(config: AstroidConfig): RateRule[] {
   const rules: RateRule[] = [...(config.security?.rateRules ?? [])];
 
-  // Magic-link sign-in is the email-bombing target: without a cap, anyone who
-  // knows an editor's address can trigger unbounded sign-in mail (their inbox,
-  // your Email + Worker spend). Tightest budget in the set.
-  rules.push({
-    name: "magic-link",
-    method: "POST",
-    match: exact("/api/auth/sign-in/magic-link"),
-    limit: 5,
-    windowSec: WINDOW,
-  });
-  // Everything else Better Auth serves (passkey challenges, sign-out, callbacks)
-  // behind a looser catch-all. Ordered after the specific rule above, which
-  // matters: `matchRateRule` takes the first match.
-  rules.push({
-    name: "auth",
-    method: "POST",
-    match: (p) => p.startsWith("/api/auth/"),
-    limit: 30,
-    windowSec: WINDOW,
-  });
+  // The editor's sign-in, which an app with no editor doesn't serve.
+  if (astroidHasEditor(config)) {
+    // Magic-link sign-in is the email-bombing target: without a cap, anyone who
+    // knows an editor's address can trigger unbounded sign-in mail (their inbox,
+    // your Email + Worker spend). Tightest budget in the set.
+    rules.push({
+      name: "magic-link",
+      method: "POST",
+      match: exact("/api/auth/sign-in/magic-link"),
+      limit: 5,
+      windowSec: WINDOW,
+    });
+    // Everything else Better Auth serves (passkey challenges, sign-out, callbacks)
+    // behind a looser catch-all. Ordered after the specific rule above, which
+    // matters: `matchRateRule` takes the first match.
+    rules.push({
+      name: "auth",
+      method: "POST",
+      match: (p) => p.startsWith("/api/auth/"),
+      limit: 30,
+      windowSec: WINDOW,
+    });
+  }
 
   if (config.portal?.enabled) {
     // The portal's mount is configurable (a site may already ship a second
@@ -116,6 +128,20 @@ export function astroidRateRules(config: AstroidConfig): RateRule[] {
       method: "POST",
       match: exact(ASTROID_CHECKOUT_PATH),
       limit: 20,
+      windowSec: WINDOW,
+    });
+  }
+
+  if (!astroidHasEditor(config)) {
+    // An app's own JSON API: quotes, orders, account changes. Looser than
+    // checkout because a client posts here as a cart changes, not once per
+    // purchase, so this is abuse control rather than flow control. After the
+    // specific rules, so a tighter budget for one route wins.
+    rules.push({
+      name: "api",
+      method: "POST",
+      match: (p) => p.startsWith(`${ASTROID_API_PREFIX}/`),
+      limit: 120,
       windowSec: WINDOW,
     });
   }

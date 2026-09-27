@@ -15,6 +15,7 @@
 
 import type { AstroidConfig } from "../config.js";
 import { ASTROID_PORTAL_BASE_PATH } from "../security/rate-rules.js";
+import { astroidHasEditor } from "../shape.js";
 
 /**
  * Paths that must never be indexed, derived from the config: the editor and its
@@ -28,8 +29,8 @@ export function astroidNoindexPaths(config: AstroidConfig): string[] {
   const paths = [
     // Every worker route (editor CRUD, media, forms) and Better Auth.
     "/api/",
-    // The editor entry point.
-    "/louise",
+    // The editor entry point, when there is an editor.
+    ...(astroidHasEditor(config) ? ["/louise"] : []),
   ];
   if (config.portal?.enabled) {
     paths.push(ASTROID_PORTAL_BASE_PATH, "/account", "/login", "/register", "/reset-password");

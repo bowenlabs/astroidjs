@@ -39,6 +39,7 @@ import {
   usesRealtime,
 } from "../realtime/scaffold.js";
 import { ASTROID_SECRET_PLACEHOLDER } from "../secrets.js";
+import { astroidHasEditor } from "../shape.js";
 import { tenancyZone } from "../tenancy/index.js";
 import { generateAstroidSchema } from "../schema/generate.js";
 import { ASTROID_AI_GATEWAY_VAR } from "../worker/gateway.js";
@@ -151,6 +152,12 @@ const COMPATIBILITY_DATE = "2026-06-20";
  */
 export function generateAstroidWrangler(config: AstroidConfig): string {
   const key = config.key;
+  // An app with no editor binds none of what the editor uses: the media bucket
+  // and Images, the draft buffer, Workers AI, and the CWV dataset. It sends mail
+  // only for a portal's password resets.
+  const editor = astroidHasEditor(config);
+  const mail = editor || Boolean(config.portal?.enabled);
+  const crons = astroidCrons(config);
   const mediaBase = config.deploy?.mediaBase ?? "/media";
   const hosts = config.hosts ?? [];
   const primaryHost = hosts[0];
@@ -226,7 +233,9 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   // Daily: the site-health scan (broken links, missing alt text, SEO gaps).
   // Hourly (commerce only): the catalog re-sync safety net, so a missed or DLQ'd
   // webhook can only leave the site stale until the next tick.
-  p(`  "triggers": { "crons": ${JSON.stringify(astroidCrons(config))} },`);
+  // None at all for an app with nothing scheduled: a trigger with no handler
+  // is an invocation that fails every time it fires.
+  if (crons.length > 0) p(`  "triggers": { "crons": ${JSON.stringify(crons)} },`);
   if (astroidUsesQueues(config)) {
     const { queue, dlq } = astroidQueueNames(config);
     p("  // Provider webhooks are verified at the edge, then enqueued here so the");
@@ -252,43 +261,60 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p("    ],");
     p("  },");
   }
-  p("  // D1 holds pages / site_settings / media / inquiries (schema in src/schema.ts,");
-  p("  // migrations in ./migrations). Create it: `wrangler d1 create <name>`.");
+  if (editor) {
+    p("  // D1 holds pages / site_settings / media / inquiries (schema in src/schema.ts,");
+    p("  // migrations in ./migrations). Create it: `wrangler d1 create <name>`.");
+  } else {
+    p("  // D1: this app's tables (src/schema.ts), or the database of the app that");
+    p("  // owns the schema, bound by its id. Create one: `wrangler d1 create <name>`.");
+  }
   p('  "d1_databases": [');
   p("    {");
   p('      "binding": "DB",');
   p(`      "database_name": ${JSON.stringify(key)},`);
   p('      "database_id": "<run: wrangler d1 create ' + key + '>",');
-  p('      "migrations_dir": "migrations",');
+  // Left out when another app migrates this database (`deploy.migrations:
+  // false`), which `astroid doctor` would otherwise report as a contradiction.
+  if (config.deploy?.migrations !== false) p('      "migrations_dir": "migrations",');
   p("    },");
   p("  ],");
-  p("  // R2 bucket for uploaded media, streamed back through the Worker at MEDIA_URL");
-  p("  // (no public bucket). Create it: `wrangler r2 bucket create <name>-media`.");
-  p(`  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": ${JSON.stringify(`${key}-media`)} }],`);
-  p("  // Cloudflare Images: the media route reads upload dimensions + backs server-");
-  p("  // side re-encode. Also @astrojs/cloudflare's production image service.");
-  p('  "images": { "binding": "IMAGES" },');
-  p("  // Analytics Engine: real-visitor Core Web Vitals. Free, and the ingest");
-  p("  // route accepts-and-drops without it, so it costs nothing unused. Reading");
-  p("  // the p75 back out needs CF_ACCOUNT_ID + CF_API_TOKEN (see .env.example)—");
-  p("  // until those are real the Health badge reads 'not measured yet'.");
-  p(
-    `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_VITALS_BINDING)}, "dataset": ${JSON.stringify(astroidVitalsDataset(config))} }],`,
-  );
-  p("  // Workers AI. Powers the editor's rewrite + SEO-suggest buttons and alt-text");
-  p("  // generation on upload—all of which SHIP IN THE EDITOR DRAWER already and,");
-  p("  // without this binding, were permanently invisible: their routes answer 503");
-  p("  // and the client hides the button. No account setup beyond the binding, and");
-  p("  // every call is editor-gated, so a visitor can never spend your AI budget.");
-  p('  "ai": { "binding": "AI" },');
-  p("  // KV: RL = the security rate limiter (it also holds the daily site-health");
-  p("  // summary under its own key—one small singleton blob, not worth a binding");
-  p("  // someone has to remember to provision); DRAFTS = the autosave write-buffer.");
-  p("  // Named for the project, so two sites in one account don't collide.");
-  p("  // `astroid provision` creates each and fills in its id.");
+  if (editor) {
+    p("  // R2 bucket for uploaded media, streamed back through the Worker at MEDIA_URL");
+    p("  // (no public bucket). Create it: `wrangler r2 bucket create <name>-media`.");
+    p(
+      `  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": ${JSON.stringify(`${key}-media`)} }],`,
+    );
+    p("  // Cloudflare Images: the media route reads upload dimensions + backs server-");
+    p("  // side re-encode. Also @astrojs/cloudflare's production image service.");
+    p('  "images": { "binding": "IMAGES" },');
+    p("  // Analytics Engine: real-visitor Core Web Vitals. Free, and the ingest");
+    p("  // route accepts-and-drops without it, so it costs nothing unused. Reading");
+    p("  // the p75 back out needs CF_ACCOUNT_ID + CF_API_TOKEN (see .env.example)—");
+    p("  // until those are real the Health badge reads 'not measured yet'.");
+    p(
+      `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_VITALS_BINDING)}, "dataset": ${JSON.stringify(astroidVitalsDataset(config))} }],`,
+    );
+    p("  // Workers AI. Powers the editor's rewrite + SEO-suggest buttons and alt-text");
+    p("  // generation on upload—all of which SHIP IN THE EDITOR DRAWER already and,");
+    p("  // without this binding, were permanently invisible: their routes answer 503");
+    p("  // and the client hides the button. No account setup beyond the binding, and");
+    p("  // every call is editor-gated, so a visitor can never spend your AI budget.");
+    p('  "ai": { "binding": "AI" },');
+    p("  // KV: RL = the security rate limiter (it also holds the daily site-health");
+    p("  // summary under its own key—one small singleton blob, not worth a binding");
+    p("  // someone has to remember to provision); DRAFTS = the autosave write-buffer.");
+    p("  // Named for the project, so two sites in one account don't collide.");
+    p("  // `astroid provision` creates each and fills in its id.");
+  } else {
+    p("  // KV: RL = the security rate limiter. Named for the project, so two apps in");
+    p("  // one account don't collide. `astroid provision` creates it and fills in");
+    p("  // its id.");
+  }
   p('  "kv_namespaces": [');
   p(`    { "binding": "RL", "id": "<run: wrangler kv namespace create ${key}-rl>" },`);
-  p(`    { "binding": "DRAFTS", "id": "<run: wrangler kv namespace create ${key}-drafts>" },`);
+  if (editor) {
+    p(`    { "binding": "DRAFTS", "id": "<run: wrangler kv namespace create ${key}-drafts>" },`);
+  }
   p("  ],");
   // Email Sending. NOT optional decoration: `src/env.d.ts` declares EMAIL as a
   // required member, and Better Auth's magic-link path console-logs the link in
@@ -297,33 +323,44 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   // sign-in was impossible on every DEPLOYED site, while every local build
   // and every CI scaffold passed. Nothing in this repo runs a deployed scaffold,
   // which is why it survived.
-  p("  // Cloudflare Email Sending—magic-link sign-in + inquiry notifications.");
-  p("  // Sign-in DEPENDS on this: in production the magic link is emailed, not logged.");
-  p("  // Enable Email Sending for your zone, then verify the address in MAIL_FROM.");
-  p('  "send_email": [{ "name": "EMAIL" }],');
-  p("  // Public base for media URLs; same-origin keeps media self-contained. Read off");
-  p("  // the runtime env by the framework-agnostic media route, so it stays a `var`.");
+  if (editor) {
+    p("  // Cloudflare Email Sending—magic-link sign-in + inquiry notifications.");
+    p("  // Sign-in DEPENDS on this: in production the magic link is emailed, not logged.");
+  } else if (mail) {
+    p("  // Cloudflare Email Sending—the portal's password-reset mail, which is");
+    p("  // logged in dev and emailed in production.");
+  }
+  if (mail) {
+    p("  // Enable Email Sending for your zone, then verify the address in MAIL_FROM.");
+    p('  "send_email": [{ "name": "EMAIL" }],');
+  }
+  if (editor) {
+    p("  // Public base for media URLs; same-origin keeps media self-contained. Read off");
+    p("  // the runtime env by the framework-agnostic media route, so it stays a `var`.");
+  }
   p('  "vars": {');
-  p(`    "MEDIA_URL": ${JSON.stringify(mediaBase)},`);
+  if (editor) p(`    "MEDIA_URL": ${JSON.stringify(mediaBase)},`);
   p(
     `    "SITE_URL": ${JSON.stringify(primaryHost ? `https://${primaryHost}` : `https://${key}.workers.dev`)},`,
   );
-  p("    // The editor allowlist / owner. Wire this into your auth seam (src/auth.ts).");
-  p('    "OWNER_EMAIL": "",');
-  p("    // AI Gateway for the editor's AI assists: request logs, latency and error");
-  p("    // rates, and caching. Empty calls Workers AI directly. Create a gateway,");
-  p("    // put its id here, and first say on the privacy page that its log holds");
-  p("    // the text editors send to the assists.");
-  p(`    "${ASTROID_AI_GATEWAY_VAR}": "",`);
-  p("    // Edge caching for published pages (ADR 0004). OFF by default, and the");
-  p("    // default is the safe state: with it off every render is `no-store` and");
-  p("    // the Worker cache layer stores nothing.");
-  p("    //");
-  p("    // Turn it on for a PREVIEW deploy first and walk the activation runbook");
-  p("    // (docs/adr/0004-edge-caching.md). `caches.default` is not cleared by");
-  p("    // Cloudflare Dev Mode or Purge Everything, so a bad prod flip is hard to");
-  p("    // undo—this feature was reverted twice for exactly that.");
-  p('    "ASTROID_EDGE_CACHE": "false",');
+  if (editor) {
+    p("    // The editor allowlist / owner. Wire this into your auth seam (src/auth.ts).");
+    p('    "OWNER_EMAIL": "",');
+    p("    // AI Gateway for the editor's AI assists: request logs, latency and error");
+    p("    // rates, and caching. Empty calls Workers AI directly. Create a gateway,");
+    p("    // put its id here, and first say on the privacy page that its log holds");
+    p("    // the text editors send to the assists.");
+    p(`    "${ASTROID_AI_GATEWAY_VAR}": "",`);
+    p("    // Edge caching for published pages (ADR 0004). OFF by default, and the");
+    p("    // default is the safe state: with it off every render is `no-store` and");
+    p("    // the Worker cache layer stores nothing.");
+    p("    //");
+    p("    // Turn it on for a PREVIEW deploy first and walk the activation runbook");
+    p("    // (docs/adr/0004-edge-caching.md). `caches.default` is not cleared by");
+    p("    // Cloudflare Dev Mode or Purge Everything, so a bad prod flip is hard to");
+    p("    // undo—this feature was reverted twice for exactly that.");
+    p('    "ASTROID_EDGE_CACHE": "false",');
+  }
   for (const v of astroidCheckoutVars(config)) {
     // Public, not secret—the app id ships to the browser to mount the card
     // field, and the environment is a choice. Keeping them out of the secret

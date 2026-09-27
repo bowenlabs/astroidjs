@@ -20,6 +20,8 @@ fail deep inside generation. Throws [`AstroidConfigError`](#errors) on:
 - a commerce provider assigned to a role its client can't serve
 - `portal.gated`, which is **not implemented** and refused rather than silently
   wiring no guard
+- `editor: false` alongside an option that configures the editor, such as
+  `sections`, `media`, `settings`, or the `realtime` module
 - a `credit` with no `name`, an `href` that isn't an absolute `http` or `https` URL, or
   a `logo` that isn't a root-relative path or an `https` URL
 
@@ -28,3 +30,7 @@ portfolio`), `ModuleKind` (`map | pwa | wholesaleInquiry`), `SectionKind`,
 `Theme`, `Portal`, `CommerceConfig`, `CreditConfig`, `SeoConfig`, `SecurityConfig`, `PwaConfig`.
 
 `ASTROID_ARCHETYPE_SECTIONS` maps each archetype to its default home sections.
+
+`astroidHasEditor(config)` reports whether the project has a Louise editor,
+which is true unless the config sets `editor: false`. `ASTROID_API_PREFIX` is
+`/api/v1`, the prefix an editor-free app's rate rule covers.

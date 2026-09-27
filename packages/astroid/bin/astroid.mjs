@@ -172,6 +172,7 @@ async function cmdDoctor(cwd, flags) {
     generateAstroidScaffoldFiles,
     astroidUsesQueues,
     astroidCrons,
+    astroidHasEditor,
     checkWranglerPreviews,
     astroidRunsMigrations,
     migrationsOwnershipError,
@@ -235,9 +236,15 @@ async function cmdDoctor(cwd, flags) {
     //
     // So check every binding the GENERATED code actually dereferences, not just
     // the three the baseline happens to have.
+    // An app with no editor (`editor: false`) uses none of the editor's
+    // bindings, so it isn't held to them: no draft buffer, no media bucket, and
+    // no mail unless its portal sends password resets.
+    const editor = astroidHasEditor(config);
     const requiredBindings = [
       { name: "RL", what: "KV namespace", why: "the rate limiter in src/middleware.ts" },
-      { name: "DRAFTS", what: "KV namespace", why: "the autosave draft buffer" },
+      ...(editor
+        ? [{ name: "DRAFTS", what: "KV namespace", why: "the autosave draft buffer" }]
+        : []),
       ...(astroidUsesQueues(config)
         ? [
             {
@@ -263,17 +270,24 @@ async function cmdDoctor(cwd, flags) {
     // it: the magic link is console-logged in dev and EMAILED in production, so
     // a missing binding is a site nobody can sign in to—and it fails only once
     // deployed, which is the one place nothing in this repo exercises.
-    if (/"send_email"\s*:/.test(w)) ok("wrangler: Email Sending `EMAIL` binding present");
-    else
+    // An app with no editor and no portal signs nobody in, so it sends no mail.
+    const sendsMail = editor || Boolean(config.portal?.enabled);
+    if (sendsMail && /"send_email"\s*:/.test(w))
+      ok("wrangler: Email Sending `EMAIL` binding present");
+    else if (sendsMail)
       err(
-        "wrangler.jsonc has no `send_email` binding, but production sign-in emails the " +
-          'magic link (it is only console-logged in dev). Add: "send_email": [{ "name": "EMAIL" }]',
+        editor
+          ? "wrangler.jsonc has no `send_email` binding, but production sign-in emails the " +
+              'magic link (it is only console-logged in dev). Add: "send_email": [{ "name": "EMAIL" }]'
+          : "wrangler.jsonc has no `send_email` binding, but the portal emails password resets " +
+              'in production (they are only console-logged in dev). Add: "send_email": [{ "name": "EMAIL" }]',
       );
 
     if (hasBinding("DB")) ok("wrangler: D1 `DB` binding present");
     else err("wrangler.jsonc has no D1 `DB` binding.");
-    if (hasBinding("MEDIA")) ok("wrangler: R2 `MEDIA` binding present");
-    else err("wrangler.jsonc has no R2 `MEDIA` binding.");
+    // An app with no editor has no media library, so no bucket to hold it.
+    if (editor && hasBinding("MEDIA")) ok("wrangler: R2 `MEDIA` binding present");
+    else if (editor) err("wrangler.jsonc has no R2 `MEDIA` binding.");
     if (/"main"\s*:\s*"src\/worker\.ts"/.test(w)) ok("wrangler: `main` → src/worker.ts");
     else warn("wrangler.jsonc `main` does not point at src/worker.ts.");
 
@@ -287,7 +301,17 @@ async function cmdDoctor(cwd, flags) {
     // JSON.parse (comments/trailing commas), matching the binding checks above.
     const expectedCrons = astroidCrons(config);
     const cronsMatch = w.match(/"crons"\s*:\s*\[([^\]]*)\]/);
-    if (!cronsMatch) {
+    const declaredAny = cronsMatch && /"[^"]+"/.test(cronsMatch[1]);
+    if (expectedCrons.length === 0) {
+      // Nothing scheduled, so the generated worker has no `scheduled` handler,
+      // and a declared trigger would fail every time it fired.
+      if (declaredAny)
+        warn(
+          "wrangler.jsonc declares `triggers.crons`, but nothing in your config is scheduled, " +
+            "so the generated worker has no `scheduled` handler for them. Remove the triggers.",
+        );
+      else ok("wrangler: no crons, and nothing is scheduled");
+    } else if (!cronsMatch) {
       err(
         "wrangler.jsonc has no `triggers.crons`, but the generated `scheduled` handler " +
           `dispatches on ${expectedCrons.map((c) => `"${c}"`).join(", ")}. ` +

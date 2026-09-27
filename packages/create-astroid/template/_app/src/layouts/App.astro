@@ -1,0 +1,49 @@
+---
+// The base HTML shell. This app has no editor, so there's no settings row it
+// owns and no edit mode: the head comes from astroid.config.ts, and a page
+// overrides the title or description through props.
+//
+// Reading another app's settings (opening hours, a tagline) is a query against
+// its table: import `siteSettings` from "louise-toolkit/db" where you need it.
+import Credit from "astroidjs/components/Credit.astro";
+import Seo from "astroidjs/components/Seo.astro";
+import astroidConfig from "../../astroid.config.js";
+import "../styles/site.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Keep this page out of search indexes (account, order status). */
+  noindex?: boolean;
+}
+
+const { title, description, noindex } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <Seo
+      settings={{ siteName: astroidConfig.theme.name }}
+      title={title}
+      description={description}
+      noindex={noindex}
+      titleTemplate={astroidConfig.seo?.titleTemplate}
+      twitterHandle={astroidConfig.seo?.twitterHandle}
+      locale={astroidConfig.seo?.locale}
+    />
+  </head>
+  <body class="min-h-screen bg-base-100 text-base-content">
+    <slot />
+    {
+      /* The agency credit, when astroid.config.ts sets `credit`. */
+      astroidConfig.credit && (
+        <footer class="mx-auto flex max-w-6xl justify-center px-6 py-8">
+          <Credit config={astroidConfig} />
+        </footer>
+      )
+    }
+  </body>
+</html>

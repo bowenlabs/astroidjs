@@ -41,6 +41,7 @@ import { ASTROID_HEALTH_CRON, astroidCron, astroidUsesQueues } from "./queues/me
 import type { astroidSectionCatalog } from "./components/sections.js";
 import type { PortalRoute } from "./portal/guard.js";
 import type { PwaConfig } from "./pwa/generate.js";
+import { astroidHasEditor } from "./shape.js";
 
 /**
  * The starting shape the front-end takes. Not a fork—each archetype is a preset
@@ -609,6 +610,21 @@ export interface AstroidConfig {
   tenancy?: TenancyConfig;
   /** Starting shape; sets section/module/nav defaults the site can override. */
   archetype: Archetype;
+  /**
+   * Whether the project has a Louise editor. Default `true`.
+   *
+   * Set `false` for an app with no pages to edit, such as an order app whose
+   * menu comes from a commerce provider and whose few settings another site's
+   * editor owns. The generated worker and middleware then carry no editor
+   * routes and no sign-in, the schema carries no content tables, and
+   * `wrangler.jsonc` binds no draft buffer, media bucket, or AI. What stays is
+   * the rate limiter, the CSP, the security headers, the public status route,
+   * and the `portal`, `pwa`, `commerce`, and `tenancy` modules.
+   *
+   * `defineAstroid` refuses every option that configures the editor
+   * alongside it, such as `sections` or `media`, rather than ignore it.
+   */
+  editor?: boolean;
   /** The single brand's theme (display name + color tokens + font). */
   theme: Theme;
   /** The editable home page, top to bottom. Omit to take the archetype default. */
@@ -733,7 +749,9 @@ function assertCrons(config: AstroidConfig): void {
     );
   }
 
-  const seen = new Map<string, string>([[ASTROID_HEALTH_CRON, "the daily health scan"]]);
+  const seen = new Map<string, string>(
+    astroidHasEditor(config) ? [[ASTROID_HEALTH_CRON, "the daily health scan"]] : [],
+  );
   const catalog = astroidCron(config);
   if (catalog) seen.set(catalog, "the catalog re-sync (`queues.cron`)");
 
@@ -899,6 +917,57 @@ function assertCredit(credit: CreditConfig | undefined): void {
   }
 }
 
+/**
+ * The options an app with no editor can't honor. Each configures the editor, a
+ * table it edits, or a surface only an editor reviews, so accepting one would
+ * be accepting a setting nothing reads.
+ */
+const EDITOR_ONLY_OPTIONS = [
+  ["sections", "the editable home page"],
+  ["sectionCatalog", "the page editor's sections"],
+  ["blockCatalog", "the page editor's blocks"],
+  ["media", "the media library"],
+  ["pages", "the editable pages"],
+  ["settings", "the Settings panel"],
+] as const;
+
+/** Modules that only work with an editor, and why. */
+const EDITOR_ONLY_MODULES: Partial<Record<ModuleKind, string>> = {
+  realtime: "it syncs editors editing one page",
+  wholesaleInquiry: "its inquiries are reviewed in the editor",
+};
+
+function assertEditorFree(config: AstroidConfig): void {
+  if (astroidHasEditor(config)) return;
+  const without = "An app with `editor: false` has no editor";
+  for (const [key, what] of EDITOR_ONLY_OPTIONS) {
+    if (config[key] !== undefined) {
+      throw new AstroidConfigError(
+        `${without}, so \`${key}\` (${what}) would do nothing. Remove it, or drop \`editor: false\`.`,
+      );
+    }
+  }
+  if (config.inquiries === true) {
+    throw new AstroidConfigError(
+      `${without} to review inquiries in, so \`inquiries: true\` would collect messages ` +
+        "nobody reads. Remove it, or drop `editor: false`.",
+    );
+  }
+  for (const module of [...(config.modules ?? []), ...(config.portal?.features ?? [])]) {
+    const why = EDITOR_ONLY_MODULES[module];
+    if (why) {
+      throw new AstroidConfigError(
+        `${without}, so the \`${module}\` module can't work: ${why}. Remove it, or drop \`editor: false\`.`,
+      );
+    }
+  }
+  if (config.deploy?.mediaBase !== undefined) {
+    throw new AstroidConfigError(
+      `${without} and no media library, so \`deploy.mediaBase\` would do nothing. Remove it.`,
+    );
+  }
+}
+
 export function defineAstroid(config: AstroidConfig): AstroidConfig {
   if (!config.key || config.key.trim().length === 0) {
     throw new AstroidConfigError(
@@ -941,6 +1010,7 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   assertCrons(config);
   assertTenancy(config);
   assertAllowSlugs(config);
+  assertEditorFree(config);
   assertCredit(config.credit);
 
   if (config.portal?.gated) {

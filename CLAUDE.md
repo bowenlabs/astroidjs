@@ -55,7 +55,10 @@ flag-gated: the commerce files (`checkout.ts`, `SquareCard.astro`, the webhook
 receiver) exist only in a `--commerce square` scaffold, so a change to the
 commerce generators needs `scaffold-smoke.sh storefront /tmp/smoke --commerce
 square`, and `--square-locations multi` as well for the checkout route. CI runs
-both legs.
+both legs. The same goes for the app shape: `template/_app/` is laid over the
+template only by `--app`, so a change there, or to what an `editor: false`
+config generates, needs `scaffold-smoke.sh marketing /tmp/smoke --app`, and
+`--portal --pwa --commerce square` added for the modules the shape keeps.
 
 ## Verifying a change
 
