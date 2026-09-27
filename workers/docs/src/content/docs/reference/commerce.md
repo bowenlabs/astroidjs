@@ -184,6 +184,30 @@ const rows = items
 Omitting `locationId` is unchanged behaviour, and correct for a single-location
 account.
 
+## Taking payments without the pipeline
+
+`commerce` normally brings a pipeline with it: a webhook receiver per provider,
+the queue consumer that processes their events, and the hourly catalog re-sync.
+A project that only takes payments, while another project runs that pipeline
+against the same account, sets `pipeline: false`:
+
+```ts
+commerce: { provider: "square", pipeline: false },
+```
+
+It keeps what a checkout needs: the provider's CSP origins, the checkout rate
+rule, and the checkout route and card component. It drops the webhook
+receivers, the queue, and the catalog cron, and the webhook signing secret with
+them, so checkout goes live on the API credentials alone. A provider sends each
+event to the one endpoint you register, so the project that runs the pipeline
+is the one that registers it.
+
+`astroidCommercePipeline(config)` answers whether a project runs it. The
+catalog table still follows `catalog.mode`, so a project that reads a mirror
+another project fills keeps its schema. `defineAstroid` refuses a `queues.cron`
+alongside `pipeline: false`, because that cron schedules the re-sync the option
+turns off. A queue the project runs for its own `crons` is still allowed.
+
 ## Roles
 
 `astroidCommerceRoles`, `astroidCommerceProviders`, `assertCommerceRoles`,

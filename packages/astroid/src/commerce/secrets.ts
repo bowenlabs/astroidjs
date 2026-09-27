@@ -121,9 +121,22 @@ export function commerceProviderCredentials(
 export function commerceSecretNames(commerce: CommerceConfig | undefined): string[] {
   const names = astroidCommerceProviders(commerce).flatMap((provider) => [
     ...commerceProviderCredentials(provider, commerce),
-    COMMERCE_PROVIDER_SECRETS[provider].webhook,
+    ...commerceProviderWebhookSecrets(provider, commerce),
   ]);
   return [...new Set(names)];
+}
+
+/**
+ * The webhook signing secret a provider needs, or none when the project runs no
+ * pipeline (`commerce.pipeline: false`). With no receiver there is nothing to
+ * verify, so requiring the secret would hold checkout dormant for a value no
+ * code reads.
+ */
+export function commerceProviderWebhookSecrets(
+  provider: CommerceProvider,
+  commerce: CommerceConfig | undefined,
+): readonly string[] {
+  return commerce?.pipeline === false ? [] : [COMMERCE_PROVIDER_SECRETS[provider].webhook];
 }
 
 /** One provider's resolved gate. */
@@ -157,7 +170,6 @@ async function resolveProvider(
   env: Record<string, SecretSource>,
   commerce: CommerceConfig | undefined,
 ): Promise<ProviderStatus> {
-  const spec = COMMERCE_PROVIDER_SECRETS[provider];
   const pick = (names: readonly string[]) =>
     Object.fromEntries(names.map((n) => [n, env[n]])) as Record<string, SecretSource>;
 
@@ -165,7 +177,8 @@ async function resolveProvider(
     // Config-aware: a multi-location project must not be held dormant waiting
     // for a SQUARE_LOCATION_ID it will never legitimately have.
     resolveModuleSecrets(pick(commerceProviderCredentials(provider, commerce))),
-    resolveModuleSecrets(pick([spec.webhook])),
+    // Empty without a pipeline, which resolves as configured: nothing to verify.
+    resolveModuleSecrets(pick(commerceProviderWebhookSecrets(provider, commerce))),
   ]);
 
   return {

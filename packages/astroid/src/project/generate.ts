@@ -21,6 +21,7 @@ import { astroidCommerceProviders } from "../commerce/roles.js";
 import {
   COMMERCE_PROVIDER_SECRETS,
   COMMERCE_PROVIDER_SETUP,
+  commerceProviderWebhookSecrets,
   commerceSecretNames,
 } from "../commerce/secrets.js";
 import type { AstroidConfig } from "../config.js";
@@ -121,7 +122,10 @@ export function generateAstroidSecretsEnv(config: AstroidConfig): string {
   for (const provider of providers) {
     const spec = COMMERCE_PROVIDER_SECRETS[provider];
     lines.push("#", `# ${provider}: ${COMMERCE_PROVIDER_SETUP[provider]}`);
-    for (const name of [...spec.credentials, spec.webhook]) {
+    for (const name of [
+      ...spec.credentials,
+      ...commerceProviderWebhookSecrets(provider, config.commerce),
+    ]) {
       lines.push(`${name}=${ASTROID_SECRET_PLACEHOLDER}`);
     }
   }

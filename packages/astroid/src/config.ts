@@ -221,6 +221,18 @@ export interface CommerceConfig {
   catalog?: CatalogMirrorConfig;
   /** Square-specific options. Only meaningful when Square fills some role. */
   square?: SquareCommerceConfig;
+  /**
+   * Whether this project runs the commerce pipeline: the webhook receivers, the
+   * queue consumer that processes them, and the hourly catalog re-sync. Default
+   * `true`.
+   *
+   * Set `false` for a project that only takes payments while another project,
+   * or another Worker in the same repository, runs the pipeline against the
+   * same account. It keeps what a checkout needs, the provider's CSP origins,
+   * the checkout rate rule, and the checkout route, and drops the rest, along
+   * with the webhook signing secret nothing would verify.
+   */
+  pipeline?: boolean;
 }
 
 export interface SquareCommerceConfig {
@@ -243,8 +255,9 @@ export interface SquareCommerceConfig {
 export interface QueuesConfig {
   /**
    * Force the queue consumer + cron on or off. Defaults to on whenever
-   * `commerce` is configured: a commerce provider means webhooks, and a webhook
-   * you process inline is a webhook you drop when the provider times out.
+   * `commerce` is configured with its pipeline: a commerce provider means
+   * webhooks, and a webhook you process inline is a webhook you drop when the
+   * provider times out.
    */
   enabled?: boolean;
   /**
@@ -699,6 +712,16 @@ export interface AstroidConfig {
  * the unreachable-trigger failure `config.crons` exists to prevent.
  */
 function assertCrons(config: AstroidConfig): void {
+  // `queues.cron` schedules the catalog re-sync, which belongs to the pipeline.
+  // Without one it would be accepted and never scheduled.
+  if (config.commerce?.pipeline === false && typeof config.queues?.cron === "string") {
+    throw new AstroidConfigError(
+      "`queues.cron` schedules the catalog re-sync, which `commerce.pipeline: false` " +
+        "leaves to the project that runs the pipeline. Remove `queues.cron`, or use " +
+        "`crons` for a job of this project's own.",
+    );
+  }
+
   const crons = config.crons ?? [];
   if (crons.length === 0) return;
 

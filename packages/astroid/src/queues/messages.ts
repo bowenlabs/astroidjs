@@ -12,7 +12,16 @@ import type { AstroidConfig } from "../config.js";
  * provider's delivery timeout is shorter than your catalog sync.
  */
 export function astroidUsesQueues(config: AstroidConfig): boolean {
-  return config.queues?.enabled ?? Boolean(config.commerce);
+  return config.queues?.enabled ?? astroidCommercePipeline(config);
+}
+
+/**
+ * Whether this project runs the commerce pipeline: the webhook receivers and the
+ * catalog re-sync. On whenever commerce is configured, unless the config sets
+ * `commerce.pipeline: false` because another project runs it.
+ */
+export function astroidCommercePipeline(config: AstroidConfig): boolean {
+  return Boolean(config.commerce) && config.commerce?.pipeline !== false;
 }
 
 /** Hourly. Frequent enough that stale data has a bounded lifetime, rare enough
@@ -22,6 +31,9 @@ export const ASTROID_DEFAULT_CRON = "0 * * * *";
 /** The cron expression for the safety-net re-sync, or null when disabled. */
 export function astroidCron(config: AstroidConfig): string | null {
   if (!astroidUsesQueues(config)) return null;
+  // The re-sync is part of the pipeline, so a project that leaves the pipeline
+  // to another one leaves this to it too, even when its queue runs for crons.
+  if (config.commerce && !astroidCommercePipeline(config)) return null;
   const cron = config.queues?.cron;
   if (cron === false) return null;
   return cron ?? ASTROID_DEFAULT_CRON;

@@ -13,7 +13,7 @@ import { astroidCatalogMirror } from "../commerce/mirror.js";
 import { astroidCommerceProviders, astroidCommerceRoles } from "../commerce/roles.js";
 import { COMMERCE_PROVIDER_SECRETS } from "../commerce/secrets.js";
 import type { AstroidConfig, CommerceProvider } from "../config.js";
-import { ASTROID_QUEUE_BINDING } from "./messages.js";
+import { ASTROID_QUEUE_BINDING, astroidCommercePipeline } from "./messages.js";
 
 /**
  * Per-provider webhook facts: the header, the verifier, and how it's called.
@@ -265,6 +265,9 @@ export function generateAstroidWebhookRoute(
 export function generateAstroidWebhookRoutes(
   config: AstroidConfig,
 ): { path: string; contents: string }[] {
+  // A project that leaves the pipeline to another one receives no webhooks: the
+  // provider delivers each event to one endpoint, and it's the other project's.
+  if (!astroidCommercePipeline(config)) return [];
   return astroidCommerceProviders(config.commerce).flatMap((provider) => {
     const contents = generateAstroidWebhookRoute(config, provider);
     return contents ? [{ path: `src/pages/api/webhooks/${provider}.ts`, contents }] : [];
