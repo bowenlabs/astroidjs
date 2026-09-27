@@ -1,0 +1,107 @@
+---
+// The docs home: a splash page, where there used to be a redirect to Getting
+// started. It's an Astro page wrapped in <StarlightPage> rather than an .mdx
+// entry in the content collection, so it gets the same header, search, and theme
+// as every other page while the Vale lint reads it like any other template.
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { CardGrid, Code, LinkCard } from "@astrojs/starlight/components";
+import arrowRight from "@phosphor-icons/core/assets/bold/arrow-right-bold.svg?raw";
+import icon from "../assets/astroid-icon.svg";
+import Features from "../components/Features.astro";
+
+const layering = `Astro        →  renderer / router / build
+  Louise     →  unopinionated primitives + framework glue   (louise-toolkit)
+    Astroid  →  opinions: theme, sections, config, scaffold  (astroidjs)`;
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "One config, a whole editable site",
+    description:
+      "Astroid is the opinionated meta-framework over Louise Toolkit and Astro. One typed config generates the worker, middleware, schema, and theme for an editable site on Cloudflare Workers.",
+    template: "splash",
+    hero: {
+      tagline:
+        "Astroid is the opinionated meta-framework over Louise Toolkit and Astro. One typed config generates the worker, middleware, schema, and theme that an editable site on Cloudflare Workers would otherwise write by hand.",
+      image: { file: icon, alt: "The Astroid icon, a shooting star on a green tile" },
+      actions: [
+        { text: "Get started", link: "/guide/getting-started/", variant: "primary", icon: arrowRight },
+        { text: "Configuration", link: "/guide/configuration/", variant: "secondary" },
+        {
+          text: "View on GitHub",
+          link: "https://github.com/bowenlabs/astroidjs",
+          variant: "minimal",
+        },
+      ],
+    },
+  }}
+>
+  <Code code="pnpm create astroid my-site" lang="sh" />
+
+  <h2>What you get</h2>
+  <Features
+    items={[
+      {
+        icon: "fileTs",
+        title: "One typed config",
+        body: "Describe the site with defineAstroid, and Astroid generates its schema, worker, and middleware. The doctor command keeps the generated files honest.",
+      },
+      {
+        icon: "sections",
+        title: "Fifteen sections",
+        body: "The editable home page is an ordered list of sections, from a hero to pricing tiers, edited on the canvas rather than in a form.",
+      },
+      {
+        icon: "palette",
+        title: "A theme system",
+        body: "Set the brand colors in the config, and they flow through every section and every utility class.",
+      },
+      {
+        icon: "storefront",
+        title: "Four archetypes",
+        body: "Marketing, storefront, wholesale, and portfolio presets decide which sections are on and which tables exist. The site tunes them from there.",
+      },
+      {
+        icon: "terminal",
+        title: "A CLI for the whole life of a site",
+        body: "Scaffold with create-astroid, then dev, build, doctor, and a plan-first deploy that provisions what the site needs on Cloudflare.",
+      },
+      {
+        icon: "stack",
+        title: "Louise underneath",
+        body: "Every primitive comes from Louise Toolkit, so when an opinion stops fitting, you can drop down a layer and wire it yourself.",
+      },
+    ]}
+  />
+
+  <h2>The layering</h2>
+  <p>
+    Dependencies flow one way: <code>astroidjs</code> depends on <code>louise-toolkit</code>, never
+    the reverse. Louise stays unopinionated, and the opinions live here.
+  </p>
+  <Code code={layering} lang="text" />
+
+  <h2>Where to start</h2>
+  <CardGrid>
+    <LinkCard
+      title="Getting started"
+      description="What Astroid is, when to reach for it, and scaffolding your first site."
+      href="/guide/getting-started/"
+    />
+    <LinkCard
+      title="Configuration"
+      description="The one typed config, and the worker, middleware, schema, and theme it generates."
+      href="/guide/configuration/"
+    />
+    <LinkCard
+      title="The CLI"
+      description="Generate, doctor, dev, build, and deploy, and what each one is allowed to overwrite."
+      href="/guide/cli/"
+    />
+    <LinkCard
+      title="Louise Toolkit docs"
+      description="The unopinionated primitives underneath, for when you drop down a layer."
+      href="https://docs.louisetoolkit.org/"
+    />
+  </CardGrid>
+</StarlightPage>

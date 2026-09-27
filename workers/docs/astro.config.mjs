@@ -15,13 +15,17 @@ export default defineConfig({
   // The only raster-free asset here is an SVG logo, so use the passthrough image
   // service and skip the heavy `sharp` native dependency entirely.
   image: { service: passthroughImageService() },
-  // No splash page: the docs home is where a reader actually starts.
-  redirects: { "/": "/guide/getting-started/" },
+  // No `redirects` here. For a static build, Astro writes each one as an HTML
+  // page with a meta refresh, whose "Redirecting from…" link flashes on screen
+  // before the hop. The home page is the splash at src/pages/index.astro; a
+  // redirect this site does need belongs in public/_redirects, which the Worker
+  // answers with a real 301.
   integrations: [
     starlight({
       title: "Astroid",
       description:
-        "The opinionated meta-framework over Louise Toolkit and Astro — one typed config generates the worker, middleware, schema and theme for an editable site on Cloudflare Workers.",
+        "The opinionated meta-framework over Louise Toolkit and Astro: one typed config generates the worker, middleware, schema, and theme for an editable site on Cloudflare Workers.",
+      logo: { src: "./src/assets/astroid-icon.svg", replacesTitle: false },
       social: [
         {
           icon: "github",
