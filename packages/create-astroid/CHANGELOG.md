@@ -1,5 +1,28 @@
 # create-astroid
 
+## 0.9.0
+
+### Minor Changes
+
+- 3e31e07: `astroid provision` creates the Cloudflare resources a site's `wrangler.jsonc` still names by placeholder, top level and `previews` alike, and writes each new ID back in place of its placeholder. It reads the name from the placeholder (`<run: wrangler d1 create acme-staging>`), so two bindings that share one placeholder share one namespace, and it creates every R2 bucket the file names, where an existing bucket is fine. It prints the Secrets Store secrets the config binds, for a person to set, and never deploys. `--dry-run` shows the plan; `--yes` skips the prompt.
+
+  New scaffolds name their KV placeholders for the project (`acme-rl`, `acme-drafts`) instead of `RL` and `DRAFTS`, so two sites in one Cloudflare account don't collide, and `astroid deploy` creates a namespace under the name its placeholder gives.
+
+  **What to do:** nothing for an existing site. To set up staging, upgrade, then run `pnpm exec astroid provision` in the site's directory with a wrangler login for its account.
+
+### Patch Changes
+
+- Updated dependencies [3e31e07]
+- Updated dependencies [9e6cd3b]
+  - astroidjs@0.16.0
+
+- The page sanitizers and the settings action now check images against the running deployment's media base, so a staging Preview keeps the images uploaded on it. They were built once from `deploy.mediaBase`, which names production's media host, so on a Preview, which serves media from its own `/media`, every uploaded image was dropped from page content as a hotlink, and every image setting was rejected.
+
+  - The generated `worker.ts` records `vars.MEDIA_URL` at startup with `setAstroidMediaBase`, and the checks read it through `astroidMediaBase(config)` when they run. An isolate runs one deployment, and `MEDIA_URL` is fixed per deployment, so production still checks against its own host.
+  - New scaffolds' settings action reads `mediaBase` through a getter, and the portfolio gallery builds image URLs from `MEDIA_URL`.
+
+  **What to do:** run `astroid generate` and commit the regenerated `worker.ts`. If your `src/actions/index.ts` passes `mediaBase: astroidConfig.deploy?.mediaBase ?? "/media"` to `louiseSettingsAction`, replace it with `get mediaBase() { return astroidMediaBase(astroidConfig); }`, importing `astroidMediaBase` from `astroidjs`. A portfolio site's gallery page takes the same change the scaffold made: build `src` from `env.MEDIA_URL`.
+
 ## 0.8.0
 
 ### Minor Changes

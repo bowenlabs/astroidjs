@@ -133,7 +133,9 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         // The site's sanitize + read hooks (config.settings.hooks), spread last
         // so they add to the call rather than replace any part of it.
         const hooksArg = config.settings?.hooks ? ", ...settingsHooks" : "";
-        return `settingsRoute({ table: siteSettings, resolveEditor, columns: SETTINGS_COLUMNS, imageKeys: SETTINGS_IMAGE_KEYS, mediaBase: MEDIA_BASE${customArg}${hooksArg} })`;
+        // Built per request, because the media base is per environment: a
+        // Preview's `MEDIA_URL` differs from production's (see `mediaBaseOf`).
+        return `(request, env, ctx) => settingsRoute({ table: siteSettings, resolveEditor, columns: SETTINGS_COLUMNS, imageKeys: SETTINGS_IMAGE_KEYS, mediaBase: mediaBaseOf(env)${customArg}${hooksArg} })(request, env, ctx)`;
       }
       // `aiRunner` rather than `(env) => env.AI`: it reads the binding AND the
       // LOUISE_AI kill switch, so all three assists share one definition of
@@ -218,6 +220,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     "astroidPagesCollection",
     "astroidPagesWriteHooks",
     "readModuleSecret",
+    "setAstroidMediaBase",
     ...(inquiries ? ["sendInquiryMail"] : []),
     ...(queues ? ["type AstroidQueueMessage"] : []),
   ].sort();
@@ -245,7 +248,18 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     p('import { handleQueueMessage } from "./queue.js";');
   }
   p();
-  p(`const MEDIA_BASE = ${JSON.stringify(mediaBase)};`);
+  p(`const DEFAULT_MEDIA_BASE = ${JSON.stringify(mediaBase)};`);
+  p("// The public media base for this request's environment. `vars.MEDIA_URL`");
+  p('// wins, so a Preview sets its own (a path such as "/media", served from the');
+  p("// Preview's own host, since a Preview can't know its hostname in advance).");
+  p("// Read per request, not baked in: one build serves production and every");
+  p("// Preview, so nothing that differs between them can be a constant.");
+  p("const mediaBaseOf = (env: CloudflareEnv): string =>");
+  p('  (env.MEDIA_URL || DEFAULT_MEDIA_BASE).replace(/\\/+$/, "");');
+  p("// The checks built once from the config (the page sanitizers, the settings");
+  p("// action) read the base when they run. Recorded at startup, since an isolate");
+  p("// runs one deployment and `MEDIA_URL` is fixed per deployment.");
+  p("setAstroidMediaBase(env.MEDIA_URL);");
   p("const pagesCollection = astroidPagesCollection(astroidConfig);");
   p("// Sanitize + section-catalog validation for the raw pagesRoute, which runs");
   p("// no collection hook—the same contract versionsRoute gets from the config.");
@@ -319,7 +333,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("// failed crawl or a failed COUNT yields zero rather than aborting the scan,");
   p("// because a partial health report is worth strictly more than none.");
   p("async function runHealthScan(env: CloudflareEnv) {");
-  p("  const origin = env.SITE_URL ?? MEDIA_BASE;");
+  p("  const origin = env.SITE_URL ?? mediaBaseOf(env);");
   p("  const [brokenLinks, missingAlt, seoGaps] = await Promise.all([");
   p('    checkLinks({ base: origin, paths: ["/"] }).catch(() => []),');
   p("    countRows(env, \"SELECT COUNT(*) AS n FROM media WHERE alt IS NULL OR alt = ''\"),");
@@ -407,17 +421,26 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   }
   p("];");
   p();
-  p("// Stream uploaded media back from R2 at MEDIA_BASE (self-hosted, no public bucket).");
+  p("// Stream uploaded media back from R2 at the media base (self-hosted, no public");
+  p("// bucket). The base takes two shapes, and each is matched its own way:");
   p("//");
-  p("// Scoped by ORIGIN, not by path prefix: MEDIA_BASE is an origin, and a");
-  p('// `url.pathname` ("/web/foo.jpg") can never start with one. Comparing the two');
-  p("// against each other made the guard permanently false, so the route never ran");
-  p("// and every uploaded asset fell through to the site's 404 page. On the media");
-  p("// host the whole pathname is the R2 key.");
+  p('// - An ORIGIN ("https://media.example.com") is a media host, where the whole');
+  p("//   pathname is the R2 key. Compared by origin, never by path prefix: a");
+  p('//   `url.pathname` ("/web/foo.jpg") can never start with an origin, and a guard');
+  p("//   that compared the two once never ran, so every upload 404'd.");
+  p('// - A PATH ("/media") is a prefix on the site\'s own host, which is how a');
+  p("//   Preview serves media, since it can't know its hostname in advance.");
   p("const mediaAssetRoute: WorkerRoute<CloudflareEnv> = async (request, env) => {");
   p("  const url = new URL(request.url);");
-  p("  if (url.origin !== MEDIA_BASE) return undefined;");
-  p("  const key = decodeURIComponent(url.pathname.slice(1));");
+  p("  const base = mediaBaseOf(env);");
+  p('  const path = base.startsWith("/")');
+  p("    ? url.pathname.startsWith(`${base}/`)");
+  p("      ? url.pathname.slice(base.length + 1)");
+  p('      : ""');
+  p("    : url.origin === base");
+  p("      ? url.pathname.slice(1)");
+  p('      : "";');
+  p("  const key = decodeURIComponent(path);");
   p("  if (!key) return undefined;");
   p("  const obj = await env.MEDIA.get(key);");
   p('  if (!obj) return new Response("Not found", { status: 404 });');

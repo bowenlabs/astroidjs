@@ -30,7 +30,11 @@ import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/work
  * silently matches nothing—which reads as a passing assertion against "".
  */
 function routeLine(worker: string, factory: string): string {
-  const line = worker.split("\n").find((l) => l.trim().startsWith(`${factory}({`));
+  // A route built per request (`(request, env, ctx) => factory({…})(…)`) counts
+  // too, so an option threaded through one is still found.
+  const line = worker
+    .split("\n")
+    .find((l) => l.trim().startsWith(`${factory}({`) || l.includes(`=> ${factory}({`));
   if (!line) throw new Error(`no mounted ${factory} in the generated worker`);
   return line;
 }
@@ -157,22 +161,35 @@ describe("media asset route", () => {
   // page—while a `toContain("mediaAssetRoute")` test stayed green.
   const MEDIA_BASE = "https://media.acme.com";
 
-  /** Lift `mediaAssetRoute` out of the generated worker and make it callable. */
+  /** Lift one `const` declaration out of the generated worker as JavaScript. */
+  function lift(worker: string, name: string) {
+    const start = worker.indexOf(`const ${name}`);
+    const end = worker.indexOf(";\n", start);
+    if (start < 0 || end < 0) throw new Error(`no ${name} in the generated worker`);
+    return worker.slice(start, end + 1);
+  }
+
+  /** Lift `mediaAssetRoute`, and the base it reads, out of the generated worker
+   *  and make it callable. */
   function emittedRoute(worker: string) {
     const start = worker.indexOf("const mediaAssetRoute");
     const end = worker.indexOf("\n};", start);
     if (start < 0 || end < 0) throw new Error("no mediaAssetRoute in the generated worker");
-    const src = worker
+    const route = worker
       .slice(start, end + 3)
       .replace(": WorkerRoute<CloudflareEnv>", "")
       .replace("const mediaAssetRoute =", "return");
-    return new Function("MEDIA_BASE", "Response", src)(MEDIA_BASE, Response) as (
+    const base = [lift(worker, "DEFAULT_MEDIA_BASE"), lift(worker, "mediaBaseOf")]
+      .join("\n")
+      .replace("(env: CloudflareEnv): string", "(env)");
+    return new Function("Response", `${base}\n${route}`)(Response) as (
       request: { url: string },
-      env: { MEDIA: { get(key: string): Promise<unknown> } },
+      env: { MEDIA: { get(key: string): Promise<unknown> }; MEDIA_URL?: string },
     ) => Promise<Response | undefined>;
   }
 
-  const stubEnv = (found: string[]) => ({
+  const stubEnv = (found: string[], MEDIA_URL?: string) => ({
+    ...(MEDIA_URL === undefined ? {} : { MEDIA_URL }),
     MEDIA: {
       get: async (key: string) =>
         found.includes(key)
@@ -187,7 +204,10 @@ describe("media asset route", () => {
 
   it("serves an object on the media host, keyed by the whole pathname", async () => {
     const route = emittedRoute(generateAstroidWorker(base));
-    const res = await route({ url: `${MEDIA_BASE}/web/photo.jpg` }, stubEnv(["web/photo.jpg"]));
+    const res = await route(
+      { url: `${MEDIA_BASE}/web/photo.jpg` },
+      stubEnv(["web/photo.jpg"], MEDIA_BASE),
+    );
     expect(res?.status).toBe(200);
   });
 
@@ -195,14 +215,14 @@ describe("media asset route", () => {
     const route = emittedRoute(generateAstroidWorker(base));
     const res = await route(
       { url: `${MEDIA_BASE}/web/two%20words.jpg` },
-      stubEnv(["web/two words.jpg"]),
+      stubEnv(["web/two words.jpg"], MEDIA_BASE),
     );
     expect(res?.status).toBe(200);
   });
 
   it("404s a media-host path with no object behind it", async () => {
     const route = emittedRoute(generateAstroidWorker(base));
-    const res = await route({ url: `${MEDIA_BASE}/web/missing.jpg` }, stubEnv([]));
+    const res = await route({ url: `${MEDIA_BASE}/web/missing.jpg` }, stubEnv([], MEDIA_BASE));
     expect(res?.status).toBe(404);
   });
 
@@ -210,13 +230,65 @@ describe("media asset route", () => {
     const route = emittedRoute(generateAstroidWorker(base));
     // Same PATH, different origin—the site's own /web/photo.jpg must fall
     // through to the SSR handler rather than being answered out of the bucket.
-    const res = await route({ url: `https://acme.com/web/photo.jpg` }, stubEnv(["web/photo.jpg"]));
+    const res = await route(
+      { url: `https://acme.com/web/photo.jpg` },
+      stubEnv(["web/photo.jpg"], MEDIA_BASE),
+    );
     expect(res).toBeUndefined();
   });
 
   it("passes on the media host's bare root, which names no key", async () => {
     const route = emittedRoute(generateAstroidWorker(base));
-    expect(await route({ url: `${MEDIA_BASE}/` }, stubEnv([]))).toBeUndefined();
+    expect(await route({ url: `${MEDIA_BASE}/` }, stubEnv([], MEDIA_BASE))).toBeUndefined();
+  });
+
+  // A Preview can't know its own hostname, so its `MEDIA_URL` is a path on
+  // whatever host it's served from. One build serves both, so the base has to
+  // come from the request's env, not from the config baked in at generation.
+  it("serves a Preview's path base from the request's own host", async () => {
+    const route = emittedRoute(generateAstroidWorker(base));
+    const env = stubEnv(["web/photo.jpg"], "/media");
+    const res = await route({ url: "https://main.staging.acme.com/media/web/photo.jpg" }, env);
+    expect(res?.status).toBe(200);
+  });
+
+  it("with a path base, passes on the site's other paths and on the prefix alone", async () => {
+    const route = emittedRoute(generateAstroidWorker(base));
+    const env = stubEnv(["web/photo.jpg"], "/media/");
+    expect(
+      await route({ url: "https://main.staging.acme.com/web/photo.jpg" }, env),
+    ).toBeUndefined();
+    expect(
+      await route({ url: "https://main.staging.acme.com/mediaX/web/photo.jpg" }, env),
+    ).toBeUndefined();
+    expect(await route({ url: "https://main.staging.acme.com/media/" }, env)).toBeUndefined();
+  });
+
+  it("prefers the environment's MEDIA_URL over the configured base", async () => {
+    const withHost = {
+      ...base,
+      deploy: { platform: "cloudflare" as const, mediaBase: MEDIA_BASE },
+    };
+    const route = emittedRoute(generateAstroidWorker(withHost));
+    // With no MEDIA_URL in the env, the configured media host answers…
+    expect(
+      (await route({ url: `${MEDIA_BASE}/web/photo.jpg` }, stubEnv(["web/photo.jpg"])))?.status,
+    ).toBe(200);
+    // …and stops answering where the env names another base, as a Preview's does.
+    const env = stubEnv(["web/photo.jpg"], "/media");
+    expect(await route({ url: `${MEDIA_BASE}/web/photo.jpg` }, env)).toBeUndefined();
+  });
+
+  it("builds the settings route per request, with that request's media base", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain("mediaBase: mediaBaseOf(env)");
+    expect(worker).not.toMatch(/\bMEDIA_BASE\b/);
+  });
+
+  it("records the deployment's media base at startup, for the checks built from the config", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain("setAstroidMediaBase(env.MEDIA_URL);");
+    expect(worker).toMatch(/import \{[^}]*\bsetAstroidMediaBase\b[^}]*\} from "astroidjs";/);
   });
 });
 

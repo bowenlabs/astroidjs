@@ -1,5 +1,35 @@
 # astroidjs
 
+## 0.16.0
+
+### Minor Changes
+
+- 3e31e07: `astroid provision` creates the Cloudflare resources a site's `wrangler.jsonc` still names by placeholder, top level and `previews` alike, and writes each new ID back in place of its placeholder. It reads the name from the placeholder (`<run: wrangler d1 create acme-staging>`), so two bindings that share one placeholder share one namespace, and it creates every R2 bucket the file names, where an existing bucket is fine. It prints the Secrets Store secrets the config binds, for a person to set, and never deploys. `--dry-run` shows the plan; `--yes` skips the prompt.
+
+  New scaffolds name their KV placeholders for the project (`acme-rl`, `acme-drafts`) instead of `RL` and `DRAFTS`, so two sites in one Cloudflare account don't collide, and `astroid deploy` creates a namespace under the name its placeholder gives.
+
+  **What to do:** nothing for an existing site. To set up staging, upgrade, then run `pnpm exec astroid provision` in the site's directory with a wrangler login for its account.
+
+- 9e6cd3b: Astroid now supports staging through Cloudflare's Worker Previews, where `main` and every pull request run as Previews of one Worker (louise-toolkit ADR 0017).
+
+  - **The media base is per environment.** The generated `worker.ts` reads `env.MEDIA_URL` on each request and falls back to `deploy.mediaBase`, instead of baking the base in. One build serves production and every Preview, so nothing that differs between them can be a constant. The media route serves either an origin base (a media host, where the whole path is the R2 key) or a path base such as `/media` on the site's own host, which is what a Preview uses, since it can't know its hostname in advance. The settings route gets the same per-request base.
+  - **`astroid doctor` checks the `previews` block** of `wrangler.jsonc`. It fails a binding that production has and the block leaves out (a Preview inherits nothing, so the Worker throws there), a binding that points at production's database, bucket, namespace, or secret, a Durable Object or API binding the block doesn't restate, a var that isn't restated or whose `SITE_URL` or `MEDIA_URL` still names production's origin (a path such as `/media` can match, since each host serves its own bucket), and crons, routes, or queue consumers inside the block, which target production only. Leaving out a queue producer or a Workflow passes: Previews can't consume them, and the toolkit falls back. A site with no `previews` block gets a warning, not a failure.
+  - **A webhook runs inline when the queue is absent.** `handleWebhook` takes an `inline` handler and runs the event through it in the request when `queue` is unbound, which is how a Preview runs, answering 200 once it's done and 503 if it throws, so the provider redelivers. Without it, every webhook a Preview received answered 503. The queue still wins whenever it's bound, so production is unchanged. New webhook routes pass `inline: (message) => handleQueueMessage(env, message)`.
+
+  - **Trunk-based releases.** `astroid generate` writes `.github/workflows/release.yml` at the repository root, and `doctor` fails when it's missing or stale. A tag `v<major>.<minor>.<patch>` on a commit of `main`, or of a `release/<version>` branch, moves `deploy/production` to that commit and creates a GitHub release. Point the Workers Builds production branch at `deploy/production`, and let only this workflow update it with a repository ruleset. The workflow holds no Cloudflare credential.
+  - **`astroid ship production | preview`** is what Workers Builds runs, so the deploy logic lives in the repository instead of a dashboard field. `production` applies the D1 migrations, then runs `wrangler deploy`. `preview` applies them to the staging database from the `previews` block, through a config it derives on each run, then runs `wrangler preview` named for the branch (`feature/12-login` becomes `feature-12-login`).
+
+  **What to do:** run `astroid generate` after upgrading, and commit the regenerated `worker.ts` and the new `.github/workflows/release.yml`; `doctor` reports both until you do. The release workflow does nothing until you move Workers Builds to `deploy/production`, so adding it changes no deploy. The webhook route is scaffolded once, so an existing site adds the `inline` line and the `handleQueueMessage` import (from `src/queue.ts`) to it by hand before it turns Previews on. Nothing changes at runtime for a site whose `MEDIA_URL` matches its `deploy.mediaBase`, which is every site today.
+
+### Patch Changes
+
+- The page sanitizers and the settings action now check images against the running deployment's media base, so a staging Preview keeps the images uploaded on it. They were built once from `deploy.mediaBase`, which names production's media host, so on a Preview, which serves media from its own `/media`, every uploaded image was dropped from page content as a hotlink, and every image setting was rejected.
+
+  - The generated `worker.ts` records `vars.MEDIA_URL` at startup with `setAstroidMediaBase`, and the checks read it through `astroidMediaBase(config)` when they run. An isolate runs one deployment, and `MEDIA_URL` is fixed per deployment, so production still checks against its own host.
+  - New scaffolds' settings action reads `mediaBase` through a getter, and the portfolio gallery builds image URLs from `MEDIA_URL`.
+
+  **What to do:** run `astroid generate` and commit the regenerated `worker.ts`. If your `src/actions/index.ts` passes `mediaBase: astroidConfig.deploy?.mediaBase ?? "/media"` to `louiseSettingsAction`, replace it with `get mediaBase() { return astroidMediaBase(astroidConfig); }`, importing `astroidMediaBase` from `astroidjs`. A portfolio site's gallery page takes the same change the scaffold made: build `src` from `env.MEDIA_URL`.
+
 ## 0.15.0
 
 ### Minor Changes

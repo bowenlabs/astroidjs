@@ -134,7 +134,7 @@ export function assertCommerceRoles(commerce: CommerceConfig | undefined): void 
         pos: "locations/inventory",
       }[role];
       throw new AstroidConfigError(
-        `commerce: ${provider} can't serve the "${role}" role — its louise-toolkit client has no ${missing} API. Providers that can: ${able.join(", ")}.`,
+        `commerce: ${provider} can't serve the "${role}" role, because its louise-toolkit client has no ${missing} API. Providers that can: ${able.join(", ")}.`,
       );
     }
   };

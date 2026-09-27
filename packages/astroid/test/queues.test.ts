@@ -265,6 +265,49 @@ describe("handleWebhook", () => {
     expect(res.status).toBe(503);
   });
 
+  it("runs the event inline when the queue is absent, as on a staging Preview", async () => {
+    const inline = vi.fn(async (_message: AstroidQueueMessage) => {});
+    const res = await handleWebhook(req('{"type":"catalog.version.updated"}'), url, {
+      provider: "square",
+      secret: "real",
+      queue: undefined,
+      inline,
+      verify: () => true,
+    });
+    // 200, not 202: the work already happened.
+    expect(res.status).toBe(200);
+    expect(inline).toHaveBeenCalledWith({
+      kind: "webhook",
+      provider: "square",
+      type: "catalog.version.updated",
+      payload: { type: "catalog.version.updated" },
+    });
+  });
+
+  it("prefers the queue when both are there, and asks for redelivery when inline fails", async () => {
+    const q = queue();
+    const inline = vi.fn(async () => {});
+    await handleWebhook(req('{"type":"a"}'), url, {
+      provider: "square",
+      secret: "real",
+      queue: q,
+      inline,
+      verify: () => true,
+    });
+    expect(q.send).toHaveBeenCalledOnce();
+    expect(inline).not.toHaveBeenCalled();
+
+    const res = await handleWebhook(req('{"type":"a"}'), url, {
+      provider: "square",
+      secret: "real",
+      inline: async () => {
+        throw new Error("D1 down");
+      },
+      verify: () => true,
+    });
+    expect(res.status).toBe(503);
+  });
+
   it("asks for redelivery (503) when enqueuing fails", async () => {
     // The signature checked out, so the event is real and worth keeping.
     const res = await handleWebhook(req('{"type":"a"}'), url, {
@@ -417,6 +460,9 @@ describe("scaffold-once files", () => {
     // Square signs notificationUrl + body, so the URL must reach the verifier.
     expect(square).toContain("verifySquareSignature(url.href, raw,");
     expect(square).toContain("readModuleSecret(env.SQUARE_WEBHOOK_SECRET)");
+    // A Preview has no queue, so the route falls back to the consumer's handler.
+    expect(square).toContain('import { handleQueueMessage } from "../../../queue";');
+    expect(square).toContain("inline: (message) => handleQueueMessage(env, message),");
 
     const stripe = generateAstroidWebhookRoute({ ...shop, commerce: { provider: "stripe" } });
     expect(stripe).toContain("verifyStripeSignature(raw,");
