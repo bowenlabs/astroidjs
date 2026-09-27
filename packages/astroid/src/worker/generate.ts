@@ -78,11 +78,13 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const editorImports = [
     "DEFAULT_PAGE_FIELDS",
     "type PagesWrite",
+    "MEDIA_ALT_MISSING_SQL",
     "d1Check",
     ...new Set(plan.map((route) => route.factory).filter((f) => !realtimeRouteFactories.has(f))),
   ].sort();
   const tables = [
     "media",
+    "pageRedirects",
     "pages",
     "pagesVersions",
     "siteSettings",
@@ -106,7 +108,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
       case "realtime":
         return `realtimeRoute({ resolveEditor, namespace: (env) => env.${ASTROID_REALTIME_BINDING} })`;
       case "versions":
-        return "versionsRoute({ table: pages, versionsTable: pagesVersions, config: pagesCollection, resolveEditor, bufferKv: (env) => env.DRAFTS })";
+        // `redirects` records `/old → /new` when a publish changes the slug.
+        return "versionsRoute({ table: pages, versionsTable: pagesVersions, config: pagesCollection, resolveEditor, bufferKv: (env) => env.DRAFTS, redirects: pageRedirects })";
       case "search":
         return "searchRoute({ table: pages, config: pagesCollection, resolveEditor })";
       case "pages":
@@ -120,7 +123,15 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         // which have no foreign key to the page and would otherwise orphan.
         // `afterWrite` syncs the written page's search index entry, which plain
         // CRUD writes leave stale.
-        return 'pagesRoute({ table: pages, versionsTable: pagesVersions, resolveEditor, fields: [...DEFAULT_PAGE_FIELDS, "sections"], ...pagesWriteHooks, afterWrite: reindexPagesSearch })';
+        //
+        // `drafts` carries a Pages panel update into the page's pending draft,
+        // with the same config and buffer versionsRoute uses. Without it, a
+        // rename made while a draft was pending came undone at the next
+        // publish, which copies the whole draft snapshot onto the live row.
+        //
+        // `redirects` records `/old → /new` in the same batch as a slug change,
+        // and the middleware's `redirectFor` serves it.
+        return 'pagesRoute({ table: pages, versionsTable: pagesVersions, drafts: { config: pagesCollection, bufferKv: (env) => env.DRAFTS }, redirects: pageRedirects, resolveEditor, fields: [...DEFAULT_PAGE_FIELDS, "sections"], ...pagesWriteHooks, afterWrite: reindexPagesSearch })';
       case "save":
         // No `bufferKv` here, deliberately: `saveRoute` has no such option. It
         // writes live field saves (title, SEO) straight through, and the draft
@@ -350,7 +361,9 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("  const origin = env.SITE_URL ?? mediaBaseOf(env);");
   p("  const [brokenLinks, missingAlt, seoGaps] = await Promise.all([");
   p('    checkLinks({ base: origin, paths: ["/"] }).catch(() => []),');
-  p("    countRows(env, \"SELECT COUNT(*) AS n FROM media WHERE alt IS NULL OR alt = ''\"),");
+  p("    // Only an unwritten alt (NULL) is missing. An empty one is an image the");
+  p("    // owner marked decorative, which HTML says to skip.");
+  p("    countRows(env, `SELECT COUNT(*) AS n FROM media WHERE ${MEDIA_ALT_MISSING_SQL}`),");
   p("    countRows(");
   p("      env,");
   p("      \"SELECT COUNT(*) AS n FROM pages WHERE status = 'published'\" +");
@@ -628,6 +641,7 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "// styles + inlined data: brand font are allowed.",
     'import { env } from "cloudflare:workers";',
     'import { createLouiseMiddleware } from "@louise-toolkit/astro";',
+    'import { db, pageRedirects, resolvePageRedirect } from "louise-toolkit/db";',
     // One `astroidjs` import, composed from what this config actually uses—two
     // import statements for the same module is legal and reads as an
     // oversight in a file nobody is supposed to hand-edit.
@@ -685,6 +699,9 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "  // anything the worker's routes didn't answer. A second check behind the",
     "  // worker's gate, and free: the editor is resolved here on every request.",
     "  apiGate: true,",
+    "  // A renamed page's old URL answers a 301 to the new one. It runs only after",
+    "  // the page answered 404, so a page later created on the old path wins.",
+    "  redirectFor: (path) => resolvePageRedirect(db(env.DB), pageRedirects, path),",
     // `extend` runs once and may need to populate BOTH—a tenanted site with a
     // portal resolves a tenant and a customer on the same request.
     ...(portal || tenancy
