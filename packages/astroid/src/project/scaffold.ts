@@ -92,6 +92,34 @@ function generateAstroidPagesHooks(): string {
   ].join("\n");
 }
 
+/** `src/status-checks.ts`—the site's own status checks, scaffolded once. */
+function generateAstroidStatusChecks(): string {
+  return [
+    "// The site's own checks for the public status route (GET /api/louise/status),",
+    "// which an outside probe reads. The generated worker spreads `statusChecks`",
+    "// after Astroid's own `d1` and `content` checks. Scaffolded once and yours to",
+    "// edit.",
+    "//",
+    "// A check gets `env` and an abort signal, and returns true, false, or",
+    "// `{ ok, ageMs }`. Keep each one cheap: anyone can make it run. Its name is",
+    "// in the public response, so don't put anything in one you wouldn't publish.",
+    'import type { StatusCheck } from "louise-toolkit/editor";',
+    "",
+    "export const statusChecks: Record<string, StatusCheck<CloudflareEnv>> = {",
+    "  // For example, fail when the daily health scan is over 36 hours old:",
+    "  //",
+    '  //   import { ageCheck } from "louise-toolkit/editor";',
+    '  //   import { readHealthSummary } from "louise-toolkit/health";',
+    "  //",
+    "  //   healthScan: ageCheck(",
+    "  //     async (env) => (await readHealthSummary(env.RL))?.checkedAt,",
+    "  //     36 * 60 * 60 * 1000,",
+    "  //   ),",
+    "};",
+    "",
+  ].join("\n");
+}
+
 /** `src/settings-hooks.ts`—the site's settings sanitizers, scaffolded once. */
 function generateAstroidSettingsHooks(): string {
   return [
@@ -163,6 +191,11 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // --- pages: the transform + reserved-slugs seam ---------------------------
   if (config.pages?.hooks) {
     files.push({ path: "src/pages-hooks.ts", contents: generateAstroidPagesHooks() });
+  }
+
+  // --- status: the site's own probe checks -----------------------------------
+  if (config.status?.checks) {
+    files.push({ path: "src/status-checks.ts", contents: generateAstroidStatusChecks() });
   }
 
   // --- settings: the sanitize + read seam ------------------------------------

@@ -15,6 +15,7 @@ export type AstroidEditorRouteName =
   | "health"
   | "realtime"
   | "vitals"
+  | "status"
   | "overview"
   | "seoFix"
   | "versions"
@@ -113,6 +114,12 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     name: "vitals",
     factory: "vitalsRoute",
     note: "Public CWV ingestion (POST /api/louise/vitals). NOT session-gated—these are anonymous visitor beacons—but same-origin only, and it accepts-and-drops without the dataset binding. Always 204.",
+  });
+
+  routes.push({
+    name: "status",
+    factory: "statusRoute",
+    note: "Public status for an outside probe (GET/HEAD /api/louise/status): 200 when every check passes, 503 when any fails. A publicRoute under ADR 0012, so the gate lets an anonymous probe through, and it answers booleans and ages, never error text. Owns its own path, so it collides with nothing.",
   });
 
   routes.push({

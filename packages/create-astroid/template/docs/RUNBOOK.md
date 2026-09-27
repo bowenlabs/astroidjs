@@ -56,6 +56,19 @@ wrangler deploy
 <!-- Who deploys, from where, and what gates it? If deploys are automatic on push
      to main, say so here—that is the first thing a new person asks. -->
 
+## Is it up?
+
+```sh
+curl -i https://<your-host>/api/louise/status
+```
+
+200 means D1 answers and the home page has content; 503 names the check that
+failed, as a boolean, in the JSON body. Point an uptime monitor at this URL.
+Add your own checks in `src/status-checks.ts` (turn it on with
+`status: { checks: true }` in `astroid.config.ts`).
+
+<!-- Which monitor watches this URL, and who it alerts. -->
+
 ## D1 migrations
 
 ```sh
