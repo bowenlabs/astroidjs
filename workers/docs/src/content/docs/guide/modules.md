@@ -78,6 +78,12 @@ theirs, and the Pages route refuses those slugs with a 422, along with `work` on
 a portfolio. Add your own file routes' slugs to `reservedSlugs` in
 `src/pages-hooks.ts` (turn it on with `pages: { hooks: true }`).
 
+A site that deleted one of those file routes, or never had it, and serves the
+path as a page from its own catch-all instead, allows the slug with
+`pages: { allowSlugs: ["contact"] }`. Only `contact`, `login`, and `work` can be
+allowed. The platform serves the other reserved paths, such as `api` and
+`sitemap.xml`, before any page, and `defineAstroid` refuses them.
+
 ### Renamed pages keep their old URL
 
 When an editor changes a page's slug, the Pages route records `/old → /new` in
