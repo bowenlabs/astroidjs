@@ -49,16 +49,41 @@ export interface GeneratedFile {
 }
 
 /**
+ * The paths of the regenerated trio, relative to the project root. Astroid's
+ * code, tested here, not the site's: spread it into a site's
+ * `coverage.exclude` so an Astroid upgrade that adds lines to them doesn't
+ * move the site's coverage.
+ *
+ * ```ts
+ * // vitest.config.ts
+ * import { ASTROID_GENERATED_FILES } from "astroidjs";
+ *
+ * export default defineConfig({
+ *   test: { coverage: { exclude: [...ASTROID_GENERATED_FILES] } },
+ * });
+ * ```
+ *
+ * A site that lists them by hand would miss a generated file a later release
+ * adds; this list gains it.
+ */
+export const ASTROID_GENERATED_FILES = [
+  "src/schema.ts",
+  "src/worker.ts",
+  "src/middleware.ts",
+] as const;
+
+/**
  * The regenerated trio—the files that are a pure function of the Astroid config
  * and carry a "do not hand-edit" banner. `astroid generate` writes exactly these,
  * and `astroid doctor` regenerates them in-memory to diff against disk. Scaffold-
  * once files (wrangler.jsonc, astro.config, auth.ts) are NOT here by design.
  */
 export function generateAstroidProject(config: AstroidConfig): GeneratedFile[] {
+  const [schema, worker, middleware] = ASTROID_GENERATED_FILES;
   return [
-    { path: "src/schema.ts", contents: generateAstroidSchema(config) },
-    { path: "src/worker.ts", contents: generateAstroidWorker(config) },
-    { path: "src/middleware.ts", contents: generateAstroidMiddleware(config) },
+    { path: schema, contents: generateAstroidSchema(config) },
+    { path: worker, contents: generateAstroidWorker(config) },
+    { path: middleware, contents: generateAstroidMiddleware(config) },
   ];
 }
 

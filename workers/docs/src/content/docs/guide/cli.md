@@ -69,3 +69,27 @@ This distinction is the one worth internalising:
 Switching a module on later is a config edit plus `astroid generate`—it writes
 whatever scaffold-once files the new module needs and leaves your existing ones
 alone.
+
+### Keep the generated files out of coverage
+
+The generated trio is Astroid's code, tested in Astroid, not yours. If your site
+measures test coverage, exclude it. Otherwise an Astroid release that adds lines
+to `src/worker.ts` lowers your coverage with no change of your own, and a
+coverage floor turns every upgrade into a coverage task. `astroidjs` exports the
+list, so a generated file a later release adds is excluded without an edit:
+
+```ts
+// vitest.config.ts
+import { ASTROID_GENERATED_FILES } from "astroidjs";
+import { coverageConfigDefaults, defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    coverage: { exclude: [...coverageConfigDefaults.exclude, ...ASTROID_GENERATED_FILES] },
+  },
+});
+```
+
+Setting `coverage.exclude` replaces Vitest's default exclusions, which is why
+the example spreads `coverageConfigDefaults.exclude` back in. Excluding the trio usually raises a site's measured coverage, so a ratchet
+can move its floor up.
