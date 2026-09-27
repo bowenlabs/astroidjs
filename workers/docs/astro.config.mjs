@@ -26,6 +26,9 @@ export default defineConfig({
       description:
         "The opinionated meta-framework over Louise Toolkit and Astro: one typed config generates the worker, middleware, schema, and theme for an editable site on Cloudflare Workers.",
       logo: { src: "./src/assets/astroid-icon.svg", replacesTitle: false },
+      // Not /favicon.svg: browsers cache a favicon by URL, so a new icon at the
+      // old path keeps showing the old one. A new icon needs a new filename.
+      favicon: "/astroid-icon.svg",
       social: [
         {
           icon: "github",
