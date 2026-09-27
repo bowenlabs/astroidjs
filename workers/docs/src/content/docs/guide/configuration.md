@@ -45,6 +45,68 @@ The editable home page is an ordered list of section types. Astroid ships 15:
 The vocabulary is **derived from the catalog**, so a section name that has no
 component is a compile error rather than a page that silently fails to render.
 
+### An app with no editor
+
+Every project is a Louise-edited site unless it says otherwise. An app with no
+pages to edit, such as an order-ahead app whose menu comes from Square, sets
+`editor: false`:
+
+```ts
+export default defineAstroid({
+  key: "order",
+  archetype: "storefront",
+  editor: false,
+  theme: { name: "Example Organization", colors: { brand: "#5b4bff" } },
+  commerce: { provider: "square", pipeline: false },
+  modules: ["pwa"],
+  portal: { enabled: true },
+  deploy: { platform: "cloudflare", migrations: false },
+});
+```
+
+Choose it when nothing in the project is edited in place, and its few settings
+belong to a site that has an editor. That site stays the only place they're
+edited: the app reads them from the site's database, and never writes them.
+
+What the shape drops:
+
+- **The editor.** The generated worker and middleware carry no editor routes,
+  no `./auth.js` seam, and no edit mode. The worker keeps the gate, with a
+  resolver that never finds an editor, so it refuses everything under
+  `/api/louise` except the public status route.
+- **The content tables.** `src/schema.ts` emits no `pages` or versions, and no
+  framework tables. To read one another app owns, such as `siteSettings`,
+  import it from `louise-toolkit/db` where you query it, so drizzle-kit never
+  writes a migration for a table this app doesn't own.
+- **The editor's bindings.** `wrangler.jsonc` binds no draft buffer, media
+  bucket, Images, Workers AI, or vitals dataset, and no mail unless a portal
+  sends password resets. `astroid doctor` doesn't ask for them.
+- **The editor's crons.** There's no daily health scan, so an app with nothing
+  scheduled has no `triggers` and no `scheduled` handler.
+
+What stays: the rate limiter, the CSP, the security headers, the public status
+route, and the `portal`, `pwa`, `commerce`, `map`, and `tenancy` modules.
+`defineAstroid` refuses every option that configures the editor alongside
+`editor: false` (`sections`, `sectionCatalog`, `blockCatalog`, `media`,
+`pages`, `settings`, `inquiries: true`, `deploy.mediaBase`, and the `realtime`
+and `wholesaleInquiry` modules), rather than accept a setting nothing reads.
+
+The app is API-first. Its web client is the first client of a versioned JSON
+API under `/api/v1`, which a native client can later call as well. The
+middleware rate-limits every POST under that prefix per client IP, and the
+editor's sign-in rules are gone. A route there answers JSON, reads its input
+from the body or the URL, and needs no browser-only header.
+
+To take payments without the webhook receiver, queue, and catalog cron, which
+the site with the editor runs against the same account, add `pipeline: false`
+to `commerce` (see [Commerce](../reference/commerce/)). To share that site's
+database, bind it by id and set `deploy.migrations: false`, so only the site
+migrates it.
+
+`create-astroid --app` scaffolds the shape: the same template without the
+editor's files, plus an app layout, a home screen, and the root of the
+`/api/v1` API.
+
 ### Agency credit
 
 An agency that builds the site can credit itself in the footer. It's a site

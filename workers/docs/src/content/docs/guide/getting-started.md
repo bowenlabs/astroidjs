@@ -66,6 +66,7 @@ pnpm create astroid [directory] [options]
   --realtime            Live multi-editor editing (a per-page Durable Object)
   --credit-name <name>  A "Site by <name>" credit in the footer
   --credit-href <url>   Where the credit links (pairs with --credit-name)
+  --app                 An app with no pages to edit (editor: false)
 ```
 
 You get a working floor, not a blank page: an inline-editable home page,

@@ -134,6 +134,14 @@ jobs:
           - leg: storefront-square-multi
             archetype: storefront
             flags: "--commerce square --square-locations multi"
+          # The editor-free app shape: a different trio, env.d.ts and layout,
+          # laid over the template, so nothing else compiles them. The second
+          # leg adds the modules the shape keeps; its catalog table is what
+          # caught a schema missing the `JsonValue` import.
+          - { leg: app, archetype: marketing, flags: "--app" }
+          - leg: app-modules
+            archetype: storefront
+            flags: "--app --portal --pwa --commerce square"
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup

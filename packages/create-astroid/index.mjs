@@ -45,6 +45,24 @@ const DOTFILE_RENAMES = {
   _github: ".github",
 };
 
+// The editor-free app shape (`--app`, `editor: false`). It starts from the same
+// template, leaves out the editor's files, and lays `template/_app/` over the
+// rest, so the two shapes share every file that doesn't depend on an editor.
+const APP_OVERLAY = "_app";
+const APP_SKIP = new Set([
+  "migrations/0000_content.sql",
+  "scripts/seed-editors.mjs",
+  "src/auth.ts",
+  "src/components/Hero.astro",
+  "src/components/LouiseEdit.astro",
+  "src/layouts/Site.astro",
+  "src/lib/pages.ts",
+  "src/pages/[...slug].astro",
+  "src/pages/api/auth/[...all].ts",
+  "src/pages/contact.astro",
+  "src/pages/login.astro",
+]);
+
 // Archetype → default editable home sections. Imported from astroidjs rather
 // than duplicated here: as a literal in this file it could name a section that
 // doesn't exist and nothing would say so (it did—`marquee`, `featured`,
@@ -99,15 +117,21 @@ async function prompt(question, fallback) {
 }
 
 // --- scaffold --------------------------------------------------------------
-function copyTemplate(srcDir, destDir, tokens) {
-  mkdirSync(destDir, { recursive: true });
+// `skip` holds template-relative POSIX paths to leave out. Directories are made
+// only when a file lands in them, so skipping a directory's every file leaves
+// no empty directory behind.
+function copyTemplate(srcDir, destDir, tokens, { skip = new Set(), rel = "" } = {}) {
   for (const entry of readdirSync(srcDir)) {
+    // The app overlay is copied on its own, over the rest, and only for `--app`.
+    if (rel === "" && entry === APP_OVERLAY) continue;
     const src = join(srcDir, entry);
+    const path = rel ? `${rel}/${entry}` : entry;
     const renamed = DOTFILE_RENAMES[entry] ?? entry;
     const dest = join(destDir, renamed);
     if (statSync(src).isDirectory()) {
-      copyTemplate(src, dest, tokens);
-    } else {
+      copyTemplate(src, dest, tokens, { skip, rel: path });
+    } else if (!skip.has(path)) {
+      mkdirSync(destDir, { recursive: true });
       const raw = readFileSync(src, "utf8");
       writeFileSync(dest, applyTokens(raw, tokens));
     }
@@ -128,12 +152,15 @@ function astroidConfigSource(config) {
     "export default defineAstroid({",
     `  key: ${JSON.stringify(config.key)},`,
     `  archetype: ${JSON.stringify(config.archetype)},`,
+    // Must be emitted: every generator reads the shape from THIS file, so a
+    // config without it would regenerate an editor this app has no seam for.
+    ...(config.editor === false ? ["  editor: false,"] : []),
     ...(config.hosts?.length ? [`  hosts: ${JSON.stringify(config.hosts)},`] : []),
     "  theme: {",
     `    name: ${JSON.stringify(config.theme.name)},`,
     `    colors: { brand: ${JSON.stringify(config.theme.colors.brand)} },`,
     "  },",
-    `  sections: ${JSON.stringify(config.sections)},`,
+    ...(config.sections ? [`  sections: ${JSON.stringify(config.sections)},`] : []),
     // `square` must be emitted too: `astroid doctor` derives the required
     // secrets from THIS file, so a multi-location project whose config lost the
     // option would be told it is missing a SQUARE_LOCATION_ID it must not have.
@@ -215,6 +242,10 @@ Options:
                         with presence, field sync, and a rich-text soft-lock
   --portal              Add a customer/member portal: a second, isolated auth
                         instance plus role-gated routes
+  --app                 Scaffold an app with no pages to edit (editor: false):
+                        no editor, sign-in, or content tables, and a versioned
+                        JSON API under /api/v1. Its settings stay in the editor
+                        of a site that has one
   --credit-name <name>  Credit who built the site in the footer ("Site by <name>")
   --credit-href <url>   Where the credit links; needs --credit-name, and the
                         other way round
@@ -223,6 +254,8 @@ Options:
 
 Anything not passed as a flag is prompted for; in a non-TTY every prompt takes
 its default, so the command is CI-safe. The target directory must be empty.
+With --app there is no archetype prompt; --archetype still sets the business
+type in structured data.
 `;
 
 async function main() {
@@ -250,8 +283,12 @@ async function main() {
     flags.key || (await prompt("Project key (slug)", slugify(name) || "my-site")),
   );
   const dir = resolve(dirArg || (await prompt("Directory", key)) || key);
+  // An app with no pages to edit (`editor: false`). Its archetype chooses no
+  // sections, so it isn't prompted for; it only sets the structured-data type.
+  const app = flags.app === true || flags.app === "true";
   const archetypeRaw = (
-    flags.archetype || (await prompt(`Archetype (${ARCHETYPES.join("/")})`, "marketing"))
+    flags.archetype ||
+    (app ? "marketing" : await prompt(`Archetype (${ARCHETYPES.join("/")})`, "marketing"))
   ).toLowerCase();
   const archetype = ARCHETYPES.includes(archetypeRaw) ? archetypeRaw : "marketing";
   const color = flags.color || (await prompt("Brand color (hex)", "#5b4bff"));
@@ -259,7 +296,9 @@ async function main() {
   // The customer PORTAL is opt-in via --portal, but a storefront IMPLIES one—a
   // shop has customers who sign in, reorder, and track orders—so enable it there
   // by default. (Commerce below stays opt-in: infra a marketing site shouldn't carry.)
-  const portal = flags.portal === true || flags.portal === "true" || archetype === "storefront";
+  // An app gets one only when asked: its customers may sign in on the site.
+  const portal =
+    flags.portal === true || flags.portal === "true" || (archetype === "storefront" && !app);
   // The map module is opt-in and pulls real weight (maplibre-gl is ~1 MB), so
   // it is never on by default.
   const map = flags.map === true || flags.map === "true";
@@ -313,6 +352,13 @@ async function main() {
     process.exit(1);
   }
 
+  // Refused here with the flag's name, rather than by `defineAstroid` with a
+  // stack trace: live editing needs an editor to edit with.
+  if (app && realtime) {
+    process.stderr.write("create-astroid: --realtime needs an editor, so it can't go with --app\n");
+    process.exit(1);
+  }
+
   if (existsSync(dir) && readdirSync(dir).length > 0) {
     process.stderr.write(`create-astroid: target directory is not empty: ${dir}\n`);
     process.exit(1);
@@ -324,7 +370,7 @@ async function main() {
     archetype,
     ...(host ? { hosts: [host] } : {}),
     theme: { name, colors: { brand: color } },
-    sections: ARCHETYPE_SECTIONS[archetype],
+    ...(app ? { editor: false } : { sections: ARCHETYPE_SECTIONS[archetype] }),
     ...(commerce
       ? {
           commerce: {
@@ -353,6 +399,21 @@ async function main() {
   const realtimeEnv = generateAstroidRealtimeEnv(config);
   // The Square Web Payments public vars, or nothing.
   const checkoutEnv = generateAstroidCheckoutEnv(config);
+  // An app's portal is the only thing in it that signs anyone in or sends mail,
+  // so the session secret, the mail binding, and the sender come with it. The
+  // editor shape's env.d.ts and .env.example declare these for every project.
+  const appPortalEnv =
+    app && portal
+      ? [
+          "  /** Cloudflare Email Sending: the portal's password-reset mail. */",
+          '  EMAIL: import("louise-toolkit/email").EmailSender;',
+          "  /** Signs the portal's Better Auth sessions (`wrangler secret put SESSION_SECRET`). */",
+          "  SESSION_SECRET: string;",
+          "  /** `from` address for the portal's mail. */",
+          "  MAIL_FROM: string;",
+        ].join("\n")
+      : "";
+  const envMembers = [appPortalEnv, envBindings, realtimeEnv, checkoutEnv].filter(Boolean);
   const tokens = {
     KEY: key,
     BRAND_NAME: name,
@@ -362,9 +423,7 @@ async function main() {
     // Extra CloudflareEnv members the queue pipeline needs, or nothing. A
     // declaration is a promise—a marketing site must not claim a binding its
     // wrangler.jsonc never creates.
-    ASTROID_ENV_BINDINGS: [envBindings, realtimeEnv, checkoutEnv].filter(Boolean).join("\n")
-      ? `\n${[envBindings, realtimeEnv, checkoutEnv].filter(Boolean).join("\n")}`
-      : "",
+    ASTROID_ENV_BINDINGS: envMembers.length > 0 ? `\n${envMembers.join("\n")}` : "",
     // The portal session on App.Locals, or nothing—a project that types a
     // local it never sets invites a null-check nobody needs.
     ASTROID_PORTAL_LOCALS: portalLocals ? `\n${portalLocals}` : "",
@@ -373,10 +432,27 @@ async function main() {
     // module takes its dormant path deliberately rather than tripping over
     // an undefined binding. Empty for a project with no credentialed module.
     ASTROID_MODULE_SECRETS: generateAstroidSecretsEnv(config),
+    // The app shape's .env.example: the portal's secrets, or nothing.
+    ASTROID_APP_SECRETS:
+      app && portal
+        ? [
+            "",
+            "# --- portal ---------------------------------------------------------------",
+            "#",
+            "# Signs the portal's Better Auth sessions. Generate: `openssl rand -base64 32`.",
+            "# Empty is fine under `pnpm dev`, which serves on localhost.",
+            "SESSION_SECRET=",
+            "",
+            "# `from` address for the portal's password-reset mail.",
+            `MAIL_FROM=no-reply@${key}.example`,
+          ].join("\n")
+        : "",
   };
 
   // 1. The static floor (Astro app, auth seam, config files) with tokens filled.
-  copyTemplate(TEMPLATE_DIR, dir, tokens);
+  //    An app leaves out the editor's files and lays its own over the rest.
+  copyTemplate(TEMPLATE_DIR, dir, tokens, app ? { skip: APP_SKIP } : {});
+  if (app) copyTemplate(join(TEMPLATE_DIR, APP_OVERLAY), dir, tokens);
 
   // 1b. Toolkit versions + module dependencies, merged into the copied package.json.
   //
@@ -399,6 +475,8 @@ async function main() {
     pkg.dependencies = Object.fromEntries(
       Object.entries({ ...pkg.dependencies, ...extraDeps }).sort(([a], [b]) => a.localeCompare(b)),
     );
+    // An app has no editors to seed, and no script to seed them with.
+    if (app) delete pkg.scripts["seed:editors"];
     writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   }
 
@@ -412,7 +490,8 @@ async function main() {
   // 3a. The home page seed, built from the config's own `sections`. It used to be
   //     a fixed template file that seeded the marketing sections for every
   //     archetype, and token substitution can't escape a brand name for SQL.
-  write(dir, "seed/home.seed.sql", generateAstroidHomeSeed(config));
+  //     An app has no pages, so it seeds none.
+  if (!app) write(dir, "seed/home.seed.sql", generateAstroidHomeSeed(config));
 
   // 3b. Every scaffold-once module file this config implies—the queue seam and
   //     webhook receivers, the portfolio gallery page, the PWA service worker +
@@ -445,13 +524,19 @@ async function main() {
   //    resolvable at scaffold time. If not, leave a stub + a one-liner to generate
   //    it after install (the project has `louise` on its path then).
   let authMigrationOk = false;
+  // An app has no editor instance, so its portal's tables are its first.
+  const portalMigration = app
+    ? "migrations/0001_portal_auth.sql"
+    : "migrations/0002_portal_auth.sql";
   try {
     const { generateAuthSchemaSql } = await import("louise-toolkit/auth");
     // The EDITOR instance's tables—`louise_`-prefixed (the editor convention),
     // leaving the unprefixed `user`/`session` names free for a second/portal
     // instance. Must match the `tablePrefix` in src/auth.ts and the `louise_user`
     // table the generated `editorsRoute` reads.
-    write(dir, "migrations/0001_auth.sql", generateAuthSchemaSql({ tablePrefix: "louise_" }));
+    if (!app) {
+      write(dir, "migrations/0001_auth.sql", generateAuthSchemaSql({ tablePrefix: "louise_" }));
+    }
     // The portal's own auth tables—a SECOND Better Auth instance sharing one D1
     // but never a row, so a portal account can't sign into the studio and an
     // editor doesn't appear in the portal. `customers: true` (email + password)
@@ -461,31 +546,66 @@ async function main() {
     if (config.portal?.enabled) {
       write(
         dir,
-        "migrations/0002_portal_auth.sql",
+        portalMigration,
         generateAuthSchemaSql({ customers: true, tablePrefix: config.portal.tablePrefix ?? "" }),
       );
     }
     authMigrationOk = true;
   } catch {
-    write(
-      dir,
-      "migrations/0001_auth.sql",
-      "-- Better Auth tables (editor, louise_ prefix) — generate after install:\n--   pnpm exec louise gen-auth-schema --table-prefix louise_ --out migrations/0001_auth.sql\n",
-    );
+    if (!app) {
+      write(
+        dir,
+        "migrations/0001_auth.sql",
+        "-- Better Auth tables (editor, louise_ prefix) — generate after install:\n--   pnpm exec louise gen-auth-schema --table-prefix louise_ --out migrations/0001_auth.sql\n",
+      );
+    }
     // Same stub for the portal's prefixed set. Without it a portal scaffold
     // looks complete, builds, and fails on the first sign-in with a missing
     // table—the one failure mode a stub exists to prevent.
     if (config.portal?.enabled) {
       write(
         dir,
-        "migrations/0002_portal_auth.sql",
+        portalMigration,
         "-- Portal Better Auth tables (customers, unprefixed) — generate after install:\n" +
-          "--   pnpm exec louise gen-auth-schema --out migrations/0002_portal_auth.sql\n",
+          `--   pnpm exec louise gen-auth-schema --out ${portalMigration}\n`,
       );
     }
   }
 
+  // An app with no tables of its own still gets the directory, because
+  // `astroid ship` applies migrations from it on every deploy until the config
+  // says another app owns the database (`deploy.migrations: false`).
+  if (app && !existsSync(join(dir, "migrations"))) write(dir, "migrations/.gitkeep", "");
+
   const rel = dir === process.cwd() ? "." : basename(dir);
+  if (app) {
+    process.stdout.write(
+      [
+        "",
+        `✓ Scaffolded ${name} → ${rel} (an app with no editor)`,
+        "",
+        "Next steps:",
+        `  cd ${rel}`,
+        "  pnpm install",
+        ...(authMigrationOk || !config.portal?.enabled
+          ? []
+          : [
+              "  # generate the portal's Better Auth migration:",
+              `  pnpm exec louise gen-auth-schema --out ${portalMigration}`,
+            ]),
+        "  # create the Cloudflare resources wrangler.jsonc names, filling in their ids.",
+        "  # To share another app's database instead, bind it by id and set",
+        "  # `deploy: { migrations: false }` in astroid.config.ts.",
+        "  pnpm exec astroid provision",
+        "  # develop / ship:",
+        "  pnpm dev            # astroid dev (regenerates, then astro dev)",
+        "  pnpm run doctor     # validate config + bindings (`run` is required)",
+        "  pnpm exec astroid ship production",
+        "",
+      ].join("\n"),
+    );
+    return;
+  }
   process.stdout.write(
     [
       "",

@@ -37,6 +37,7 @@ import type { AstroidConfig } from "../config.js";
 import { generateMapEmbedComponent, generateMapTileRoute } from "../map/scaffold.js";
 import { generateAstroidGalleryPage } from "../portfolio/scaffold.js";
 import { astroidPortal } from "../portal/config.js";
+import { astroidHasEditor } from "../shape.js";
 import { generateAstroidPortalAuth, generateAstroidPortalAuthRoute } from "../portal/scaffold.js";
 import { generateAstroidTenancy } from "../tenancy/index.js";
 import { generateAstroidEditSession } from "../realtime/scaffold.js";
@@ -198,6 +199,10 @@ function generateAstroidSettingsHooks(): string {
  */
 export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFile[] {
   const files: ScaffoldFile[] = [];
+  // An app with no editor gets none of the editor's files: the content
+  // migrations, the CWV beacon its Health panel reads, the Actions surface
+  // over pages and settings, and the gallery page over the media library.
+  const editor = astroidHasEditor(config);
 
   // --- commerce: the catalog table's migration ------------------------------
   // Numbered 0003 so it lands after the template's 0000_content and the auth
@@ -216,25 +221,29 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // filename. The CLI moves each into the site's `migrations_dir` and past
   // the site's own numbers (see migrations.ts), so a site that already has its
   // own 0004 gets the next free number instead of a second 0004.
-  files.push(
-    {
-      path: "migrations/0004_page_redirects.sql",
-      contents: ASTROID_PAGE_REDIRECTS_MIGRATION,
-      migration: true,
-    },
-    {
-      path: "migrations/0005_media_alt_undecided.sql",
-      contents: ASTROID_MEDIA_ALT_MIGRATION,
-      migration: true,
-    },
-  );
+  if (editor) {
+    files.push(
+      {
+        path: "migrations/0004_page_redirects.sql",
+        contents: ASTROID_PAGE_REDIRECTS_MIGRATION,
+        migration: true,
+      },
+      {
+        path: "migrations/0005_media_alt_undecided.sql",
+        contents: ASTROID_MEDIA_ALT_MIGRATION,
+        migration: true,
+      },
+    );
+  }
 
   // --- the CWV beacon -------------------------------------------------------
   // A static file under public/, so it is same-origin and covered by
   // `script-src 'self'`—an inline script carrying generated content could not
   // be hashed into the CSP and would be blocked.
-  const beacon = generateAstroidVitalsBeacon(config, cwvBeaconScript());
-  files.push({ path: beacon.path, contents: beacon.contents });
+  if (editor) {
+    const beacon = generateAstroidVitalsBeacon(config, cwvBeaconScript());
+    files.push({ path: beacon.path, contents: beacon.contents });
+  }
 
   // --- site-owned schema tables --------------------------------------------
   // Always: the generated src/schema.ts re-exports `./schema.site.js`, so the
@@ -273,10 +282,12 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   }
 
   // --- the typed Astro Actions surface --------------------------------------
-  // Always: every project has editable pages, and the routes alone leave the
-  // Astro-native half of ADR 0001 unbuilt. Scaffold-once because it is meant to
-  // be added to.
-  files.push({ path: "src/actions/index.ts", contents: generateAstroidActions(config) });
+  // Every project with an editor: it has editable pages, and the routes alone
+  // leave the Astro-native half of ADR 0001 unbuilt. Scaffold-once because it
+  // is meant to be added to.
+  if (editor) {
+    files.push({ path: "src/actions/index.ts", contents: generateAstroidActions(config) });
+  }
 
   // --- commerce: the server-authoritative payment seam ----------------------
   // Scaffold-once: a real store adds shipping, tax, an order row, a receipt.
@@ -299,7 +310,7 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
 
   // --- portfolio: the gallery page -----------------------------------------
   // "Which assets appear, in what order" is the first thing a portfolio changes.
-  const gallery = generateAstroidGalleryPage(config);
+  const gallery = editor ? generateAstroidGalleryPage(config) : null;
   if (gallery) files.push({ path: "src/pages/work.astro", contents: gallery });
 
   // --- pwa: the service worker, manifest, and its headers -------------------

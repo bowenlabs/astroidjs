@@ -22,6 +22,7 @@ import type { AstroidConfig } from "./config.js";
 import { ASTROID_VITALS_SECRET_NAMES } from "./analytics/index.js";
 import { EMAIL_SECRET_NAMES, type MailerEnv, resolveMailerStatus } from "./email/send.js";
 import type { SecretSource } from "./secrets.js";
+import { astroidHasEditor } from "./shape.js";
 
 /**
  * Secrets every Astroid site has, independent of which modules are on.
@@ -59,16 +60,20 @@ export interface AstroidModuleReport {
  * and a marketing site shouldn't be told to provision a Square token.
  */
 export function astroidSecretNames(config: AstroidConfig): Record<string, string[]> {
-  const groups: Record<string, string[]> = {
-    core: [...ASTROID_CORE_SECRET_NAMES],
-    email: [...EMAIL_SECRET_NAMES],
-  };
+  // An app with no editor signs nobody in unless it has a portal, which needs
+  // the session secret and mail, not the editor's Turnstile pair.
+  const editor = astroidHasEditor(config);
+  const portal = Boolean(config.portal?.enabled);
+  const groups: Record<string, string[]> = {};
+  if (editor) groups.core = [...ASTROID_CORE_SECRET_NAMES];
+  else if (portal) groups.core = ["SESSION_SECRET"];
+  if (editor || portal) groups.email = [...EMAIL_SECRET_NAMES];
   const commerce = commerceSecretNames(config.commerce);
   if (commerce.length > 0) groups.commerce = commerce;
   // The CWV read-back's API credentials. Collection needs none of this—only
   // querying the p75 back out does, because the Analytics Engine SQL API is
-  // account-scoped and has no binding.
-  groups.vitals = [...ASTROID_VITALS_SECRET_NAMES];
+  // account-scoped and has no binding. The editor's Health panel reads it.
+  if (editor) groups.vitals = [...ASTROID_VITALS_SECRET_NAMES];
   return groups;
 }
 
@@ -95,8 +100,11 @@ export async function astroidModuleStatus(
     resolveMailerStatus(env),
   ]);
 
-  const reports: AstroidModuleReport[] = [
-    {
+  const reports: AstroidModuleReport[] = [];
+  // Mail is for signing in: the editor's magic link, or a portal's password
+  // reset. An app with neither sends none, so there's nothing to report.
+  if (astroidHasEditor(config) || config.portal?.enabled) {
+    reports.push({
       module: "email",
       enabled: true,
       configured: mailer.configured,
@@ -106,8 +114,8 @@ export async function astroidModuleStatus(
         : // Naming the log is the useful part: the magic link IS in the console,
           // and someone who doesn't know that concludes sign-in is broken.
           "dormant — messages are logged to the console (the magic link is in the log), not sent",
-    },
-  ];
+    });
+  }
 
   if (commerce.enabled) {
     reports.push({

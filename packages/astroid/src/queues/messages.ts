@@ -3,6 +3,7 @@
 // What flows through the project's queue, and when it matters.
 
 import type { AstroidConfig } from "../config.js";
+import { astroidHasEditor } from "../shape.js";
 
 /**
  * Whether this project runs a queue consumer + cron.
@@ -57,7 +58,9 @@ export const ASTROID_HEALTH_CRON = "17 4 * * *";
  * agree exactly, and a mismatch is a job that silently never runs.
  */
 export function astroidCrons(config: AstroidConfig): string[] {
-  const crons = [ASTROID_HEALTH_CRON];
+  // The health scan reports to the editor's Health panel, over the editor's
+  // pages and media, so an app with no editor has nothing to scan or show.
+  const crons = astroidHasEditor(config) ? [ASTROID_HEALTH_CRON] : [];
   const catalog = astroidCron(config);
   if (catalog) crons.push(catalog);
   // Project-declared triggers last, so the two derived ones keep their existing

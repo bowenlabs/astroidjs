@@ -1,0 +1,18 @@
+---
+// The app's first screen. Replace it with yours. It reads its data from the
+// same versioned JSON API a native client would call (src/pages/api/v1/), so
+// the web app stays that API's first client rather than a special case.
+import App from "../layouts/App.astro";
+
+export const prerender = false;
+---
+
+<App>
+  <main class="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-4 px-6 py-16">
+    <h1 class="text-4xl font-bold">__BRAND_NAME__</h1>
+    <p class="text-base-content/70">
+      This app has no pages to edit. Build its screens here, and its API under
+      <code>/api/v1</code>.
+    </p>
+  </main>
+</App>
