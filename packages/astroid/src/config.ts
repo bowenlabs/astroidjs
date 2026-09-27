@@ -513,7 +513,23 @@ export interface PagesConfig {
    * clamping a title, or filling a new page's defaults.
    */
   hooks?: boolean;
+  /**
+   * Reserved slugs this site serves as pages. `contact` and `login` are
+   * reserved because a new scaffold has file routes there, and `work` because
+   * a portfolio has its gallery there. A site without that file, whose page at
+   * the path comes from its own catch-all route, lists the slug here so the
+   * Pages route accepts it. Only those three can be allowed
+   * ({@link ASTROID_SCAFFOLD_ROUTE_SLUGS}): the platform serves the other
+   * reserved slugs, such as `api` and `sitemap.xml`, before any page.
+   */
+  allowSlugs?: string[];
 }
+
+/**
+ * The reserved slugs that come from a scaffolded file route rather than the
+ * platform, so a site without that file can allow them with `pages.allowSlugs`.
+ */
+export const ASTROID_SCAFFOLD_ROUTE_SLUGS: readonly string[] = ["contact", "login", "work"];
 
 export interface StatusConfig {
   /**
@@ -691,6 +707,23 @@ function assertCrons(config: AstroidConfig): void {
 }
 
 /**
+ * `pages.allowSlugs` may only name a slug reserved for a scaffolded file route.
+ * Allowing `api` or `sitemap.xml` would let an editor save a page nobody can
+ * reach, which is the silent failure the reserved list exists to prevent.
+ */
+function assertAllowSlugs(config: AstroidConfig): void {
+  for (const slug of config.pages?.allowSlugs ?? []) {
+    if (!ASTROID_SCAFFOLD_ROUTE_SLUGS.includes(slug)) {
+      throw new AstroidConfigError(
+        `\`pages.allowSlugs\` can't allow "${slug}". Only the slugs reserved for a scaffolded ` +
+          `file route can be allowed (${ASTROID_SCAFFOLD_ROUTE_SLUGS.join(", ")}); the ` +
+          "platform serves the others before any page.",
+      );
+    }
+  }
+}
+
+/**
  * The tenancy misconfigurations that fail late, or not at all.
  *
  * All three are cheap to state and expensive to discover: two surface as a
@@ -822,6 +855,7 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   // an answer. Fail loudly, at config load, naming the workaround.
   assertCrons(config);
   assertTenancy(config);
+  assertAllowSlugs(config);
 
   if (config.portal?.gated) {
     throw new AstroidConfigError(

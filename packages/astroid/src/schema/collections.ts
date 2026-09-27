@@ -189,10 +189,14 @@ export const ASTROID_RESERVED_SLUGS: readonly string[] = [
 
 /**
  * The reserved slugs for this config: {@link ASTROID_RESERVED_SLUGS}, plus the
- * file routes a module scaffolds. A portfolio's gallery is `src/pages/work.astro`.
+ * file routes a module scaffolds, minus any in `pages.allowSlugs`. A
+ * portfolio's gallery is `src/pages/work.astro`.
  */
 export function astroidReservedSlugs(config: AstroidConfig): string[] {
-  return [...ASTROID_RESERVED_SLUGS, ...(config.archetype === "portfolio" ? ["work"] : [])];
+  const allowed = new Set(config.pages?.allowSlugs ?? []);
+  return [...ASTROID_RESERVED_SLUGS, ...(config.archetype === "portfolio" ? ["work"] : [])].filter(
+    (slug) => !allowed.has(slug),
+  );
 }
 
 export function astroidPagesWriteHooks(

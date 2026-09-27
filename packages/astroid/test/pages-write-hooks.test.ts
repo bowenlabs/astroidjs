@@ -13,7 +13,7 @@
 // side against the same inputs.
 
 import { describe, expect, it } from "vitest";
-import type { AstroidConfig } from "../src/config.js";
+import { type AstroidConfig, defineAstroid } from "../src/config.js";
 import {
   ASTROID_RESERVED_SLUGS,
   astroidReservedSlugs,
@@ -147,6 +147,22 @@ describe("astroidPagesWriteHooks — site hooks", () => {
       ...ASTROID_RESERVED_SLUGS,
       "work",
     ]);
+  });
+
+  it("drops a slug the site serves as a page (pages.allowSlugs)", () => {
+    const allowing = { ...config, pages: { allowSlugs: ["contact"] } };
+    expect(astroidReservedSlugs(allowing)).not.toContain("contact");
+    expect(astroidReservedSlugs(allowing)).toContain("login");
+    expect(astroidPagesWriteHooks(allowing).reservedSlugs).not.toContain("contact");
+  });
+
+  it("refuses to allow a slug the platform serves", () => {
+    expect(() =>
+      defineAstroid({ ...config, pages: { allowSlugs: ["contact", "work"] } }),
+    ).not.toThrow();
+    expect(() => defineAstroid({ ...config, pages: { allowSlugs: ["api"] } })).toThrow(
+      /can't allow "api"/,
+    );
   });
 
   it("adds a site's reserved slugs to Astroid's", () => {
