@@ -356,6 +356,15 @@ describe("site health", () => {
     }
   });
 
+  it("reports a failed scan instead of swallowing it", () => {
+    // The Health panel keeps showing the last good scan, so a failure that
+    // leaves no log line is invisible (#44).
+    const worker = generateAstroidWorker(base);
+    expect(worker).not.toContain("runHealthScan(env).catch(() => {})");
+    expect(worker).toContain('reportDegraded("health.scan", error)');
+    expect(worker).toContain('import { reportDegraded } from "louise-toolkit/errors";');
+  });
+
   it("dispatches on controller.cron, and the strings match wrangler's list", () => {
     // Cloudflare fires ONE scheduled handler for every trigger and identifies
     // which by `controller.cron`. If wrangler.jsonc and this dispatch disagree,
