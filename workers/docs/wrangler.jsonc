@@ -2,19 +2,20 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   // Must equal the Worker's name in the Cloudflare dashboard, or Workers Builds
   // refuses every build before it starts. The Worker that holds
-  // docs.astroidjs.org and the build connection is `astroidjs-org` — this said
-  // `astroidjs-docs` from the first deploy, and the live docs sat on that
-  // hand-uploaded version while every build failed (see RELEASING.md).
-  "name": "astroidjs-org",
+  // docs.astroidjs.org and the build connection is `astroidjs` (it was
+  // `astroidjs-org` until 2026-09-26). This once said `astroidjs-docs`, and the
+  // live docs sat on a hand-uploaded version while every build failed (see
+  // RELEASING.md).
+  "name": "astroidjs",
   "compatibility_date": "2026-06-20",
 
   // An assets-only Worker: no `main`, no script. `astro build` emits a plain
   // static site to dist/ (no adapter), and Cloudflare serves it directly.
   //
-  // Deliberately its own Worker rather than a route on the Louise site Worker,
-  // which is what serves docs.louisetoolkit.com. Sharing that one would mean a
-  // louise-toolkit deploy every time these docs changed — re-coupling the two
-  // release cycles the repo split just separated.
+  // Deliberately its own Worker rather than a route on the Louise docs Worker
+  // (docs.louisetoolkit.org). Sharing that one would mean a louise-toolkit
+  // deploy every time these docs changed—re-coupling the two release cycles
+  // the repo split just separated.
   "assets": { "directory": "./dist" },
 
   // `custom_domain: true` provisions the DNS record on first deploy. The

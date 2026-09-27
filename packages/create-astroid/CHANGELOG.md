@@ -1,5 +1,88 @@
 # create-astroid
 
+## 0.9.1
+
+### Patch Changes
+
+- b8549b6: `astroid provision` now creates the two staging secrets that need no person, so nobody sets them by hand. It reads them from the `secrets_store_secrets` of the `previews` block in `wrangler.jsonc`, by binding name, and uses each entry's `store_id` and `secret_name`:
+
+  - **`SESSION_SECRET`** gets a new random value, generated for that site. It's never production's value.
+  - **`TURNSTILE_SECRET`** gets Cloudflare's Turnstile test secret, `1x0000000000000000000000000000000AA`, which passes every token.
+
+  It lists each store first and skips a secret that already exists, so a re-run is safe and never replaces a value. It never prints a value, and it passes each one to wrangler directly rather than through a shell. It never touches a production secret. Every other secret is printed as a `wrangler secrets-store secret create` command, as before. `--dry-run` shows each staging secret as "will create" or "exists" and creates nothing, and a run that has something to create asks first unless you pass `--yes`.
+
+  Every command runs against the account that `account_id` in `wrangler.jsonc` names, which wrangler prefers to `CLOUDFLARE_ACCOUNT_ID`, and the plan now says so when the two disagree. If provision can't list a store, it creates nothing in it, prints those secrets with the others, and exits 1.
+
+  - `astroidjs` exports `stagingSecretSteps`, `secretNamesFromList`, `ASTROID_STAGING_SECRET_VALUES`, and `TURNSTILE_TEST_SECRET`, and a `ProvisionSecret` carries `create` when provision creates it.
+  - `create-astroid`: the scaffolded `docs/RUNBOOK.md` says which secrets provision creates.
+
+  **What to do:** nothing. The next `pnpm exec astroid provision` creates whichever of the two a site's `previews` block binds and its store lacks. A staging secret you already set by hand is left alone.
+
+- dcc4d5d: A save from the Pages panel now reindexes only the page it changed. The generated `reindexPagesSearch`, which `pagesRoute` runs as its `afterWrite` hook, used to rebuild the whole search index on every create, update, and delete. It now calls `reindexDoc` for the written row, using the `{ operation, id }` argument that louise-toolkit 0.34.0 gives `afterWrite`. After a delete, `reindexDoc` finds no row and removes the page's entry.
+
+  - `astroidjs`: the `louise-toolkit` peer range is `^0.34.0`, because the generated worker imports the `PagesWrite` type, which 0.33 doesn't export.
+  - `create-astroid`: new scaffolds get `louise-toolkit` `^0.34.0` and `@louise-toolkit/astro` `^0.3.0`. The adapter pins `louise-toolkit` exactly, and 0.3.0 is the release that pins 0.34.0, so a new scaffold installs one copy of the toolkit.
+
+  **What to do:** upgrade `louise-toolkit` to 0.34 and `@louise-toolkit/astro` to 0.3 along with this release. Before 1.0, a caret range stays within one minor version, so `^0.2.7` can't reach the adapter 0.3.0, and an adapter on 0.2.x keeps a second copy of louise-toolkit 0.33 installed. Then run `astroid generate` to rewrite `src/worker.ts`. If you run `astroid generate` while still on louise-toolkit 0.33, `astro check` fails on the `PagesWrite` import. One side effect goes away: a Pages panel save no longer indexes pages that were seeded straight into D1, because it no longer rebuilds the whole index. To index those, publish them or call `POST /api/louise/pages/reindex` once after seeding.
+
+- Updated dependencies [bcc1fdd]
+- Updated dependencies [b8549b6]
+- Updated dependencies [dcc4d5d]
+- Updated dependencies [b8549b6]
+  - astroidjs@0.17.0
+
+## 0.9.0
+
+### Minor Changes
+
+- 3e31e07: `astroid provision` creates the Cloudflare resources a site's `wrangler.jsonc` still names by placeholder, top level and `previews` alike, and writes each new ID back in place of its placeholder. It reads the name from the placeholder (`<run: wrangler d1 create acme-staging>`), so two bindings that share one placeholder share one namespace, and it creates every R2 bucket the file names, where an existing bucket is fine. It prints the Secrets Store secrets the config binds, for a person to set, and never deploys. `--dry-run` shows the plan; `--yes` skips the prompt.
+
+  New scaffolds name their KV placeholders for the project (`acme-rl`, `acme-drafts`) instead of `RL` and `DRAFTS`, so two sites in one Cloudflare account don't collide, and `astroid deploy` creates a namespace under the name its placeholder gives.
+
+  **What to do:** nothing for an existing site. To set up staging, upgrade, then run `pnpm exec astroid provision` in the site's directory with a wrangler login for its account.
+
+### Patch Changes
+
+- Updated dependencies [3e31e07]
+- Updated dependencies [9e6cd3b]
+  - astroidjs@0.16.0
+
+- The page sanitizers and the settings action now check images against the running deployment's media base, so a staging Preview keeps the images uploaded on it. They were built once from `deploy.mediaBase`, which names production's media host, so on a Preview, which serves media from its own `/media`, every uploaded image was dropped from page content as a hotlink, and every image setting was rejected.
+
+  - The generated `worker.ts` records `vars.MEDIA_URL` at startup with `setAstroidMediaBase`, and the checks read it through `astroidMediaBase(config)` when they run. An isolate runs one deployment, and `MEDIA_URL` is fixed per deployment, so production still checks against its own host.
+  - New scaffolds' settings action reads `mediaBase` through a getter, and the portfolio gallery builds image URLs from `MEDIA_URL`.
+
+  **What to do:** run `astroid generate` and commit the regenerated `worker.ts`. If your `src/actions/index.ts` passes `mediaBase: astroidConfig.deploy?.mediaBase ?? "/media"` to `louiseSettingsAction`, replace it with `get mediaBase() { return astroidMediaBase(astroidConfig); }`, importing `astroidMediaBase` from `astroidjs`. A portfolio site's gallery page takes the same change the scaffold made: build `src` from `env.MEDIA_URL`.
+
+## 0.8.0
+
+### Minor Changes
+
+- 4de25fc: The map module moves to MapLibre 6, which fixes a critical XSS advisory in MapLibre's `DOM.sanitize()` (every release through 6.4.0 is affected, and 5.x has no fix).
+
+  - `create-astroid --map` now adds `maplibre-gl` `^6.11.2`, up from `^5.9.0`.
+  - The generated `<MapEmbed>` imports MapLibre's worker with `?worker&url` and passes it to `setWorkerUrl()`. MapLibre 6 looks for its worker next to its own module, which a bundle moves, so without this no tiles load.
+  - `<MapEmbed>` catches `GPUInitializationError`, which MapLibre 6 throws when WebGL2 is missing, and leaves the placeholder in place.
+  - The map module no longer adds `worker-src blob:` to the CSP. MapLibre 6 constructs a same-origin worker directly, so `worker-src 'self'` covers it.
+
+  **What to do:** `MapEmbed.astro` is scaffolded once and belongs to your site, so this release doesn't change yours. Before you run `astroid generate` with this version, do one of these:
+
+  - Move to MapLibre 6: bump `maplibre-gl` to `^6.11.2` and make the same three changes to your `MapEmbed.astro`. Compare against a fresh `create-astroid --map` scaffold, and drop any `.default ?? maplibre` fallback, because MapLibre 6 is ESM-only.
+  - Stay on MapLibre 5 for now: add `worker: ["blob:"]` to `security.cspOrigins` in `astroid.config.ts`. Without it, the regenerated CSP blocks MapLibre 5's blob: workers and the map renders an empty canvas.
+
+### Patch Changes
+
+- 86e77db: Astroid now runs on louise-toolkit 0.33. Before 1.0, a caret range stays within one minor version, so `^0.31.1` couldn't resolve to a newer minor. `@louise-toolkit/astro` pins `louise-toolkit` exactly, so a new scaffold installed two copies of the toolkit and failed `astro check` in `src/actions/index.ts`.
+
+  - `astroidjs`: the `louise-toolkit` peer range is `^0.33.0`.
+  - `create-astroid`: new scaffolds get `louise-toolkit` `^0.33.0` and `@louise-toolkit/astro` `^0.2.7`.
+
+  **What to do:** upgrade `louise-toolkit` to 0.33 and `@louise-toolkit/astro` to 0.2.7 along with this release. Neither toolkit release needs a code change for Astroid itself. Check their changelogs for your site's own code: 0.32.0 changes how `embedMany` and `indexContents` batch, and 0.33.0 adds `formatMoney`, `parseMoney`, and a D1 migration check, all opt-in.
+
+- Updated dependencies [86e77db]
+- Updated dependencies [4de25fc]
+  - astroidjs@0.15.0
+
 ## 0.7.5
 
 ### Patch Changes

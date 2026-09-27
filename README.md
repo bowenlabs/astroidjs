@@ -51,12 +51,12 @@ modules) and a reference page per subsystem.
 It is deliberately a separate site from the Louise docs rather than a section
 inside them: the two projects release independently, and a shared site would mean
 a docs deploy every time either one shipped. Cross-references go out as absolute
-links to [docs.louisetoolkit.com](https://docs.louisetoolkit.com).
+links to [docs.louisetoolkit.org](https://docs.louisetoolkit.org).
 
 ```sh
 corepack pnpm -C workers/docs run dev     # local preview
 corepack pnpm run build:docs              # static build to workers/docs/dist
-corepack pnpm run lint:docs               # Google developer style, via Vale
+corepack pnpm run lint:docs               # Google style for docs, comments, and user-facing strings
 ```
 
 ## Working on it

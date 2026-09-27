@@ -140,6 +140,6 @@ still missing.
 ## Next steps
 
 - [Astroid API reference](/reference/config/)—the exported surface.
-- [Sections](https://docs.louisetoolkit.com/guide/sections/)—the underlying section/block model Astroid's
+- [Sections](https://docs.louisetoolkit.org/guide/sections/)—the underlying section/block model Astroid's
   catalog is built on.
-- [Inline editing](https://docs.louisetoolkit.com/guide/inline-editing/)—how the edit markers work.
+- [Inline editing](https://docs.louisetoolkit.org/guide/inline-editing/)—how the edit markers work.

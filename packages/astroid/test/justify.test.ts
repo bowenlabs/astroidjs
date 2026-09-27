@@ -172,6 +172,9 @@ describe("generateAstroidGalleryPage", () => {
       theme: { name: "Acme", colors: { brand: "#123456" } },
       deploy: { platform: "cloudflare", mediaBase: "/assets" },
     });
-    expect(generateAstroidGalleryPage(custom)).toContain("`/assets/${row.key}`");
+    const page = generateAstroidGalleryPage(custom);
+    // A Preview's MEDIA_URL wins over the configured base.
+    expect(page).toContain('(env.MEDIA_URL || "/assets")');
+    expect(page).toContain("`${mediaBase}/${row.key}`");
   });
 });

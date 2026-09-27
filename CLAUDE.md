@@ -68,11 +68,20 @@ corepack pnpm run lint:solid
 corepack pnpm run fmt:check
 corepack pnpm run knip
 corepack pnpm run lint:release
+corepack pnpm --package=@vvago/vale@3.17.1 dlx vale sync   # once per pin, into .vale/
+corepack pnpm run lint:docs
 corepack pnpm run typecheck
 corepack pnpm test
 corepack pnpm run build:packages
 scripts/ci/scaffold-smoke.sh marketing /tmp/smoke
 ```
+
+`lint:docs` isn't only for docs. It lints Markdown and the comments in code
+against the Google developer documentation style, and with `--strings` it also
+lints the user-facing strings in `packages/astroid/src` and the scaffold's
+`template/src`: the message in every `new Astroid…Error(…)`, JSX text, and the
+attributes a person reads. An error message is a sentence someone reads, so it
+follows the same style: no spaced dash, and "for example" rather than `e.g.`.
 
 `lint:release` loads the changesets stack. Nothing else does, so a dependency
 resolution that breaks releasing is otherwise invisible until you try to ship—which

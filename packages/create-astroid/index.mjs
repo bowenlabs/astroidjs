@@ -148,9 +148,7 @@ function astroidConfigSource(config) {
       : []),
     // Must be emitted, for the same reason the portal is: `astroid generate`
     // rebuilds the middleware and CSP from THIS file, so a config that dropped
-    // `modules` would regenerate a project missing whatever they contribute—for
-    // the map, a policy without `worker-src blob:`, which renders an empty
-    // canvas with no obvious cause.
+    // `modules` would regenerate a project missing whatever they contribute.
     ...(config.modules?.length ? [`  modules: ${JSON.stringify(config.modules)},`] : []),
     // Must be emitted: `astroid generate` rebuilds the middleware from THIS
     // file, so a config that omitted the portal would regenerate a middleware
@@ -490,10 +488,8 @@ async function main() {
                 ]
               : []),
           ]),
-      "  # provision the Cloudflare bindings, then fill the ids in wrangler.jsonc:",
-      "  wrangler d1 create " + key,
-      "  wrangler r2 bucket create " + key + "-media",
-      "  wrangler kv namespace create RL && wrangler kv namespace create DRAFTS",
+      "  # create the Cloudflare resources wrangler.jsonc names, filling in their ids:",
+      "  pnpm exec astroid provision",
       "  # apply migrations, seed the home page + your first editor:",
       "  wrangler d1 migrations apply DB --remote",
       "  wrangler d1 execute DB --remote --file seed/home.seed.sql",

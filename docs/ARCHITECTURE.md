@@ -94,6 +94,22 @@ site's config with Node's built-in type stripping. That works only because the
 config's one import, bare `astroidjs`, resolves to built JavaScript. Node doesn't
 rewrite a package's internal `.js` specifiers to `.ts` the way a bundler does.
 
+## Staging and releases
+
+Staging runs as Cloudflare Worker Previews of the production Worker, bound to
+the resources in the `previews` block of `wrangler.jsonc`. `astroid provision`
+creates what that block still names by placeholder, plus the two staging secrets
+that need no person: a random `SESSION_SECRET` for each site, and Turnstile's
+always-passes test secret as `TURNSTILE_SECRET`. It skips a secret that already
+exists and never touches a production one.
+
+Production deploys from `deploy/production`, which only the regenerated
+`.github/workflows/release.yml` moves, on a `v*` tag. It pushes with a GitHub
+App's token rather than `GITHUB_TOKEN`, because a ruleset can't name the GitHub
+Actions app as a bypass actor, so a ruleset that guards the branch would block
+the workflow too. The one-time app and ruleset setup is in the Releases guide on
+[docs.astroidjs.org](https://docs.astroidjs.org/guide/releases/).
+
 ## The route plan
 
 `src/worker/routes.ts` is the one place that knows the order of the editor routes,

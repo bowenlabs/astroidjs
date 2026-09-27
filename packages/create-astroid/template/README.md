@@ -50,7 +50,7 @@ pnpm astroid deploy             # provision + migrate + secrets + deploy (asks f
 ```sh
 wrangler d1 create __KEY__
 wrangler r2 bucket create __KEY__-media
-wrangler kv namespace create RL && wrangler kv namespace create DRAFTS
+wrangler kv namespace create __KEY__-rl && wrangler kv namespace create __KEY__-drafts
 # paste the printed ids into wrangler.jsonc, then:
 wrangler secret put SESSION_SECRET          # openssl rand -base64 32
 wrangler d1 migrations apply DB --remote

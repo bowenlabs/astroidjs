@@ -6,6 +6,24 @@ packages:
 # prints "Unsupported engine" and carries on. The version is .nvmrc.
 engineStrict: true
 
+# Two advisories that Snyk reports against the docs Worker's wrangler. Both are
+# dev-only: they arrive through workers/docs > wrangler > miniflare, which runs
+# `wrangler dev` locally and never ships to a Worker or a published package. Even
+# the newest wrangler pins both at the vulnerable version exactly, so a range
+# refresh can't clear them.
+#
+# sharp—GHSA-rgj7-g3m4-5g8c, two libheif vulnerabilities in the prebuilt
+# binaries (GHSA-g89c-p67h-r497, GHSA-2jg2-4ch7-h545). Fixed in 0.35.4. Its
+# native build is disallowed below, so no vulnerable binary is ever installed,
+# but the resolution is still flagged. astro had already resolved 0.35.4, so this
+# unifies two copies onto one rather than forcing a new version anywhere.
+#
+# ws—CVE-2026-62389, unbounded resource allocation. Fixed in 8.21.1, a patch
+# bump from the 8.21.0 that miniflare pins. louise-toolkit carries the same pin.
+overrides:
+  sharp: "^0.35.4"
+  ws: "^8.21.1"
+
 # esbuild's postinstall builds its native binary. vitest and knip both go through
 # it, so without this the install completes and the test run fails later with a
 # missing-binary error that reads like a corrupt store rather than a skipped
@@ -30,6 +48,6 @@ allowBuilds:
 # they expire on their own: the next toolkit bump is gated again, and these two
 # lines become inert and can be deleted.
 minimumReleaseAgeExclude:
-  - "@louise-toolkit/astro@0.1.0 || 0.1.1 || 0.2.0 || 0.2.1 || 0.2.2 || 0.2.3"
-  - louise-toolkit@0.27.0 || 0.28.0 || 0.30.0 || 0.30.1 || 0.31.0 || 0.31.1
+  - "@louise-toolkit/astro@0.1.0 || 0.1.1 || 0.2.0 || 0.2.1 || 0.2.2 || 0.2.3 || 0.2.7 || 0.3.0"
+  - louise-toolkit@0.27.0 || 0.28.0 || 0.30.0 || 0.30.1 || 0.31.0 || 0.31.1 || 0.33.0 || 0.34.0
   - knip@6.34.0

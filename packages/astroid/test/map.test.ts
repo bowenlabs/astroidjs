@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { astroidCspOrigins } from "../src/astro/csp.js";
 import { type AstroidConfig, defineAstroid } from "../src/config.js";
 import { parseRangeHeader, type RangeReader, servePmtiles } from "../src/map/pmtiles.js";
-import { generateMapEmbedComponent, generateMapTileRoute, usesMap } from "../src/map/scaffold.js";
+import {
+  ASTROID_MAP_DEPENDENCIES,
+  generateMapEmbedComponent,
+  generateMapTileRoute,
+  usesMap,
+} from "../src/map/scaffold.js";
 import { astroidMapStyle } from "../src/map/style.js";
 
 const SIZE = 10_000;
@@ -260,11 +265,32 @@ describe("map scaffold", () => {
     expect(registered).toBeLessThan(constructed);
   });
 
-  it("allows blob: workers in the CSP only when the map is on", () => {
-    // MapLibre builds its tile-decoding workers from blob: URLs; without this
-    // the canvas is empty and the console fills with worker errors.
-    expect(astroidCspOrigins(config(["map"])).worker).toContain("blob:");
-    expect(astroidCspOrigins(config()).worker).not.toContain("blob:");
+  it("hands MapLibre a same-origin worker, so the CSP needs no blob:", () => {
+    const component = generateMapEmbedComponent(config(["map"])) as string;
+    // MapLibre 6 looks for its worker next to its own module, which a bundle
+    // moves, so without `setWorkerUrl` no tiles load. `?worker&url` is the
+    // import that emits a self-contained worker chunk; a plain `?url` copies the
+    // file without the shared module it imports.
+    expect(component).toContain('import("maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url")');
+    const workerSet = component.indexOf("maplibregl.setWorkerUrl(worker.default)");
+    expect(workerSet).toBeGreaterThan(-1);
+    expect(workerSet).toBeLessThan(component.indexOf("new maplibregl.Map("));
+    // A same-origin worker URL is constructed directly, never through a blob:,
+    // so the map module adds no worker source to the policy.
+    expect(astroidCspOrigins(config(["map"])).worker).not.toContain("blob:");
+  });
+
+  it("leaves the placeholder in place when WebGL2 is missing", () => {
+    const component = generateMapEmbedComponent(config(["map"])) as string;
+    // MapLibre 6 throws `GPUInitializationError` without WebGL2. Rethrowing it
+    // would log a map failure for what's really an unsupported browser.
+    expect(component).toContain("err instanceof maplibregl.GPUInitializationError");
+  });
+
+  it("pins the scaffold to MapLibre 6", () => {
+    // The generated component calls `setWorkerUrl` and catches
+    // `GPUInitializationError`, both MapLibre 6 APIs.
+    expect(ASTROID_MAP_DEPENDENCIES["maplibre-gl"]).toMatch(/^\^6\./);
   });
 
   it("keeps connect-src free of any tile host", () => {
