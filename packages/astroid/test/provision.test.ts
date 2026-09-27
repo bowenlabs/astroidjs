@@ -156,12 +156,13 @@ describe("stagingSecretSteps", () => {
 });
 
 describe("secretNamesFromList", () => {
-  // What `wrangler secrets-store secret list <store> --remote` prints.
+  // What `wrangler secrets-store secret list <store> --remote` prints, less the
+  // emoji wrangler puts at the start of its banner and status lines.
   const output = [
     "",
-    " ⛅️ wrangler 4.127.1",
+    " wrangler 4.127.1",
     "───────────────────",
-    "🔐 Listing secrets... (store-id: s1, page: 1, per-page: 100)",
+    "Listing secrets... (store-id: s1, page: 1, per-page: 100)",
     "┌─────────────────────────────┬──────────┬─────────┬─────────┬─────────┐",
     "│ Name                        │ ID       │ Comment │ Scopes  │ Status  │",
     "├─────────────────────────────┼──────────┼─────────┼─────────┼─────────┤",
