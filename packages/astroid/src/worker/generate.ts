@@ -78,6 +78,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const editorImports = [
     "DEFAULT_PAGE_FIELDS",
     "type PagesWrite",
+    "d1Check",
     ...new Set(plan.map((route) => route.factory).filter((f) => !realtimeRouteFactories.has(f))),
   ].sort();
   const tables = [
@@ -100,6 +101,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         return `vitalsRoute({ dataset: (env) => env.${ASTROID_VITALS_BINDING} })`;
       case "health":
         return "healthRoute({ resolveEditor, read: readSiteHealth })";
+      case "status":
+        return "statusRoute({ checks: STATUS_CHECKS, reuseMs: STATUS_REUSE_MS })";
       case "realtime":
         return `realtimeRoute({ resolveEditor, namespace: (env) => env.${ASTROID_REALTIME_BINDING} })`;
       case "versions":
@@ -238,6 +241,11 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     p("// route. Scaffolded once and yours to edit.");
     p('import { pagesHooks } from "./pages-hooks.js";');
   }
+  if (config.status?.checks) {
+    p("// Your STATUS seam: the site's own checks for the public status route,");
+    p("// such as a catalog snapshot's age. Scaffolded once and yours to edit.");
+    p('import { statusChecks } from "./status-checks.js";');
+  }
   if (config.settings?.hooks) {
     p("// Your SETTINGS seam: per-key sanitizers and a GET transform for the");
     p("// Settings panel. Scaffolded once and yours to edit.");
@@ -354,6 +362,27 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("  await writeHealthSummary(env.RL, summary);");
   p("  return summary;");
   p("}");
+  p();
+  p("// --- public status ---------------------------------------------------------");
+  p("// What statusRoute answers an outside probe with: 200 when every check");
+  p("// passes, 503 when any fails, throws, or takes over two seconds. Anyone can");
+  p("// make these run, so each is one cheap read, and a burst of probes reuses one");
+  p("// result per isolate for STATUS_REUSE_MS.");
+  p("const STATUS_REUSE_MS = 10_000;");
+  p("const STATUS_CHECKS = {");
+  p("  // D1 answers `SELECT 1`.");
+  p("  d1: d1Check((env: CloudflareEnv) => env.DB),");
+  p("  // The public home page reads real content, not the seed-me fallback the");
+  p("  // page renders when its row is missing (an unseeded or wiped database,");
+  p("  // or a migration that never ran, which throws and fails the check too).");
+  p("  content: async (env: CloudflareEnv) =>");
+  p(`    (await env.DB.prepare("SELECT 1 FROM pages WHERE slug = 'home'").first()) !== null,`);
+  if (config.status?.checks) {
+    p("  // The site's own, from src/status-checks.ts. Spread last, so a site");
+    p("  // check with the same name replaces Astroid's on purpose.");
+    p("  ...statusChecks,");
+  }
+  p("};");
   p();
   p("/** One COUNT, degrading to 0—a missing table must not abort the scan. */");
   p("async function countRows(env: CloudflareEnv, sql: string): Promise<number> {");
