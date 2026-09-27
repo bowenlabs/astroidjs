@@ -16,6 +16,7 @@
 // CLI ships in, no dependency on node_modules layout (mirrors the louise bin).
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, resolve } from "node:path";
@@ -667,17 +668,42 @@ New project:  pnpm create astroid@latest
 // `astroid provision` creates what `wrangler.jsonc` still names by placeholder,
 // top level and `previews` alike, and writes each new ID back in place of its
 // placeholder. It never deploys, so it's safe to run before a site's first
-// release, and re-running it only creates what's still missing. Secrets and
-// dashboard settings need a person, so it prints those instead.
+// release, and re-running it only creates what's still missing. It creates the
+// staging secrets that need no person (a random SESSION_SECRET and Turnstile's
+// test secret), skipping any the store already has. Every other secret, and
+// dashboard settings, need a person, so it prints those instead.
+//
+// Every wrangler call runs in the site's directory, so wrangler reads the same
+// `wrangler.jsonc` for each and picks the same account: its `account_id`, which
+// wrangler prefers to CLOUDFLARE_ACCOUNT_ID.
 async function cmdProvision(cwd, rest) {
   const dryRun = rest.includes("--dry-run");
   const assumeYes = rest.includes("--yes") || rest.includes("-y");
   const wranglerPath = join(cwd, "wrangler.jsonc");
   if (!existsSync(wranglerPath)) fail("wrangler.jsonc not found — run inside an Astroid project.");
 
-  const { provisionPlan, applyProvisionedId } = await import(GENERATORS_URL);
+  const {
+    provisionPlan,
+    applyProvisionedId,
+    stagingSecretSteps,
+    secretNamesFromList,
+    TURNSTILE_TEST_SECRET,
+  } = await import(GENERATORS_URL);
   let text = readFileSync(wranglerPath, "utf8");
   const plan = provisionPlan(text);
+  const wranglerBin = resolveBin(cwd, "wrangler", "wrangler");
+
+  // Which staging secrets already exist, per store, so a re-run creates nothing
+  // twice. Listing is read-only, so a dry run does it too.
+  const existing = new Map();
+  if (wranglerBin) {
+    for (const storeId of new Set(plan.secrets.filter((s) => s.create).map((s) => s.storeId))) {
+      const names = listStoreSecrets(wranglerBin, cwd, storeId, secretNamesFromList);
+      if (names) existing.set(storeId, names);
+    }
+  }
+  const secretSteps = stagingSecretSteps(plan.secrets, existing);
+  const toCreate = secretSteps.filter((s) => s.status === "create");
 
   out("astroid provision — plan:\n");
   if (plan.steps.length === 0) out("  (nothing to create: every binding has an ID)");
@@ -685,15 +711,42 @@ async function cmdProvision(cwd, rest) {
     const note = s.kind === "r2" ? "   (an existing bucket is fine)" : "";
     out(`  wrangler ${s.args.join(" ")}${note}`);
   }
-  if (!plan.hasAccount && !process.env.CLOUDFLARE_ACCOUNT_ID) {
+  const envAccount = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!plan.hasAccount && !envAccount) {
     out(
       "\n  ! No account_id in wrangler.jsonc and no CLOUDFLARE_ACCOUNT_ID, so wrangler picks one.",
     );
+  } else if (plan.accountId && envAccount && envAccount !== plan.accountId) {
+    out(
+      `\n  ! wrangler.jsonc's account_id (${plan.accountId}) wins over ` +
+        `CLOUDFLARE_ACCOUNT_ID (${envAccount}), so provision uses ${plan.accountId}.`,
+    );
   }
-  const printSecrets = () => {
-    if (plan.secrets.length === 0) return;
+  if (secretSteps.length > 0) {
+    out("\nStaging secrets it creates itself:");
+    for (const { secret, status } of secretSteps) {
+      const what =
+        status === "create"
+          ? `will create, with ${secret.create === "random" ? "a new random value" : "Turnstile's always-passes test secret"}`
+          : status === "exists"
+            ? "exists, so it's left alone"
+            : wranglerBin
+              ? "couldn't list the store, so it's left for you"
+              : "can't check without wrangler, so it's left for you";
+      out(`  [staging] ${secret.secretName} in store ${secret.storeId}: ${what}`);
+    }
+  }
+  // The secrets a person still sets: every one provision doesn't create, and
+  // any it meant to but couldn't.
+  const printSecrets = (failed = []) => {
+    const byHand = [
+      ...plan.secrets.filter((s) => !s.create),
+      ...secretSteps.filter((s) => s.status === "unknown").map((s) => s.secret),
+      ...failed,
+    ];
+    if (byHand.length === 0) return;
     out("\nSecrets Store secrets it binds; create any that don't exist yet:");
-    for (const s of plan.secrets) {
+    for (const s of byHand) {
       out(
         `  [${s.environment}] wrangler secrets-store secret create ${s.storeId} ` +
           `--name ${s.secretName} --scopes workers --remote`,
@@ -706,7 +759,7 @@ async function cmdProvision(cwd, rest) {
     out("\n(dry run — nothing created)");
     return;
   }
-  if (plan.steps.length > 0 && !assumeYes) {
+  if ((plan.steps.length > 0 || toCreate.length > 0) && !assumeYes) {
     if (!process.stdin.isTTY)
       fail("Refusing to create resources non-interactively. Re-run with --yes.");
     const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -718,7 +771,6 @@ async function cmdProvision(cwd, rest) {
     }
   }
 
-  const wranglerBin = resolveBin(cwd, "wrangler", "wrangler");
   if (!wranglerBin) fail("Could not find `wrangler` in this project.");
   for (const s of plan.steps) {
     out(`\n▸ wrangler ${s.args.join(" ")}`);
@@ -745,8 +797,79 @@ async function cmdProvision(cwd, rest) {
     writeFileSync(wranglerPath, text);
     out(`  ↳ ${s.name} = ${id}`);
   }
-  printSecrets();
+
+  // The value goes to wrangler as an argument of a direct spawn, never through
+  // a shell, and is never printed: wrangler shows it as REDACTED.
+  const failed = [];
+  for (const { secret } of toCreate) {
+    const args = [
+      "secrets-store",
+      "secret",
+      "create",
+      secret.storeId,
+      "--name",
+      secret.secretName,
+      "--scopes",
+      "workers",
+      "--remote",
+    ];
+    out(`\n▸ wrangler ${args.join(" ")} --value <${secret.create}>`);
+    const value =
+      secret.create === "random" ? randomBytes(48).toString("base64") : TURNSTILE_TEST_SECRET;
+    const res = spawnSync(process.execPath, [wranglerBin, ...args, "--value", value], {
+      cwd,
+      stdio: "inherit",
+    });
+    if (res.status !== 0) failed.push(secret);
+  }
+
+  printSecrets(failed);
+  const unlisted = [
+    ...new Set(secretSteps.filter((s) => s.status === "unknown").map((s) => s.secret.storeId)),
+  ];
+  if (unlisted.length > 0 || failed.length > 0) {
+    if (unlisted.length > 0) {
+      out(
+        `\n✘ Couldn't list Secrets Store ${unlisted.join(", ")}, so its staging secrets ` +
+          "weren't created. Check that the store is in this account, then re-run.",
+      );
+    }
+    if (failed.length > 0) {
+      out(`\n✘ Couldn't create ${failed.map((s) => s.secretName).join(", ")}. Re-run to retry.`);
+    }
+    process.exitCode = 1;
+    return;
+  }
   out("\n✓ Provisioned. Commit wrangler.jsonc; the dashboard steps are in the site's RUNBOOK.");
+}
+
+/**
+ * The secret names in a Secrets Store, or null when it can't be listed. Wrangler
+ * prints a table, a page at a time, and fails on a page with no secrets, which
+ * is how an empty store, or the page after the last one, reads.
+ */
+function listStoreSecrets(wranglerBin, cwd, storeId, secretNamesFromList) {
+  const PER_PAGE = 100; // The API's maximum.
+  const names = new Set();
+  for (let page = 1; page <= 50; page++) {
+    const res = spawnSync(
+      process.execPath,
+      [
+        wranglerBin,
+        ...["secrets-store", "secret", "list", storeId, "--remote"],
+        ...["--per-page", String(PER_PAGE), "--page", String(page)],
+      ],
+      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+    if (res.status !== 0) {
+      return `${res.stdout}${res.stderr}`.includes("returned no secrets") ? names : null;
+    }
+    const found = secretNamesFromList(res.stdout);
+    const before = names.size;
+    for (const name of found) names.add(name);
+    if (found.length < PER_PAGE || names.size === before) break;
+  }
+  return names;
 }
 
 // `astroid ship` is what Workers Builds runs, so the deploy logic lives in the

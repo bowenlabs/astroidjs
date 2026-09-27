@@ -21,6 +21,29 @@ runs pnpm's own self-check and exits 0 without ever running Astroid's. The same
 applies to any script named after a pnpm command, such as `audit`, `outdated`, or
 `why`.
 
+### Provisioning
+
+`astroid provision` creates the Cloudflare resources that `wrangler.jsonc` still
+names by placeholder, top level and `previews` alike, and writes each new ID
+back in place of its placeholder. It never deploys, and a re-run creates only
+what's still missing. `--dry-run` shows the plan, and `--yes` skips the prompt.
+
+It also creates the two staging secrets that need no person, when the
+`previews` block's `secrets_store_secrets` binds them:
+
+- **`SESSION_SECRET`** gets a new random value, generated for that site. It's
+  never production's value.
+- **`TURNSTILE_SECRET`** gets Cloudflare's Turnstile test secret, which passes
+  every token, so a Preview's forms work without a real widget.
+
+It lists each store first and skips a secret that already exists, and it never
+prints a value. Production secrets and every other staging secret still need a
+person, so it prints the `wrangler secrets-store secret create` command for each.
+
+Every command runs against the account that `wrangler.jsonc` names in
+`account_id`, which wrangler prefers to `CLOUDFLARE_ACCOUNT_ID`. The plan says so
+when the two disagree.
+
 ### Generated vs. scaffold-once
 
 This distinction is the one worth internalising:
