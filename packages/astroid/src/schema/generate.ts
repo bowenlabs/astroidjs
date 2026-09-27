@@ -24,6 +24,25 @@ function catalogBuilders(catalog: string | null): string[] {
 }
 
 /**
+ * The incident tables every shape re-exports (louise-toolkit ADR 0022): the
+ * worker counts failures into `incidents` and keeps dead-lettered messages in
+ * `dead_letters`, so an app owns both, even when it owns nothing else. Not when
+ * another app migrates its database (`deploy.migrations: false`): that app owns
+ * them, and drizzle-kit here must not write migrations for them.
+ */
+function incidentTables(config: AstroidConfig): string[] {
+  return config.deploy?.migrations === false ? [] : INCIDENT_TABLES;
+}
+
+const INCIDENT_TABLES = [
+  "// Incident capture's tables (louise-toolkit ADR 0022): the generated worker",
+  "// counts failures into `incidents` and keeps dead-lettered queue messages in",
+  "// `dead_letters`.",
+  'export { deadLetters, incidents } from "louise-toolkit/incidents";',
+  "",
+];
+
+/**
  * The schema of an app with no editor (`editor: false`): no `pages`, no
  * versions, and no framework tables, because nothing here edits them. What's
  * left is what the config itself implies, the commerce catalog, and the site's
@@ -53,6 +72,7 @@ function generateAppSchema(config: AstroidConfig): string {
           catalog,
         ]
       : [""]),
+    ...incidentTables(config),
     "// Site-owned tables, declared in src/schema.site.ts and re-exported here so",
     "// drizzle-kit and the worker see them. Empty until the app adds one.",
     'export * from "./schema.site.js";',
@@ -101,6 +121,7 @@ export function generateAstroidSchema(config: AstroidConfig): string {
     ...(catalog ? [catalog] : []),
     `export { ${framework.join(", ")} };`,
     "",
+    ...incidentTables(config),
     "// Site-owned tables (the ones Astroid doesn't manage): a project declares",
     "// its own Drizzle tables in src/schema.site.ts and they're re-exported here",
     "// so drizzle-kit sees them and the generated worker can import them. The file",

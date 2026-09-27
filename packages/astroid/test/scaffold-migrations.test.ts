@@ -44,6 +44,7 @@ describe("resolveAstroidScaffoldPaths", () => {
       "migrations/0003_catalog.sql",
       "migrations/0004_page_redirects.sql",
       "migrations/0005_media_alt_undecided.sql",
+      "migrations/0006_incidents.sql",
     ]);
   });
 
@@ -56,6 +57,7 @@ describe("resolveAstroidScaffoldPaths", () => {
     expect(migrationPaths(resolved)).toEqual([
       "drizzle/0009_page_redirects.sql",
       "drizzle/0010_media_alt_undecided.sql",
+      "drizzle/0011_incidents.sql",
     ]);
   });
 
@@ -67,6 +69,7 @@ describe("resolveAstroidScaffoldPaths", () => {
     expect(migrationPaths(resolved)).toEqual([
       "migrations/0008_page_redirects.sql",
       "migrations/0009_media_alt_undecided.sql",
+      "migrations/0010_incidents.sql",
     ]);
   });
 
@@ -78,6 +81,7 @@ describe("resolveAstroidScaffoldPaths", () => {
     expect(migrationPaths(resolved)).toEqual([
       "drizzle/0009_page_redirects.sql",
       "drizzle/0010_media_alt_undecided.sql",
+      "drizzle/0011_incidents.sql",
     ]);
   });
 

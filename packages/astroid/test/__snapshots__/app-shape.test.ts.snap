@@ -41,6 +41,11 @@ export const onRequest = createLouiseMiddleware({
 // so it owns no content tables. To read one that another app owns, such as
 // \`siteSettings\`, import it from "louise-toolkit/db" where you query it.
 
+// Incident capture's tables (louise-toolkit ADR 0022): the generated worker
+// counts failures into \`incidents\` and keeps dead-lettered queue messages in
+// \`dead_letters\`.
+export { deadLetters, incidents } from "louise-toolkit/incidents";
+
 // Site-owned tables, declared in src/schema.site.ts and re-exported here so
 // drizzle-kit and the worker see them. Empty until the app adds one.
 export * from "./schema.site.js";
@@ -50,6 +55,7 @@ export * from "./schema.site.js";
 // so it serves no editor routes and resolves no editor session.
 import { handle } from "@astrojs/cloudflare/handler";
 import { d1Check, statusRoute } from "louise-toolkit/editor";
+import { analyticsIncidents, d1Incidents } from "louise-toolkit/incidents";
 import { composeWorker, type WorkerRoute, withEdgeCache } from "louise-toolkit/worker";
 
 // --- public status ---------------------------------------------------------
@@ -69,6 +75,18 @@ const routes: WorkerRoute<CloudflareEnv>[] = [
   statusRoute({ checks: STATUS_CHECKS, reuseMs: STATUS_REUSE_MS }),
 ];
 
+// --- incidents --------------------------------------------------------------
+// Every failure this worker sees becomes an incident: counted into the site's
+// own D1 (the \`incidents\` table), and into Analytics Engine for counts over
+// time (louise-toolkit ADR 0022). These bindings are optional. A site whose
+// wrangler.jsonc predates them still type-checks, and a sink skips what isn't
+// bound.
+type IncidentBindings = {
+  INCIDENT_EVENTS?: AnalyticsEngineDataset;
+  CF_VERSION_METADATA?: WorkerVersionMetadata;
+};
+const incidentBindings = (env: CloudflareEnv) => env as CloudflareEnv & IncidentBindings;
+
 export default composeWorker<CloudflareEnv>({
   routes,
   // No editor, so no request under /api/louise resolves to one. The gate
@@ -80,6 +98,16 @@ export default composeWorker<CloudflareEnv>({
   // directive from every other one, so Cloudflare's cookie-blind edge cache
   // never stores a signed-in customer's page.
   fetch: withEdgeCache((request, env, ctx) => handle(request, env, ctx)),
+  // Incident capture (louise-toolkit ADR 0022). A throw is reported, then
+  // re-thrown, so responses don't change; the sinks run after the response.
+  onIncident: {
+    sinks: [
+      // The record: one row per failure, with a count, in the site's own D1.
+      d1Incidents((env: CloudflareEnv) => env.DB),
+      analyticsIncidents((env: CloudflareEnv) => incidentBindings(env).INCIDENT_EVENTS),
+    ],
+    release: (env) => incidentBindings(env).CF_VERSION_METADATA?.id,
+  },
 });
 ",
 }

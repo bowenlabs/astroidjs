@@ -30,6 +30,7 @@ import {
 } from "../commerce/checkout-scaffold.js";
 import { generateCatalogMigrationSql } from "../commerce/mirror.js";
 import { generateAstroidVitalsBeacon } from "../analytics/index.js";
+import { ASTROID_INCIDENTS_MIGRATION } from "../incidents/names.js";
 import { generateAstroidActions } from "./actions.js";
 import { cwvBeaconScript } from "louise-toolkit/analytics";
 
@@ -234,6 +235,20 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
         migration: true,
       },
     );
+  }
+
+  // --- incident capture's tables -------------------------------------------
+  // For every shape: the generated worker counts failures into `incidents`
+  // and keeps dead letters in `dead_letters` (louise-toolkit ADR 0022). Written
+  // into an existing site by `astroid generate`, like the two above, and
+  // renumbered past the site's own migrations. Not when another app migrates
+  // this database (`deploy.migrations: false`); that app owns the tables.
+  if (config.deploy?.migrations !== false) {
+    files.push({
+      path: "migrations/0006_incidents.sql",
+      contents: ASTROID_INCIDENTS_MIGRATION,
+      migration: true,
+    });
   }
 
   // --- the CWV beacon -------------------------------------------------------
