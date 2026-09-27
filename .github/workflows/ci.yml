@@ -142,6 +142,10 @@ jobs:
           - leg: app-modules
             archetype: storefront
             flags: "--app --portal --pwa --commerce square"
+          # `--into`: a second app scaffolded into the first repository. The
+          # script checks the first app comes out unchanged, then doctors,
+          # type-checks and builds both from one install at the root.
+          - { leg: into, archetype: marketing, flags: "", into: workers/order, into_flags: "--app" }
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
@@ -158,6 +162,9 @@ jobs:
         env:
           ARCHETYPE: ${{ matrix.archetype }}
           FLAGS: ${{ matrix.flags }}
+          # Empty on every leg but `into`, which the script reads as "off".
+          SMOKE_INTO: ${{ matrix.into }}
+          SMOKE_INTO_FLAGS: ${{ matrix.into_flags }}
 
       # A write path must answer 422 for an invalid section, and reaching that
       # throw needs a real D1, so only a served scaffold shows it. The same run

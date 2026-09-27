@@ -38,6 +38,7 @@
     // Types for toolkit-ranges.mjs. The TypeScript checker reads it when the test
     // suite imports the .mjs, and knip does not follow that lookup.
     "packages/create-astroid/toolkit-ranges.d.mts",
+    "packages/create-astroid/into.d.mts",
   ],
   "ignoreDependencies": [
     // Configuration, not an import: `jsxImportSource` in tsconfig.base.json.

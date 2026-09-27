@@ -23,6 +23,12 @@
 # writes the `SQUARE_*` / `COMMERCE_QUEUE` members of src/env.d.ts they compile
 # against. Bolting `commerce` onto an already-scaffolded project gets the files
 # without the declarations, which is not a test of anything a user runs.
+#
+# SMOKE_INTO=<path> scaffolds a second app into the first with `create-astroid
+# --into <path>`, passing it SMOKE_INTO_FLAGS, then checks both: the first app's
+# files and scripts are unchanged apart from the two root files `--into` edits,
+# one install at the root serves both, and each doctors, type-checks, and
+# builds.
 set -euo pipefail
 
 ARCHETYPE="${1:?usage: scaffold-smoke.sh <archetype> <workdir> [create-astroid flags...]}"
@@ -79,6 +85,36 @@ corepack pnpm add "$CREATE_TGZ" >/dev/null
 echo "==> scaffolding ($ARCHETYPE${*:+ $*})"
 node ./node_modules/create-astroid/index.mjs smoke \
   --key smoke --name "Smoke Site" --archetype "$ARCHETYPE" "$@"
+
+if [ -n "${SMOKE_INTO:-}" ]; then
+  echo "==> scaffolding a second app into it (--into $SMOKE_INTO ${SMOKE_INTO_FLAGS:-})"
+  # What --into may change at the root: the workspace list and the scripts.
+  # Everything else there, the root app's tsconfig included, must come out
+  # byte-identical. (It needs no exclude: `astro check` checks each file under
+  # its nearest tsconfig, so the second app's files use their own.)
+  fingerprint() {
+    (cd "$ROOM/smoke" && find . -type f ! -path "./$SMOKE_INTO/*" \
+      ! -path ./package.json ! -path ./pnpm-workspace.yaml \
+      -exec shasum {} + | sort)
+  }
+  BEFORE="$(fingerprint)"
+  cp "$ROOM/smoke/package.json" "$WORK/root-package.before.json"
+  # $SMOKE_INTO_FLAGS unquoted on purpose: it is a space-separated flag list.
+  # shellcheck disable=SC2086
+  (cd "$ROOM/smoke" && node ../node_modules/create-astroid/index.mjs --into "$SMOKE_INTO" \
+    --key order --name "Order App" ${SMOKE_INTO_FLAGS:-})
+  [ "$BEFORE" = "$(fingerprint)" ] || {
+    echo "--into changed the first app's files:" >&2
+    diff <(echo "$BEFORE") <(fingerprint) >&2 || true
+    exit 1
+  }
+  node -e '
+    const fs = require("node:fs");
+    const [before, after] = process.argv.slice(1).map((f) => JSON.parse(fs.readFileSync(f, "utf8")).scripts);
+    const changed = Object.keys(before).filter((k) => after[k] !== before[k]);
+    if (changed.length) { console.error("--into changed root scripts:", changed); process.exit(1); }
+  ' "$WORK/root-package.before.json" "$ROOM/smoke/package.json"
+fi
 
 echo "==> the scaffold declares the versions it was built against"
 node "$REPO/scripts/ci/checks/scaffold-versions.mjs" smoke ./node_modules/create-astroid
@@ -147,4 +183,20 @@ rm -rf "$COMPONENTS_COPY"
 
 corepack pnpm exec astro build
 
-echo "==> OK: $ARCHETYPE${*:+ ($*)} scaffolds, type-checks and builds"
+if [ -n "${SMOKE_INTO:-}" ]; then
+  # The second app through the root scripts --into added, from the one
+  # install above: its doctor, its type-check, and its build.
+  SCRIPT_NAME="$(basename "$SMOKE_INTO")"
+  echo "==> the second app, from the root ($SMOKE_INTO)"
+  INTO_STATUS=0
+  INTO_OUT="$(corepack pnpm run "doctor:$SCRIPT_NAME")" || INTO_STATUS=$?
+  printf '%s\n' "$INTO_OUT"
+  [ "$INTO_STATUS" -eq 0 ] && grep -q '^doctor: ' <<<"$INTO_OUT" || {
+    echo "\`pnpm run doctor:$SCRIPT_NAME\` failed or didn't run astroid doctor" >&2
+    exit 1
+  }
+  corepack pnpm --dir "$SMOKE_INTO" exec astro check
+  corepack pnpm run "build:$SCRIPT_NAME"
+fi
+
+echo "==> OK: $ARCHETYPE${*:+ ($*)}${SMOKE_INTO:+ + $SMOKE_INTO (${SMOKE_INTO_FLAGS:-})} scaffolds, type-checks and builds"

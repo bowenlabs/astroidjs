@@ -23,6 +23,7 @@
   },
   "files": [
     "index.mjs",
+    "into.mjs",
     "template",
     "toolkit-ranges.mjs"
   ],

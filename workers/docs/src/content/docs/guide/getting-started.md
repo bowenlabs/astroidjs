@@ -67,6 +67,7 @@ pnpm create astroid [directory] [options]
   --credit-name <name>  A "Site by <name>" credit in the footer
   --credit-href <url>   Where the credit links (pairs with --credit-name)
   --app                 An app with no pages to edit (editor: false)
+  --into <path>         One app into an existing repository, beside another
 ```
 
 You get a working floor, not a blank page: an inline-editable home page,

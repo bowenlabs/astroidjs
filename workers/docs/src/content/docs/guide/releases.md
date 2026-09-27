@@ -39,6 +39,51 @@ live in the repository rather than a dashboard field:
 
 Migrations run first, so new code never meets an old schema.
 
+## Two apps in one repository
+
+A repository can hold more than one Astroid app, such as a marketing site and
+an order-ahead app on its own subdomain. They share one pnpm workspace, one
+lockfile, and one release. Scaffold the second one into the repository from its
+root:
+
+```sh
+pnpm create astroid --into workers/order --app
+```
+
+`--into` writes only the app's own files at that path, and refuses a path that
+already holds files. At the repository root it:
+
+- adds the path to `pnpm-workspace.yaml`'s `packages`, unless a glob such as
+  `workers/*` already covers it, and writes the file when the root has none
+- adds `dev:order`, `build:order`, `doctor:order`, `ship:order:production`, and
+  `ship:order:preview`, each a `pnpm --dir workers/order …` call, and never
+  replaces a script the root already has
+- writes the `docs/` trio and `.gitignore` only when the root has none. When
+  the root's `.gitignore` doesn't keep the app's `.dev.vars` out, the app gets
+  its own
+
+It changes nothing else: not the first app's files, not its scripts, and not the
+CI workflow. Add the second app's `doctor` and `build` scripts to the workflow
+yourself. Run `pnpm install` from the root; one lockfile serves both apps.
+
+### One tag, two projects
+
+Each app is its own Worker, so each is its own Workers Builds project. Create
+the second one with the settings `--into` prints:
+
+| Setting                              | Value                               |
+| ------------------------------------ | ----------------------------------- |
+| Root directory                       | `workers/order`                     |
+| Build command                        | `pnpm run build`                    |
+| Deploy command                       | `pnpm exec astroid ship production` |
+| Non-production branch deploy command | `pnpm exec astroid ship preview`    |
+| Production branch                    | `deploy/production`                 |
+
+There's still one release workflow. Every app's `astroid generate` writes the
+same `.github/workflows/release.yml` at the repository root, so a tag moves
+`deploy/production` once, and both projects deploy from it, in no guaranteed
+order.
+
 ### Two apps on one database
 
 A repository can run two Workers that bind the same D1 database, such as a

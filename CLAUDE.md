@@ -59,6 +59,9 @@ both legs. The same goes for the app shape: `template/_app/` is laid over the
 template only by `--app`, so a change there, or to what an `editor: false`
 config generates, needs `scaffold-smoke.sh marketing /tmp/smoke --app`, and
 `--portal --pwa --commerce square` added for the modules the shape keeps.
+`--into` is exercised by `SMOKE_INTO=workers/order SMOKE_INTO_FLAGS=--app
+scripts/ci/scaffold-smoke.sh marketing /tmp/smoke`, which scaffolds a second app
+into the first and checks the first comes out unchanged.
 
 ## Verifying a change
 
