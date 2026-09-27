@@ -29,7 +29,7 @@ Imported from `astroidjs/components/*.astro`:
 
 ## `<MediaSlot>`
 
-The responsive image. Wraps [`cfImageSrcset`](https://docs.louisetoolkit.com/reference/media/) so a site never
+The responsive image. Wraps [`cfImageSrcset`](https://docs.louisetoolkit.org/reference/media/) so a site never
 hand-rolls `srcset` math.
 
 ```astro

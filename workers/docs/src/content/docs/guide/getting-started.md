@@ -38,7 +38,7 @@ changes ship as a **minor** bump, so pin an exact version if you depend on one.
 | You want a running editable site today           | assembly required | one command                |
 | You need a page-builder + section library        | build it          | ships 15 sections          |
 
-If you're adding editing to an app you already have, use [Louise directly](https://docs.louisetoolkit.com/guide/quickstart/).
+If you're adding editing to an app you already have, use [Louise directly](https://docs.louisetoolkit.org/guide/quickstart/).
 If you're starting a brand-new site on Cloudflare, start here.
 
 ## Scaffold

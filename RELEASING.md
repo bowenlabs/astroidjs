@@ -61,7 +61,7 @@ corepack pnpm -C workers/docs run deploy
 So the docs cannot drift from `main`. The connection is made in the Cloudflare
 dashboard—there is no repository-side file that establishes it:
 
-**Workers & Pages** → **astroidjs-org** → **Settings** → **Builds** → **Connect**,
+**Workers & Pages** → **astroidjs** → **Settings** → **Builds** → **Connect**,
 authorize GitHub, pick `bowenlabs/astroidjs`, then:
 
 | setting        | value                                                                                 |
@@ -78,7 +78,8 @@ Three things about that build command, each of which will bite otherwise:
   where `wrangler.jsonc` and its `assets.directory: "./dist"` are.
 - **The Worker name must match.** Cloudflare requires the dashboard Worker name
   to equal `name` in the wrangler config at the root directory. Both are
-  `astroidjs-org`; renaming either alone fails the build. It fails fast: the
+  `astroidjs` (`astroidjs-org` until 2026-09-26); renaming either alone fails
+  the build. It fails fast: the
   GitHub check starts and completes in the same second. From
   2026-08-31 to 2026-09-24 the config said `astroidjs-docs`, so every build
   failed, and docs.astroidjs.org stayed on the 1 September hand upload.
