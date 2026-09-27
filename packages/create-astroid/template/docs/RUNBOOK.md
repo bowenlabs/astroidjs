@@ -31,7 +31,10 @@ edit mode.
 
 `pnpm exec astroid provision` creates every resource `wrangler.jsonc` still
 names by placeholder and fills in its ID. It asks first; `--dry-run` shows the
-plan. By hand, it's:
+plan. When the `previews` block binds them, it also creates staging's
+`SESSION_SECRET` (a new random value) and `TURNSTILE_SECRET` (Turnstile's test
+secret, which always passes), and skips any that exist. It prints the other
+secrets for you to set. By hand, the resources are:
 
 ```sh
 wrangler d1 create __KEY__
