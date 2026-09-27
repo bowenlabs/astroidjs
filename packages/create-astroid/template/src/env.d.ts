@@ -17,6 +17,9 @@ type CloudflareEnv = {
    *  health scan to know what to crawl, and by anything else that needs an
    *  absolute URL from inside the Worker. */
   SITE_URL: string;
+  /** AI Gateway id for the editor's AI assists—declared in wrangler.jsonc
+   *  `vars`. Empty calls Workers AI directly (see `astroidAiGateway`). */
+  AI_GATEWAY_ID?: string;
   /**
    * Edge caching for published pages — `"true"` to enable (ADR 0004). A string,
    * not a boolean, because wrangler `vars` are strings.

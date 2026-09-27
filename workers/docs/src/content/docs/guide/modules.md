@@ -60,6 +60,21 @@ them unmounted meant rendering UI for a subsystem that could never have data.
   counts unhandled inquiries—the whole table, because the Inquiries tab
   reviews and _clears_ submissions, so a surviving row is one still waiting.
 
+### AI Gateway (off by default)
+
+The AI assists call Workers AI directly, so no successful call is logged
+anywhere: there's no latency or error rate to read, and nothing is cached. To
+route them through [AI Gateway](https://developers.cloudflare.com/ai-gateway/),
+create a gateway and set its id as `AI_GATEWAY_ID` in the `vars` of
+`wrangler.jsonc`. The generated worker passes it to `aiRoute` and `seoFixRoute`
+through `astroidAiGateway`, and an empty or missing value keeps the direct path.
+Alt text on upload has no gateway option yet, so it stays direct.
+
+The gateway's log holds the text editors send to the assists, so say so on the
+site's privacy page before you set it. A `previews` block needs the variable
+too, since a Preview inherits no vars: set it to `""` there to keep staging
+text out of the log.
+
 ### Edge caching (off by default)
 
 The generated worker wraps Astro's SSR fallback in `withEdgeCache`, Louise's

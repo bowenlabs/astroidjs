@@ -40,6 +40,7 @@ import {
 import { ASTROID_SECRET_PLACEHOLDER } from "../secrets.js";
 import { tenancyZone } from "../tenancy/index.js";
 import { generateAstroidSchema } from "../schema/generate.js";
+import { ASTROID_AI_GATEWAY_VAR } from "../worker/gateway.js";
 import { generateAstroidMiddleware, generateAstroidWorker } from "../worker/generate.js";
 
 /** A generated file: a project-root-relative POSIX path + its full contents. */
@@ -305,6 +306,11 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   );
   p("    // The editor allowlist / owner. Wire this into your auth seam (src/auth.ts).");
   p('    "OWNER_EMAIL": "",');
+  p("    // AI Gateway for the editor's AI assists: request logs, latency and error");
+  p("    // rates, and caching. Empty calls Workers AI directly. Create a gateway,");
+  p("    // put its id here, and first say on the privacy page that its log holds");
+  p("    // the text editors send to the assists.");
+  p(`    "${ASTROID_AI_GATEWAY_VAR}": "",`);
   p("    // Edge caching for published pages (ADR 0004). OFF by default, and the");
   p("    // default is the safe state: with it off every render is `no-store` and");
   p("    // the Worker cache layer stores nothing.");

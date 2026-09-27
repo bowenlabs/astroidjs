@@ -18,6 +18,7 @@ import { astroidVitalsDataset } from "../src/analytics/index.js";
 import { generateAstroidCheckoutEnv } from "../src/commerce/checkout-scaffold.js";
 import { generateAstroidScaffoldFiles } from "../src/project/scaffold.js";
 import { generateAstroidRealtimeEnv } from "../src/realtime/scaffold.js";
+import { astroidAiGateway } from "../src/worker/gateway.js";
 import { generateAstroidMiddleware, generateAstroidWorker } from "../src/worker/generate.js";
 import { astroidSecretNames } from "../src/status.js";
 import { type AstroidEditorRouteName, astroidEditorRoutePlan } from "../src/worker/routes.js";
@@ -763,5 +764,28 @@ describe("inquiry-capture override", () => {
       inquiries: false,
     });
     expect(plan.map((r) => r.name)).not.toContain("inquiries");
+  });
+});
+
+describe("AI Gateway (#41)", () => {
+  it("passes astroidAiGateway to both AI routes that take a gateway", () => {
+    const worker = generateAstroidWorker(base);
+    expect(routeLine(worker, "aiRoute")).toContain("gateway: astroidAiGateway");
+    expect(routeLine(worker, "seoFixRoute")).toContain("gateway: astroidAiGateway");
+    expect(worker).toMatch(/import \{[^}]*\bastroidAiGateway\b[^}]*\} from "astroidjs";/);
+  });
+
+  it("is off until the site sets AI_GATEWAY_ID", () => {
+    expect(astroidAiGateway({})).toBeUndefined();
+    expect(astroidAiGateway(undefined)).toBeUndefined();
+    expect(astroidAiGateway({ AI_GATEWAY_ID: "" })).toBeUndefined();
+    expect(astroidAiGateway({ AI_GATEWAY_ID: "  " })).toBeUndefined();
+    expect(astroidAiGateway({ AI_GATEWAY_ID: "DUMMY_REPLACE_ME" })).toBeUndefined();
+    expect(astroidAiGateway({ AI_GATEWAY_ID: 42 })).toBeUndefined();
+    expect(astroidAiGateway({ AI_GATEWAY_ID: " acme-editor " })).toEqual({ id: "acme-editor" });
+  });
+
+  it("scaffolds the variable empty, so a new site starts direct", () => {
+    expect(generateAstroidWrangler(base)).toContain('"AI_GATEWAY_ID": "",');
   });
 });
