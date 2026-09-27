@@ -6,7 +6,7 @@
 //   astroid generate [--config <path>] [--cwd <dir>]   regenerate schema/worker/middleware from the config
 //   astroid doctor   [--config <path>] [--cwd <dir>]   validate config + bindings + generated-file freshness
 //   astroid dev      [...astro args]                   generate, then `astro dev`
-//   astroid build    [...astro args]                   generate, then `astro build`
+//   astroid build    [...astro args]                   generate, `astro build`, then fix the built wrangler.json
 //   astroid deploy   [--dry-run] [--yes] [--local]     provision + migrate + secrets + deploy
 //   astroid ship     production | preview              migrate, then deploy or preview (Workers Builds)
 //
@@ -398,7 +398,33 @@ async function cmdAstro(cwd, subcommand, flags, rest) {
     );
   }
   const child = spawn(process.execPath, [astroBin, subcommand, ...rest], { stdio: "inherit", cwd });
-  child.on("exit", (code) => process.exit(code ?? 0));
+  child.on("exit", async (code) => {
+    // A failed build keeps its exit code and its output as it left them.
+    if (subcommand === "build" && code === 0) await fixBuiltWranglerConfig(cwd);
+    process.exit(code ?? 0);
+  });
+}
+
+/** Delete `legacy_env` from the built Wrangler config, which current Wrangler
+ *  rejects (see src/project/build-output.ts). Warns rather than failing: the
+ *  build itself succeeded, and an older Wrangler deploys the file as is. */
+async function fixBuiltWranglerConfig(cwd) {
+  const { WRANGLER_DEPLOY_REDIRECT, builtWranglerConfigPath, stripLegacyEnv } = await import(
+    GENERATORS_URL
+  );
+  const redirectPath = join(cwd, WRANGLER_DEPLOY_REDIRECT);
+  const redirect = existsSync(redirectPath) ? readFileSync(redirectPath, "utf8") : null;
+  const configPath = resolve(cwd, builtWranglerConfigPath(redirect));
+  try {
+    const next = stripLegacyEnv(readFileSync(configPath, "utf8"));
+    if (next === null) return;
+    writeFileSync(configPath, next);
+    out(`astroid: removed legacy_env from ${rel(cwd, configPath)}`);
+  } catch (err) {
+    process.stderr.write(
+      `astroid: warning: couldn't check ${rel(cwd, configPath)} for legacy_env: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+  }
 }
 
 /** Resolve a project-local CLI bin (astro, wrangler) to an absolute path via the
@@ -657,7 +683,7 @@ Usage:
   astroid generate [--config <path>] [--cwd <dir>]   regenerate src/schema.ts, src/worker.ts, src/middleware.ts
   astroid doctor   [--config <path>] [--cwd <dir>]   validate config, bindings, and generated-file freshness
   astroid dev      [...astro args]                   regenerate, then run \`astro dev\`
-  astroid build    [...astro args]                   regenerate, then run \`astro build\`
+  astroid build    [...astro args]                   regenerate, run \`astro build\`, then drop legacy_env from its Wrangler config
   astroid deploy   [--dry-run] [--yes] [--local]     provision bindings + migrate + secrets + deploy
   astroid ship     production | preview              migrate D1, then deploy or preview (Workers Builds runs this)
   astroid provision [--dry-run] [--yes]              create the resources wrangler.jsonc names by placeholder, staging included

@@ -21,6 +21,16 @@ runs pnpm's own self-check and exits 0 without ever running Astroid's. The same
 applies to any script named after a pnpm command, such as `audit`, `outdated`, or
 `why`.
 
+### Building
+
+`astroid build` regenerates the trio, runs `astro build`, and then removes
+`legacy_env` from the Worker config the build writes. Some versions of
+`@astrojs/cloudflare` write that field, and current Wrangler rejects it, so a
+Workers Builds deploy would otherwise fail on the build's own output. It finds
+the config the way Wrangler does, through `.wrangler/deploy/config.json`, and
+falls back to `dist/server/wrangler.json`. It leaves a failed build's output
+alone, and it warns rather than fails when it can't read the file.
+
 ### Provisioning
 
 `astroid provision` creates the Cloudflare resources that `wrangler.jsonc` still
