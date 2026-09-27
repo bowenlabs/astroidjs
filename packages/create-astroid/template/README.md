@@ -84,15 +84,17 @@ There are no passwords and no editor list in env to keep in sync.
    bar** appears with **Settings** and **Done**.
 3. The home page's **title and body are editable in place**—click into them and
    type. Edits stage a **draft**; **Publish** (in the edit bar) promotes it live.
-   **Settings** opens the drawer: **Pages** (create/edit other pages), **Media**,
+   **Settings** opens the drawer: **Pages** (create/edit other pages, each served
+   at its slug once published, such as `/about`), **Media**,
    **Settings** (brand, nav, contact, SEO), and **Users** (invite/remove editors).
    **Done** leaves edit mode.
 
 Inline editing uses Astroid's [`<Editable>`](https://github.com/bowenlabs/louise-toolkit)
-primitive (`src/pages/index.astro`): it stamps the `data-louise-*` markers only in
-edit mode, so the public HTML stays clean. Wrap any page field in `<Editable
-collection="pages" key={page.id} field="…">` and pass `versionedPageId` to make it
-editable. Body HTML is sanitized on every save.
+primitive (`src/pages/index.astro` for the home page, `src/pages/[...slug].astro`
+for every other page, both reading through `src/lib/pages.ts`): it stamps the
+`data-louise-*` markers only in edit mode, so the public HTML stays clean. Wrap
+any page field in `<Editable collection="pages" key={page.row.id} field="…">` and
+pass `versionedPageId` to make it editable. Body HTML is sanitized on every save.
 
 ## Redeploy
 

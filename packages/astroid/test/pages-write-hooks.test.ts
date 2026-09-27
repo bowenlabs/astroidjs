@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import {
   ASTROID_RESERVED_SLUGS,
+  astroidReservedSlugs,
   assertAstroidPageSections,
   astroidPagesCollection,
   astroidPagesWriteHooks,
@@ -131,6 +132,21 @@ describe("astroidPagesWriteHooks — site hooks", () => {
   it("reserves Astroid's own paths with no site hooks", () => {
     expect(hooks.reservedSlugs).toEqual([...ASTROID_RESERVED_SLUGS]);
     expect(hooks.reservedSlugs).toContain("api");
+  });
+
+  it("reserves the scaffold's file routes, which win over the catch-all page route (#97)", () => {
+    // A page saved as `contact` or `login` would never be reached.
+    expect(hooks.reservedSlugs).toEqual(expect.arrayContaining(["contact", "login"]));
+    expect(hooks.reservedSlugs).not.toContain("work");
+  });
+
+  it("reserves a portfolio's gallery path, and only on a portfolio", () => {
+    const portfolio = astroidPagesWriteHooks({ ...config, archetype: "portfolio" });
+    expect(portfolio.reservedSlugs).toContain("work");
+    expect(astroidReservedSlugs({ ...config, archetype: "portfolio" })).toEqual([
+      ...ASTROID_RESERVED_SLUGS,
+      "work",
+    ]);
   });
 
   it("adds a site's reserved slugs to Astroid's", () => {

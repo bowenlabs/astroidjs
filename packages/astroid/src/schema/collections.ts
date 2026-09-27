@@ -180,9 +180,20 @@ export const ASTROID_RESERVED_SLUGS: readonly string[] = [
   "_astro",
   "api",
   "cdn-cgi",
+  // The scaffold's own file routes, which every site has.
+  "contact",
+  "login",
   "robots.txt",
   "sitemap.xml",
 ];
+
+/**
+ * The reserved slugs for this config: {@link ASTROID_RESERVED_SLUGS}, plus the
+ * file routes a module scaffolds. A portfolio's gallery is `src/pages/work.astro`.
+ */
+export function astroidReservedSlugs(config: AstroidConfig): string[] {
+  return [...ASTROID_RESERVED_SLUGS, ...(config.archetype === "portfolio" ? ["work"] : [])];
+}
 
 export function astroidPagesWriteHooks(
   config: AstroidConfig,
@@ -211,7 +222,7 @@ export function astroidPagesWriteHooks(
       await site.validate?.(data, ctx);
       await assertAstroidPageSections(config, data, ctx.operation);
     },
-    reservedSlugs: [...ASTROID_RESERVED_SLUGS, ...(site.reservedSlugs ?? [])],
+    reservedSlugs: [...astroidReservedSlugs(config), ...(site.reservedSlugs ?? [])],
   };
 }
 

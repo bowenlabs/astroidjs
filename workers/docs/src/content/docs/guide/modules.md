@@ -60,6 +60,24 @@ them unmounted meant rendering UI for a subsystem that could never have data.
   counts unhandled inquiries—the whole table, because the Inquiries tab
   reviews and _clears_ submissions, so a surviving row is one still waiting.
 
+### Every page at its slug
+
+A page made in the Pages panel is served at its slug, so `about` is `/about`,
+by `src/pages/[...slug].astro`. It renders a page the way the home page does,
+through `src/lib/pages.ts`:
+
+- A visitor sees the page only while it's live (published, not hidden).
+  Anything else answers the site's 404 page, with `noindex`.
+- An editor in edit mode sees any page, with its latest pending draft, and
+  edits it in place and publishes it like the home page.
+- The head uses the page's own SEO title, description, share image, and
+  `noindex`, and the edge cache follows the home page's rule.
+
+A file route always wins over the catch-all, so `/contact` and `/login` stay
+theirs, and the Pages route refuses those slugs with a 422, along with `work` on
+a portfolio. Add your own file routes' slugs to `reservedSlugs` in
+`src/pages-hooks.ts` (turn it on with `pages: { hooks: true }`).
+
 ### Renamed pages keep their old URL
 
 When an editor changes a page's slug, the Pages route records `/old → /new` in
