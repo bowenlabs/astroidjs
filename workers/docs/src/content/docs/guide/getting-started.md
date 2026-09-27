@@ -64,6 +64,8 @@ pnpm create astroid [directory] [options]
   --pwa                 Installable PWA (scoped service worker + manifest)
   --portal              Customer/member portal (a second, isolated auth instance)
   --realtime            Live multi-editor editing (a per-page Durable Object)
+  --credit-name <name>  A "Site by <name>" credit in the footer
+  --credit-href <url>   Where the credit links (pairs with --credit-name)
 ```
 
 You get a working floor, not a blank page: an inline-editable home page,

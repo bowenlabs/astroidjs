@@ -20,9 +20,11 @@ fail deep inside generation. Throws [`AstroidConfigError`](#errors) on:
 - a commerce provider assigned to a role its client can't serve
 - `portal.gated`, which is **not implemented** and refused rather than silently
   wiring no guard
+- a `credit` with no `name`, an `href` that isn't an absolute `http` or `https` URL, or
+  a `logo` that isn't a root-relative path or an `https` URL
 
 Key types: `AstroidConfig`, `Archetype` (`marketing | storefront | wholesale |
 portfolio`), `ModuleKind` (`map | pwa | wholesaleInquiry`), `SectionKind`,
-`Theme`, `Portal`, `CommerceConfig`, `SeoConfig`, `SecurityConfig`, `PwaConfig`.
+`Theme`, `Portal`, `CommerceConfig`, `CreditConfig`, `SeoConfig`, `SecurityConfig`, `PwaConfig`.
 
 `ASTROID_ARCHETYPE_SECTIONS` maps each archetype to its default home sections.
