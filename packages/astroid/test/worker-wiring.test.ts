@@ -678,6 +678,23 @@ describe("pages route wiring", () => {
     expect(line).toContain("afterWrite: reindexPagesSearch");
   });
 
+  it("reindexes only the page the write touched", () => {
+    // A whole-index rebuild on every Pages panel save was the old behavior.
+    // `reindexDoc` also covers a delete: the row is gone by the time the hook
+    // runs, so it removes the entry instead of writing one.
+    const worker = generateAstroidWorker(base);
+    expect(worker).toContain(
+      "async function reindexPagesSearch(_editor: EditorSession, { id }: PagesWrite): Promise<void> {",
+    );
+    expect(worker).toContain("  await reindexDoc(db(env.DB), pages, pagesCollection, id);");
+    expect(worker).toContain('import { reindexDoc } from "louise-toolkit/content";');
+    expect(worker).not.toContain("createLocalApi");
+    expect(worker).not.toContain("reindexSearch(");
+    // `PagesWrite` is a type from /editor, so it goes in that import block.
+    const editorBlock = worker.slice(0, worker.indexOf('} from "louise-toolkit/editor";'));
+    expect(editorBlock).toContain("  type PagesWrite,");
+  });
+
   it("uses Astroid's hooks alone without pages.hooks", () => {
     const worker = generateAstroidWorker(base);
     expect(worker).not.toContain("pages-hooks");

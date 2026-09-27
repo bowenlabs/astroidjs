@@ -77,6 +77,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   const AI_ROUTES = new Set<AstroidEditorRouteName>(["ai", "seoFix", "media"]);
   const editorImports = [
     "DEFAULT_PAGE_FIELDS",
+    "type PagesWrite",
     ...new Set(plan.map((route) => route.factory).filter((f) => !realtimeRouteFactories.has(f))),
   ].sort();
   const tables = [
@@ -114,8 +115,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
         //
         // `versionsTable` makes a DELETE remove the page's version snapshots,
         // which have no foreign key to the page and would otherwise orphan.
-        // `afterWrite` rebuilds the search index, which plain CRUD writes leave
-        // stale.
+        // `afterWrite` syncs the written page's search index entry, which plain
+        // CRUD writes leave stale.
         return 'pagesRoute({ table: pages, versionsTable: pagesVersions, resolveEditor, fields: [...DEFAULT_PAGE_FIELDS, "sections"], ...pagesWriteHooks, afterWrite: reindexPagesSearch })';
       case "save":
         // No `bufferKv` here, deliberately: `saveRoute` has no such option. It
@@ -187,7 +188,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p('import { env } from "cloudflare:workers";');
   p('import { handle } from "@astrojs/cloudflare/handler";');
   p('import type { EditorSession } from "louise-toolkit/auth";');
-  p('import { createLocalApi } from "louise-toolkit/content";');
+  p('import { reindexDoc } from "louise-toolkit/content";');
   p(
     inquiries
       ? 'import { db, inquiriesForm } from "louise-toolkit/db";'
@@ -269,12 +270,14 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   );
   p();
   p("// pagesRoute writes with plain Drizzle, so the full-text index doesn't see a");
-  p("// title or slug change until something rebuilds it. Best-effort: pagesRoute");
-  p("// swallows a throw here, so a stale index never fails the write itself.");
-  p("async function reindexPagesSearch(editor: EditorSession): Promise<void> {");
+  p("// title or slug change until something syncs it. This syncs only the page the");
+  p("// write touched, rather than rebuilding the whole index on every save. After a");
+  p("// delete the row is gone, and reindexDoc removes its entry. Best-effort:");
+  p("// pagesRoute swallows a throw here, so a stale index never fails the write.");
   p(
-    "  await createLocalApi(db(env.DB), pages, pagesCollection).reindexSearch({ session: editor });",
+    "async function reindexPagesSearch(_editor: EditorSession, { id }: PagesWrite): Promise<void> {",
   );
+  p("  await reindexDoc(db(env.DB), pages, pagesCollection, id);");
   p("}");
   p();
   p("// Editable site_settings columns the Settings panel may write, and which of");
