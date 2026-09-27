@@ -8,6 +8,7 @@ export {
   ASTROID_QUEUE_BINDING,
   ASTROID_QUEUE_RETRY_DELAY,
   type AstroidQueueMessage,
+  astroidCommercePipeline,
   astroidCron,
   astroidCrons,
   astroidQueueNames,
