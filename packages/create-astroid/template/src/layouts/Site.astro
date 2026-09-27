@@ -6,6 +6,7 @@
 // description, and OG image, and a page overrides any of them via props.
 // <StructuredData> emits the schema.org graph (business + WebSite), with the
 // business `@type` chosen from your archetype.
+import Credit from "astroidjs/components/Credit.astro";
 import Seo from "astroidjs/components/Seo.astro";
 import StructuredData from "astroidjs/components/StructuredData.astro";
 import { env } from "cloudflare:workers";
@@ -96,6 +97,15 @@ const settings = {
   </head>
   <body class="min-h-screen bg-base-100 text-base-content" data-edit-mode={editMode ? "" : undefined}>
     <slot />
+    {
+      /* The agency credit, when astroid.config.ts sets `credit`. A site with
+         its own footer can move <Credit config={astroidConfig} /> into it. */
+      astroidConfig.credit && (
+        <footer class="mx-auto flex max-w-6xl justify-center px-6 py-8">
+          <Credit config={astroidConfig} />
+        </footer>
+      )
+    }
     <LouiseEdit versionedPageId={versionedPageId} sections={sections} />
     {
       /* Real-visitor Core Web Vitals. A static file from public/, so it is

@@ -1,0 +1,70 @@
+---
+// `<Credit>`—the agency credit from `config.credit`, for the site's footer.
+// Renders nothing when the config has no `credit`, so it's safe to leave in a
+// footer permanently.
+//
+// The mark is a CSS mask filled with `currentColor`, not an `<img>`. An SVG
+// loaded through `<img>` renders in its own document and can't see the page's
+// text color, so it would stay whatever color it was drawn in on every theme.
+// As a mask, only its shape counts and the fill follows the theme. It's
+// `aria-hidden` because the name beside it already says who it is, so a screen
+// reader reads the name once.
+//
+// The styles are scoped here rather than written as Tailwind utilities: a site
+// may not scan node_modules, and the credit has to look the same either way.
+import type { AstroidConfig } from "astroidjs";
+
+interface Props {
+  config: AstroidConfig;
+  class?: string;
+}
+
+const { config, class: className } = Astro.props;
+const credit = config.credit;
+// `defineAstroid` limits `logo` to a root-relative path or an https URL, and
+// JSON quoting keeps a space or parenthesis in the path from ending the `url()`.
+const markStyle = credit?.logo ? `--astroid-credit-mark:url(${JSON.stringify(credit.logo)})` : "";
+---
+
+{
+  credit && (
+    <p class:list={["astroid-credit", className]}>
+      <a href={credit.href} rel={credit.rel}>
+        {credit.logo && <span class="astroid-credit__mark" aria-hidden="true" style={markStyle} />}
+        <span>
+          {credit.label ?? "Site by"} {credit.name}
+        </span>
+      </a>
+    </p>
+  )
+}
+
+<style>
+  .astroid-credit {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+  /* Low contrast, not illegible: 70% of the theme's text color stays above
+     WCAG AA on daisyUI's light and dark base colors. */
+  .astroid-credit a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    color: inherit;
+    opacity: 0.7;
+    text-decoration: none;
+  }
+  .astroid-credit a:hover,
+  .astroid-credit a:focus-visible {
+    opacity: 1;
+    text-decoration: underline;
+  }
+  .astroid-credit__mark {
+    flex: none;
+    width: 1.25em;
+    height: 1.25em;
+    background-color: currentColor;
+    mask: var(--astroid-credit-mark) center / contain no-repeat;
+  }
+</style>

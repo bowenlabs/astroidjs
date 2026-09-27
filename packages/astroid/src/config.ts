@@ -557,6 +557,29 @@ export interface DeployConfig {
   migrations?: boolean;
 }
 
+/**
+ * A small "Site by …" line the footer renders for the agency that built the
+ * site. A site fact, so it has no default: omit it and nothing renders.
+ */
+export interface CreditConfig {
+  /** Who built the site, for example `"Example Organization"`. */
+  name: string;
+  /** Where the credit links, as an absolute `http` or `https` URL. */
+  href: string;
+  /**
+   * An optional mark shown before the name: a root-relative path (for example
+   * `"/credit-mark.svg"`) or an `https:` URL. It's drawn as a mask filled with
+   * the text color, so one single-color SVG works on every theme. Only its
+   * shape counts; its own fill is ignored.
+   */
+  logo?: string;
+  /** The link's `rel`, for example `"noopener"` or `"noopener nofollow"`. The
+   *  site decides; omitted, the link carries none. */
+  rel?: string;
+  /** The words before the name. Default `"Site by"`. */
+  label?: string;
+}
+
 export interface AstroidConfig {
   /**
    * Stable project slug—the worker/D1/R2 base name and default subdomain (for example,
@@ -643,6 +666,8 @@ export interface AstroidConfig {
   inquiries?: boolean;
   /** Installable-app settings. Only read when `modules` includes `"pwa"`. */
   pwa?: PwaConfig;
+  /** The agency credit `<Credit>` renders in the footer. Omit for none. */
+  credit?: CreditConfig;
   deploy?: DeployConfig;
 }
 
@@ -814,6 +839,43 @@ function assertMediaConfig(media: MediaConfig | undefined): void {
   }
 }
 
+/**
+ * A credit that would render as a broken link or an empty mark.
+ *
+ * The logo is limited to a root-relative path or `https:` because it lands in a
+ * CSS `url()`: a `data:` or `javascript:` value there is at best unrenderable,
+ * and a relative one resolves against each page's path rather than the site.
+ */
+function assertCredit(credit: CreditConfig | undefined): void {
+  if (!credit) return;
+  if (!credit.name?.trim()) {
+    throw new AstroidConfigError("`credit.name` is required: the name the footer credits");
+  }
+  let href: URL | undefined;
+  try {
+    href = new URL(credit.href);
+  } catch {
+    // Reported below with the value that failed.
+  }
+  if (!href || (href.protocol !== "https:" && href.protocol !== "http:")) {
+    throw new AstroidConfigError(
+      `\`credit.href\` must be an absolute http or https URL, such as "https://example.com", ` +
+        `but it's "${credit.href}"`,
+    );
+  }
+  const logo = credit.logo;
+  if (
+    logo !== undefined &&
+    !(logo.startsWith("/") && !logo.startsWith("//")) &&
+    !logo.startsWith("https://")
+  ) {
+    throw new AstroidConfigError(
+      `\`credit.logo\` must be a root-relative path such as "/credit-mark.svg" or an ` +
+        `https URL, but it's "${logo}"`,
+    );
+  }
+}
+
 export function defineAstroid(config: AstroidConfig): AstroidConfig {
   if (!config.key || config.key.trim().length === 0) {
     throw new AstroidConfigError(
@@ -856,6 +918,7 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   assertCrons(config);
   assertTenancy(config);
   assertAllowSlugs(config);
+  assertCredit(config.credit);
 
   if (config.portal?.gated) {
     throw new AstroidConfigError(

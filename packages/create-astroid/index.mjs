@@ -169,6 +169,15 @@ function astroidConfigSource(config) {
           "  },",
         ]
       : []),
+    // Must be emitted: the scaffold's layout reads `credit` from THIS file at
+    // render time, so a config without it renders no footer.
+    ...(config.credit
+      ? [
+          `  credit: { name: ${JSON.stringify(config.credit.name)}, href: ${JSON.stringify(
+            config.credit.href,
+          )} },`,
+        ]
+      : []),
     '  deploy: { platform: "cloudflare" },',
     "});",
     "",
@@ -206,6 +215,9 @@ Options:
                         with presence, field sync, and a rich-text soft-lock
   --portal              Add a customer/member portal: a second, isolated auth
                         instance plus role-gated routes
+  --credit-name <name>  Credit who built the site in the footer ("Site by <name>")
+  --credit-href <url>   Where the credit links; needs --credit-name, and the
+                        other way round
   -h, --help            Show this help
   -v, --version         Show the create-astroid version
 
@@ -289,6 +301,18 @@ async function main() {
     process.exit(1);
   }
 
+  // A pair or nothing: a credit with no link, or a link with nothing to show,
+  // is a half-typed flag rather than a choice.
+  const creditName = typeof flags["credit-name"] === "string" ? flags["credit-name"] : undefined;
+  const creditHref = typeof flags["credit-href"] === "string" ? flags["credit-href"] : undefined;
+  if (
+    (flags["credit-name"] !== undefined || flags["credit-href"] !== undefined) &&
+    !(creditName && creditHref)
+  ) {
+    process.stderr.write("create-astroid: --credit-name and --credit-href go together\n");
+    process.exit(1);
+  }
+
   if (existsSync(dir) && readdirSync(dir).length > 0) {
     process.stderr.write(`create-astroid: target directory is not empty: ${dir}\n`);
     process.exit(1);
@@ -317,6 +341,7 @@ async function main() {
     // : {})` spreads would let the later one overwrite the earlier, silently
     // dropping a module whenever both were passed.
     ...(modules.length > 0 ? { modules } : {}),
+    ...(creditName && creditHref ? { credit: { name: creditName, href: creditHref } } : {}),
     deploy: { platform: "cloudflare" },
   });
 
