@@ -124,7 +124,7 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
   routes.push({
     name: "ai",
     factory: "aiRoute",
-    note: "Editor AI assists—rewrite/expand/shorten a selection, suggest SEO for a page. Owns /api/louise/ai/*, so it collides with nothing. POST-only and editor-gated, since each call spends AI budget.",
+    note: "Editor AI assists—rewrite a selection (tighten, rephrase, simplify, or fix), suggest SEO for a page. Owns /api/louise/ai/*, so it collides with nothing. POST-only and editor-gated, since each call spends AI budget.",
   });
 
   if (capturesInquiries(config)) {
