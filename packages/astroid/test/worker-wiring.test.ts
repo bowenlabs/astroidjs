@@ -789,3 +789,40 @@ describe("AI Gateway (#41)", () => {
     expect(generateAstroidWrangler(base)).toContain('"AI_GATEWAY_ID": "",');
   });
 });
+
+describe("status route (#82)", () => {
+  it("mounts statusRoute with Astroid's d1 and content checks", () => {
+    const worker = generateAstroidWorker(base);
+    expect(astroidEditorRoutePlan(base).map((r) => r.name)).toContain("status");
+    expect(worker).toContain("statusRoute({ checks: STATUS_CHECKS, reuseMs: STATUS_REUSE_MS })");
+    expect(worker).toContain("d1: d1Check((env: CloudflareEnv) => env.DB),");
+    // The home row the index page reads, so a seed-me fallback reads as down.
+    expect(worker).toContain("SELECT 1 FROM pages WHERE slug = 'home'");
+    // Both factories come from louise-toolkit/editor, where 0.34 exports them.
+    const editorImport = worker.slice(0, worker.indexOf('} from "louise-toolkit/editor";'));
+    expect(editorImport).toContain("  d1Check,");
+    expect(editorImport).toContain("  statusRoute,");
+  });
+
+  it("adds no site checks unless status.checks is on", () => {
+    const worker = generateAstroidWorker(base);
+    expect(worker).not.toContain("status-checks.js");
+    expect(worker).not.toContain("...statusChecks");
+    expect(generateAstroidScaffoldFiles(base).map((f) => f.path)).not.toContain(
+      "src/status-checks.ts",
+    );
+  });
+
+  it("spreads the site's checks from the scaffold-once seam when status.checks is on", () => {
+    const config: AstroidConfig = { ...base, status: { checks: true } };
+    const worker = generateAstroidWorker(config);
+    expect(worker).toContain('import { statusChecks } from "./status-checks.js";');
+    expect(worker).toContain("  ...statusChecks,");
+    const seam = generateAstroidScaffoldFiles(config).find(
+      (f) => f.path === "src/status-checks.ts",
+    );
+    expect(seam?.contents).toContain(
+      "export const statusChecks: Record<string, StatusCheck<CloudflareEnv>> = {",
+    );
+  });
+});

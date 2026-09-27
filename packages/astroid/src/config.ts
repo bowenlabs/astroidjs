@@ -514,6 +514,16 @@ export interface PagesConfig {
   hooks?: boolean;
 }
 
+export interface StatusConfig {
+  /**
+   * Add the site's own checks to the public status route, from the
+   * scaffold-once `src/status-checks.ts`: for example, the catalog snapshot's
+   * age, or the last health scan's. The generated worker spreads them after
+   * Astroid's own `d1` and `content` checks.
+   */
+  checks?: boolean;
+}
+
 export interface DeployConfig {
   platform: "cloudflare";
   /** Media base for R2 + `cf-image` resizing—matches Louise's media route
@@ -604,6 +614,8 @@ export interface AstroidConfig {
   media?: MediaConfig;
   /** The editable `pages` collection's site-owned write hooks. */
   pages?: PagesConfig;
+  /** The public status route's site-owned checks. */
+  status?: StatusConfig;
   /**
    * Force the contact form + `inquiries` table on or off. Omit to detect from
    * the config (a `contact` section, or a wholesale-inquiry module). Set `true`

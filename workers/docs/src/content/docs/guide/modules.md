@@ -75,6 +75,33 @@ site's privacy page before you set it. A `previews` block needs the variable
 too, since a Preview inherits no vars: set it to `""` there to keep staging
 text out of the log.
 
+### The status route
+
+Every generated worker mounts `statusRoute` at `/api/louise/status`, for an
+outside probe such as an uptime monitor to read. It's public, so the editor API
+gate lets an anonymous request through. It answers `GET` and `HEAD` with 200
+when every check passes and 503 when any fails, throws, or takes over two
+seconds, always with `Cache-Control: no-store`. The body reports each check as
+a boolean, never as error text:
+
+```json
+{ "ok": true, "checks": { "d1": { "ok": true }, "content": { "ok": true } } }
+```
+
+Astroid supplies two checks:
+
+- **`d1`**: the `DB` binding answers `SELECT 1`.
+- **`content`**: the home page's `pages` row exists, so the public site
+  serves real content rather than the seed-me prompt. It fails on an unseeded
+  database, and on one whose migrations never ran. Seed the home page with
+  `seed/home.seed.sql` and the route answers 200.
+
+To add your own, such as a catalog snapshot's age or the last health scan's,
+set `status: { checks: true }` in `astroid.config.ts` and run `astroid
+generate`. That scaffolds `src/status-checks.ts` once. Export your checks from
+it as `statusChecks`, and the worker adds them after Astroid's. A check's name
+is in the public response, so don't put anything in one you wouldn't publish.
+
 ### Edge caching (off by default)
 
 The generated worker wraps Astro's SSR fallback in `withEdgeCache`, Louise's
