@@ -31,8 +31,10 @@ the output.
 
 `astro check` diagnoses only files inside the project. The section library is
 installed under `node_modules/astroidjs/src/components`, so a type error there
-passes `astro check` in every scaffold. To check the components, copy them into a
-scaffold's `src/` and run `astro check` again. CI doesn't do this yet (#32).
+passes `astro check` in every scaffold. `scaffold-smoke.sh` copies them into the
+scaffold's `src/` and runs `astro check` again, which is the only check that sees
+them. A deliberate type error in `sections/Hero.astro` passes the scaffold's own
+`astro check` and fails this second pass.
 
 ### A write path must answer 422, and only a served site shows it
 
@@ -42,12 +44,22 @@ with an internal error string. Neither showed up in tests, `astro check`, or
 tricky:
 
 - Reaching the throw needs a real D1, so there's no unit test for the versions
-  path. A served scaffold is its only guard, and CI doesn't serve one yet (#32).
+  path. A served scaffold is its only guard: `scripts/ci/scaffold-serve.sh`
+  boots one on the marketing leg and checks every write path, including a save
+  that merges into an open draft buffer.
 - The `DRAFTS` write buffer used to defer validation to publish: a bad write
   that merged into an open buffer returned 200 and failed later. Since
   louise-toolkit 0.31.1 (#529), a buffered save runs the collection's hooks
   first, so it answers 422 like any other. On louise-toolkit 0.31.0 or earlier,
   test validation on a fresh page.
+
+### Build a JSON body with `printf`, not inline, inside `$(…)`
+
+`"$(curl … -d "{\"email\":\"$EMAIL\",\"callbackURL\":\"/\"}")"` looks quoted, but
+bash brace-expands the `{…,…}` inside the command substitution, so it sends
+two requests, each with half the body, and every argument after it shifts by
+one. Build the body first, `BODY="$(printf '{"email":"%s"}' "$EMAIL")"`, and
+pass `"$BODY"`. `bash -x` shows the split.
 
 ### Read the module before inferring a data model
 

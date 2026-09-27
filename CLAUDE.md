@@ -74,7 +74,14 @@ corepack pnpm run typecheck
 corepack pnpm test
 corepack pnpm run build:packages
 scripts/ci/scaffold-smoke.sh marketing /tmp/smoke
+scripts/ci/scaffold-serve.sh /tmp/smoke/room/smoke   # after the smoke test
 ```
+
+`scaffold-smoke.sh` also type-checks the installed component library, which
+`astro check` can't see from inside a scaffold. `scaffold-serve.sh` boots the
+built scaffold with `wrangler dev` and checks what only a running Worker shows:
+every page write path refuses an invalid section with 422, and the built CSS
+carries the section library's utilities. CI runs it on the marketing leg.
 
 `lint:docs` isn't only for docs. It lints Markdown and the comments in code
 against the Google developer documentation style, and with `--strings` it also
