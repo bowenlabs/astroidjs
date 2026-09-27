@@ -43,6 +43,7 @@ export type StagingSecretValue = "random" | "turnstile-test";
  */
 export const ASTROID_STAGING_SECRET_VALUES: Readonly<Record<string, StagingSecretValue>> = {
   SESSION_SECRET: "random",
+  // deepcode ignore HardcodedNonCryptoSecret: A value kind, not a credential.
   TURNSTILE_SECRET: "turnstile-test",
 };
 
@@ -50,6 +51,7 @@ export const ASTROID_STAGING_SECRET_VALUES: Readonly<Record<string, StagingSecre
  * Cloudflare's Turnstile test secret key, which passes every token. Staging
  * uses it so a Preview's forms and sign-in work without a real widget.
  */
+// deepcode ignore HardcodedNonCryptoSecret: Cloudflare's public Turnstile test secret, not a credential.
 export const TURNSTILE_TEST_SECRET = "1x0000000000000000000000000000000AA";
 
 /** A Secrets Store secret the config binds. */
