@@ -57,6 +57,13 @@ export function astroidCrons(config: AstroidConfig): string[] {
 /** Binding name for the project's queue producer. */
 export const ASTROID_QUEUE_BINDING = "COMMERCE_QUEUE";
 
+/**
+ * Seconds Cloudflare waits before redelivering a failed message, when the
+ * config sets no `queues.retryDelay`. A consumer that sets its own delay per
+ * message, as `processBatch` can, overrides it.
+ */
+export const ASTROID_QUEUE_RETRY_DELAY = 30;
+
 /** Queue names derived from the project key—the main queue and its DLQ. */
 export function astroidQueueNames(config: AstroidConfig): { queue: string; dlq: string } {
   return { queue: `${config.key}-commerce`, dlq: `${config.key}-commerce-dlq` };

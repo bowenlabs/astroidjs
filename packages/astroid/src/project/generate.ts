@@ -26,6 +26,7 @@ import {
 import type { AstroidConfig } from "../config.js";
 import {
   ASTROID_QUEUE_BINDING,
+  ASTROID_QUEUE_RETRY_DELAY,
   astroidCrons,
   astroidQueueNames,
   astroidUsesQueues,
@@ -212,6 +213,10 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p(`        "max_batch_size": ${config.queues?.maxBatchSize ?? 10},`);
     p(`        "max_batch_timeout": ${config.queues?.maxBatchTimeout ?? 30},`);
     p(`        "max_retries": ${config.queues?.maxRetries ?? 5},`);
+    // A wait between deliveries, so a failed message doesn't hit a provider
+    // that's already failing or rate limiting again the same second. The queue
+    // owns retries (the consumer seam says so), so it owns the backoff too.
+    p(`        "retry_delay": ${config.queues?.retryDelay ?? ASTROID_QUEUE_RETRY_DELAY},`);
     p(`        "dead_letter_queue": ${JSON.stringify(dlq)},`);
     p("      },");
     p("    ],");

@@ -255,6 +255,12 @@ export interface QueuesConfig {
   cron?: string | false;
   /** Deliveries before Cloudflare routes a message to the DLQ. Default 5. */
   maxRetries?: number;
+  /**
+   * Seconds Cloudflare waits before redelivering a failed message. Default
+   * 30. The queue owns retries, so keep a handler's own client retries off
+   * rather than stacking them on top of these.
+   */
+  retryDelay?: number;
   /** Messages per consumer invocation. Default 10. */
   maxBatchSize?: number;
   /** Seconds the consumer waits to fill a batch. Default 30. */

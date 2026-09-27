@@ -12,7 +12,7 @@ import {
   astroidUsesQueues,
 } from "../src/queues/messages.js";
 import { generateAstroidQueueSeam, generateAstroidWebhookRoute } from "../src/queues/scaffold.js";
-import { handleWebhook } from "../src/queues/webhook.js";
+import { astroidQueue, handleWebhook } from "../src/queues/webhook.js";
 import { generateAstroidWorker } from "../src/worker/generate.js";
 
 const base: AstroidConfig = {
@@ -416,14 +416,18 @@ describe("generated wrangler", () => {
     expect(out).toContain('"queue": "acme-commerce", "binding": "COMMERCE_QUEUE"');
     expect(out).toContain('"dead_letter_queue": "acme-commerce-dlq"');
     expect(out).toContain('"max_retries": 5');
+    // A wait between deliveries, so a failing provider isn't hit again the
+    // same second (#61).
+    expect(out).toContain('"retry_delay": 30');
   });
 
   it("honours tuned batch + retry settings", () => {
     const out = generateAstroidWrangler({
       ...shop,
-      queues: { maxRetries: 2, maxBatchSize: 25, maxBatchTimeout: 5 },
+      queues: { maxRetries: 2, maxBatchSize: 25, maxBatchTimeout: 5, retryDelay: 120 },
     });
     expect(out).toContain('"max_retries": 2');
+    expect(out).toContain('"retry_delay": 120');
     expect(out).toContain('"max_batch_size": 25');
     expect(out).toContain('"max_batch_timeout": 5');
   });
@@ -432,13 +436,32 @@ describe("generated wrangler", () => {
 describe("scaffold-once files", () => {
   it("emits a consumer seam that delegates to astroidQueueHandler", () => {
     const out = generateAstroidQueueSeam(shop);
-    expect(out).toContain(
-      'import { astroidQueueHandler, type AstroidQueueMessage } from "astroidjs";',
-    );
+    expect(out).toContain("astroidQueueHandler, type AstroidQueueMessage }");
     expect(out).toContain("export async function handleQueueMessage(");
     expect(out).toContain("refreshCatalog:");
     // One provider owns everything, so scoping would be noise.
     expect(out).not.toContain("catalogProvider:");
+  });
+
+  it("exports commerceQueue, which falls back to the handler on a Preview (#69)", () => {
+    const out = generateAstroidQueueSeam(shop);
+    expect(out).toContain(
+      'import { astroidQueue, astroidQueueHandler, type AstroidQueueMessage } from "astroidjs";',
+    );
+    expect(out).toContain("export function commerceQueue(env: CloudflareEnv) {");
+    expect(out).toContain(
+      "return astroidQueue(env.COMMERCE_QUEUE, (message) => handleQueueMessage(env, message));",
+    );
+  });
+
+  it("leaves retries to the queue, not the client (#61)", () => {
+    // Client retries multiply with queue redeliveries: 4 calls per delivery
+    // across 6 deliveries is 24 calls for one message.
+    const square = generateAstroidQueueSeam(shop);
+    expect(square).not.toContain("takes `retry: { attempts: 3 }`");
+    expect(square).toContain("Leave SquareConfig's `retry` off here.");
+    const fourthwall = generateAstroidQueueSeam({ ...shop, commerce: { provider: "fourthwall" } });
+    expect(fourthwall).toContain("Leave the client's own retries off here.");
   });
 
   it("scopes the refresh when a project runs two commerce providers (#294)", () => {
@@ -460,9 +483,11 @@ describe("scaffold-once files", () => {
     // Square signs notificationUrl + body, so the URL must reach the verifier.
     expect(square).toContain("verifySquareSignature(url.href, raw,");
     expect(square).toContain("readModuleSecret(env.SQUARE_WEBHOOK_SECRET)");
-    // A Preview has no queue, so the route falls back to the consumer's handler.
-    expect(square).toContain('import { handleQueueMessage } from "../../../queue";');
-    expect(square).toContain("inline: (message) => handleQueueMessage(env, message),");
+    // A Preview has no queue, so the route sends through the seam's
+    // `commerceQueue`, which falls back to the consumer's handler (#69).
+    expect(square).toContain('import { commerceQueue } from "../../../queue";');
+    expect(square).toContain("queue: commerceQueue(env),");
+    expect(square).not.toContain("inline:");
 
     const stripe = generateAstroidWebhookRoute({ ...shop, commerce: { provider: "stripe" } });
     expect(stripe).toContain("verifyStripeSignature(raw,");
@@ -545,5 +570,39 @@ describe("AstroidConfig.crons (#306)", () => {
   it("is inert when unset — no extra triggers, no extra branches", () => {
     expect(astroidCrons(shop)).toEqual(["17 4 * * *", "0 * * * *"]);
     expect(() => defineAstroid(shop)).not.toThrow();
+  });
+});
+
+describe("astroidQueue (#69)", () => {
+  const message: AstroidQueueMessage = { kind: "catalog_refresh" };
+
+  it("returns the binding itself when it's bound, and never runs the handler", async () => {
+    const binding = { send: vi.fn(async () => ({})) };
+    const handler = vi.fn(async () => {});
+    const producer = astroidQueue(binding, handler);
+    expect(producer).toBe(binding);
+    await producer.send(message);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("runs the handler in the request when the binding is absent", async () => {
+    for (const unbound of [undefined, null]) {
+      const handler = vi.fn(async () => {});
+      await astroidQueue(unbound, handler).send(message);
+      expect(handler).toHaveBeenCalledWith(message);
+    }
+  });
+
+  it("throws what the handler throws, so a webhook asks for redelivery", async () => {
+    const producer = astroidQueue(undefined, async () => {
+      throw new Error("D1 down");
+    });
+    await expect(producer.send(message)).rejects.toThrow("D1 down");
+    const res = await handleWebhook(
+      new Request("https://acme.com/api/webhooks/square", { method: "POST", body: '{"type":"a"}' }),
+      new URL("https://acme.com/api/webhooks/square"),
+      { provider: "square", secret: "real", queue: producer, verify: () => true },
+    );
+    expect(res.status).toBe(503);
   });
 });

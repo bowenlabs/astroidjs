@@ -29,6 +29,40 @@ export interface QueueProducer<T = AstroidQueueMessage> {
   send(message: T): Promise<unknown>;
 }
 
+/**
+ * The queue binding when it's bound, and otherwise a stand-in producer that
+ * runs `handler` on each message in the request.
+ *
+ * A staging Preview leaves the queue unbound, because a queue consumer can't
+ * target a Preview (louise-toolkit ADR 0017), so every producer that sends
+ * straight to the binding throws there. Send through this instead, with the
+ * handler the queue consumer runs, and the same code works on both:
+ *
+ * ```ts
+ * export const commerceQueue = (env: CloudflareEnv) =>
+ *   astroidQueue(env.COMMERCE_QUEUE, (message) => handleQueueMessage(env, message));
+ *
+ * await commerceQueue(env).send({ kind: "catalog_refresh" });
+ * ```
+ *
+ * It's a Preview fallback, not a production path. A message run inline lasts
+ * only as long as the request, gets no retry and no dead-letter queue, and a
+ * slow one holds the response open. The stand-in's `send` throws whatever the
+ * handler throws, where a real `send` would have succeeded and left the failure
+ * to the consumer. The binding always wins when it's there.
+ */
+export function astroidQueue<T = AstroidQueueMessage>(
+  queue: QueueProducer<T> | null | undefined,
+  handler: (message: T) => Promise<void>,
+): QueueProducer<T> {
+  if (queue) return queue;
+  return {
+    send: async (message) => {
+      await handler(message);
+    },
+  };
+}
+
 export interface WebhookVerifyInput {
   /** The raw request body, exactly as received. */
   raw: string;
@@ -48,10 +82,16 @@ export interface WebhookRouteOptions {
   secret: string | null;
   /** Signature check over the raw body—for example, `verifySquareSignature`. */
   verify: (input: WebhookVerifyInput) => boolean | Promise<boolean>;
-  /** The queue binding, or null/undefined when Queues aren't provisioned. */
+  /**
+   * The queue binding, or null/undefined when Queues aren't provisioned. Pass
+   * {@link astroidQueue}'s producer to run the message in the request when the
+   * binding is absent, such as on a staging Preview.
+   */
   queue?: QueueProducer | null;
   /**
-   * Run a message in the request instead, when `queue` is absent. A staging
+   * Run a message in the request instead, when `queue` is absent. Prefer
+   * passing {@link astroidQueue}'s producer as `queue`, which covers every
+   * producer in a site rather than this one route. A staging
    * Preview leaves the queue unbound, because a queue consumer can't target a
    * Preview (louise-toolkit ADR 0017), so without this every webhook a Preview
    * receives answers 503 and the provider retries it forever.
