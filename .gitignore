@@ -22,3 +22,9 @@ coverage/
 
 # JetBrains IDE settings, per machine.
 .idea/
+
+# Claude Code agent worktrees live inside the checkout. Each is a full copy of
+# the repo, so without this knip and oxfmt scan them (oxfmt reformats a copy's
+# template, which .oxfmtignore only matches at the root), and `git add -A`
+# records them as embedded repositories.
+.claude/worktrees/

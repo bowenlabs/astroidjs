@@ -121,7 +121,10 @@ jobs:
         # files — unit tests only string-match the generator output. `-multi`
         # covers the checkout route's separate multi-merchant branch.
         include:
-          - { leg: marketing, archetype: marketing, flags: "" }
+          # `serve` boots the built scaffold and checks what only a running
+          # Worker shows (scripts/ci/scaffold-serve.sh). One leg is enough: the
+          # write paths and the section CSS are the same on every archetype.
+          - { leg: marketing, archetype: marketing, flags: "", serve: true }
           # `--map` is the only thing that writes MapEmbed.astro, so without it
           # nothing type-checks the MapLibre worker import or its API calls.
           - { leg: marketing-map, archetype: marketing, flags: "--map" }
@@ -147,6 +150,15 @@ jobs:
         env:
           ARCHETYPE: ${{ matrix.archetype }}
           FLAGS: ${{ matrix.flags }}
+
+      # A write path must answer 422 for an invalid section, and reaching that
+      # throw needs a real D1, so only a served scaffold shows it. The same run
+      # checks that the built CSS carries the section library's utilities.
+      - name: Serve the scaffold and check its write paths
+        if: ${{ matrix.serve }}
+        run: scripts/ci/scaffold-serve.sh "$RUNNER_TEMP/smoke/room/smoke"
+        env:
+          WRANGLER_SEND_METRICS: "false"
 
   # One required status to protect the branch with, so adding a job above does not
   # mean editing branch protection.

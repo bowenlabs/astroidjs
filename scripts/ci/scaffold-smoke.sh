@@ -125,6 +125,26 @@ grep -q '^doctor: ' <<<"$DOCTOR_OUT" || {
 }
 
 corepack pnpm exec astro check
+
+# `astro check` diagnoses only files inside the project, so the section library
+# (installed at node_modules/astroidjs/src/components, and shipped as source
+# because a .astro file can't be prebuilt) is invisible to the pass above: a
+# type error there passes it in every scaffold. Copy the installed components
+# into src/ for one more pass, so they're checked exactly as a site compiles
+# them. On its first run in louise-toolkit this found three defects on main.
+# The copy is removed before the build, so it never reaches the output.
+echo "==> type-check the installed component library"
+COMPONENTS_COPY="src/__astroid_components_check__"
+rm -rf "$COMPONENTS_COPY"
+cp -R node_modules/astroidjs/src/components "$COMPONENTS_COPY"
+COMPONENTS_STATUS=0
+corepack pnpm exec astro check || COMPONENTS_STATUS=$?
+rm -rf "$COMPONENTS_COPY"
+[ "$COMPONENTS_STATUS" -eq 0 ] || {
+  echo "astro check failed on astroidjs/src/components (copied into $COMPONENTS_COPY)" >&2
+  exit 1
+}
+
 corepack pnpm exec astro build
 
 echo "==> OK: $ARCHETYPE${*:+ ($*)} scaffolds, type-checks and builds"
