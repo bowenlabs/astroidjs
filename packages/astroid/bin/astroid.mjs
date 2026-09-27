@@ -17,7 +17,7 @@
 
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -87,6 +87,22 @@ async function loadConfig(cwd, explicit) {
   return { config, path };
 }
 
+/**
+ * The scaffold files with each migration placed in the `DB` binding's
+ * `migrations_dir` and numbered past the site's own migrations. Without this a
+ * site whose migrations live elsewhere got files Wrangler never applied.
+ */
+async function scaffoldFilesFor(cwd, files) {
+  const { astroidMigrationsDir, resolveAstroidScaffoldPaths } = await import(GENERATORS_URL);
+  const wranglerPath = join(cwd, "wrangler.jsonc");
+  const migrationsDir = astroidMigrationsDir(
+    existsSync(wranglerPath) ? readFileSync(wranglerPath, "utf8") : null,
+  );
+  const dirPath = join(cwd, migrationsDir);
+  const existing = existsSync(dirPath) ? readdirSync(dirPath) : [];
+  return resolveAstroidScaffoldPaths(files, { migrationsDir, existing });
+}
+
 // --- commands --------------------------------------------------------------
 async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
   const {
@@ -123,7 +139,7 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
   // regenerated a project that couldn't resolve its own imports. Completing the
   // config change is what makes "one typed config" true.
   const created = [];
-  for (const file of generateAstroidScaffoldFiles(config)) {
+  for (const file of await scaffoldFilesFor(cwd, generateAstroidScaffoldFiles(config))) {
     const abs = join(cwd, file.path);
     const exists = existsSync(abs);
     if (file.apply === "append-once") {
@@ -196,7 +212,7 @@ async function cmdDoctor(cwd, flags) {
   //     that names a module whose seam was never written produces a project that
   //     cannot resolve its own imports. This is precisely the state that used to
   //     report "healthy" with two warnings and exit 0.
-  for (const file of generateAstroidScaffoldFiles(config)) {
+  for (const file of await scaffoldFilesFor(cwd, generateAstroidScaffoldFiles(config))) {
     if (file.apply === "append-once") continue; // accumulated, not owned—see below
     if (existsSync(join(cwd, file.path))) ok(`${file.path} present`);
     else err(`${file.path} is missing (required by your config) — run \`astroid generate\`.`);

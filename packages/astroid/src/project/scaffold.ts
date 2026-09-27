@@ -68,6 +68,12 @@ export interface ScaffoldFile {
    * Without it a re-run would append a duplicate every time.
    */
   marker?: string;
+  /**
+   * A D1 migration. `path` is its default, `migrations/NNNN_name.sql`; the CLI
+   * places it in the `DB` binding's `migrations_dir` and renumbers it past the
+   * site's own migrations with {@link resolveAstroidScaffoldPaths}.
+   */
+  migration?: true;
 }
 
 /** `src/pages-hooks.ts`—the site's pages-route hooks, scaffolded once. */
@@ -199,16 +205,28 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // scaffolded a `products` table into src/schema.ts that no migration ever
   // created, and the first sync wrote nothing while reporting success.
   const catalogSql = generateCatalogMigrationSql(config);
-  if (catalogSql) files.push({ path: "migrations/0003_catalog.sql", contents: catalogSql });
+  if (catalogSql) {
+    files.push({ path: "migrations/0003_catalog.sql", contents: catalogSql, migration: true });
+  }
 
   // --- louise-toolkit 0.35's two schema changes -----------------------------
   // Numbered after the catalog's 0003, and written into an existing site by
   // `astroid generate` because a missing scaffold file is always written. The
   // alt update is a no-op on a fresh database. Wrangler tracks migrations by
-  // filename, so a site that already has its own 0004 keeps both.
+  // filename. The CLI moves each into the site's `migrations_dir` and past
+  // the site's own numbers (see migrations.ts), so a site that already has its
+  // own 0004 gets the next free number instead of a second 0004.
   files.push(
-    { path: "migrations/0004_page_redirects.sql", contents: ASTROID_PAGE_REDIRECTS_MIGRATION },
-    { path: "migrations/0005_media_alt_undecided.sql", contents: ASTROID_MEDIA_ALT_MIGRATION },
+    {
+      path: "migrations/0004_page_redirects.sql",
+      contents: ASTROID_PAGE_REDIRECTS_MIGRATION,
+      migration: true,
+    },
+    {
+      path: "migrations/0005_media_alt_undecided.sql",
+      contents: ASTROID_MEDIA_ALT_MIGRATION,
+      migration: true,
+    },
   );
 
   // --- the CWV beacon -------------------------------------------------------

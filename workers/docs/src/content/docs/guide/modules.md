@@ -91,6 +91,15 @@ A rename made in the Pages panel while the page has a pending draft also goes
 into that draft, so the next Publish keeps it instead of putting the old title
 or slug back.
 
+### Where scaffolded migrations go
+
+`astroid generate` writes a migration into the `migrations_dir` of the `DB`
+binding in `wrangler.jsonc`, the directory Wrangler applies, and `migrations`
+when the binding sets none. The paths on this page are the defaults. A site
+that numbers its own migrations past the default gets the next free number
+instead, and a migration the site already has under any number, such as a
+hand-copied `0009_page_redirects.sql`, isn't written again.
+
 ### Decorative images
 
 An image's alt text has three states: `NULL` is not written yet, `""` is
