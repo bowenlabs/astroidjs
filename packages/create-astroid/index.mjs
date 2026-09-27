@@ -13,8 +13,17 @@
 // wrangler) fills them in. The generators are the SAME ones `astroid generate`
 // uses, so a fresh project is already in sync.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import {
@@ -31,7 +40,40 @@ import {
   generateAstroidSecretsEnv,
   generateAstroidWrangler,
 } from "astroidjs";
+import {
+  addWorkspacePackage,
+  INTO_REPOSITORY_FILES,
+  intoPathProblem,
+  intoRootScripts,
+  intoScriptName,
+  mergeRootScripts,
+  workersBuildsSettings,
+} from "./into.mjs";
 import { toolkitRanges } from "./toolkit-ranges.mjs";
+
+/** The repository root holding `cwd`, or null outside a git checkout. */
+function gitRoot(cwd) {
+  try {
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+/** Whether git ignores `path` (relative to `root`); null when git can't say. */
+function gitIgnores(root, path) {
+  try {
+    execFileSync("git", ["check-ignore", "-q", path], { cwd: root, stdio: "ignore" });
+    return true;
+  } catch (error) {
+    // Exit 1 is "not ignored"; anything else is git failing to answer.
+    return error?.status === 1 ? false : null;
+  }
+}
 
 const TEMPLATE_DIR = join(dirname(fileURLToPath(import.meta.url)), "template");
 
@@ -242,6 +284,10 @@ Options:
                         with presence, field sync, and a rich-text soft-lock
   --portal              Add a customer/member portal: a second, isolated auth
                         instance plus role-gated routes
+  --into <path>         Scaffold one app into an existing repository at <path>
+                        (for example, workers/order), beside the app already
+                        there: adds it to the root pnpm-workspace.yaml and adds
+                        namespaced root scripts, and leaves the rest alone
   --app                 Scaffold an app with no pages to edit (editor: false):
                         no editor, sign-in, or content tables, and a versioned
                         JSON API under /api/v1. Its settings stay in the editor
@@ -276,7 +322,33 @@ async function main() {
     return;
   }
 
-  const dirArg = positionals[0] ?? flags.dir;
+  // `--into <path>`: one app into a repository that already holds one. The
+  // path is the app's directory, relative to where this runs, and has to land
+  // inside the repository, whose root gets the workspace entry and scripts.
+  const intoArg = flags.into;
+  if (intoArg !== undefined && (typeof intoArg !== "string" || positionals[0] || flags.dir)) {
+    process.stderr.write(
+      typeof intoArg !== "string"
+        ? "create-astroid: --into needs a path, for example --into workers/order\n"
+        : "create-astroid: --into names the directory, so it can't go with --dir or a positional one\n",
+    );
+    process.exit(1);
+  }
+  const into = typeof intoArg === "string";
+  // Real paths on both sides: git reports the root through symlinks (macOS's
+  // /tmp is /private/tmp), and a relative path across the two would climb out.
+  const cwd = realpathSync(process.cwd());
+  const repoRoot = into ? (gitRoot(cwd) ?? cwd) : null;
+  const intoPath = into ? relative(repoRoot, resolve(cwd, intoArg)).split(sep).join("/") : null;
+  if (into) {
+    const problem = intoPathProblem(intoPath);
+    if (problem) {
+      process.stderr.write(`create-astroid: ${problem}\n`);
+      process.exit(1);
+    }
+  }
+
+  const dirArg = into ? intoArg : (positionals[0] ?? flags.dir);
   const rawName = flags.name || (dirArg ? basename(resolve(dirArg)) : undefined);
   const name = await prompt("Brand / site name", rawName || "My Astroid Site");
   const key = slugify(
@@ -362,6 +434,39 @@ async function main() {
   if (existsSync(dir) && readdirSync(dir).length > 0) {
     process.stderr.write(`create-astroid: target directory is not empty: ${dir}\n`);
     process.exit(1);
+  }
+
+  // Every root edit `--into` makes, worked out before anything is written, so
+  // a root file it can't edit stops the scaffold rather than leaving half of it.
+  const rootEdits = [];
+  if (into) {
+    const workspacePath = join(repoRoot, "pnpm-workspace.yaml");
+    if (existsSync(workspacePath)) {
+      const current = readFileSync(workspacePath, "utf8");
+      const next = addWorkspacePackage(current, intoPath);
+      if (next === null) {
+        process.stderr.write(
+          `create-astroid: can't add ${intoPath} to pnpm-workspace.yaml's \`packages\` safely. ` +
+            "Add it by hand, then run this again.\n",
+        );
+        process.exit(1);
+      }
+      if (next !== current) {
+        rootEdits.push({
+          path: workspacePath,
+          contents: next,
+          what: "pnpm-workspace.yaml (added the app)",
+        });
+      }
+      // The app's install runs from the root, under the root's build approvals.
+      if (!/workerd/.test(current)) {
+        rootEdits.push({
+          note:
+            "pnpm-workspace.yaml approves no `workerd` build, so `pnpm install` may refuse it. " +
+            "Add `allowBuilds: { esbuild: true, workerd: true }`.",
+        });
+      }
+    }
   }
 
   // Validate + normalize through the real config surface (throws on a bad shape).
@@ -451,8 +556,65 @@ async function main() {
 
   // 1. The static floor (Astro app, auth seam, config files) with tokens filled.
   //    An app leaves out the editor's files and lays its own over the rest.
-  copyTemplate(TEMPLATE_DIR, dir, tokens, app ? { skip: APP_SKIP } : {});
+  //    `--into` leaves out the repository's files too; see 1a.
+  const skip = new Set([...(app ? APP_SKIP : []), ...(into ? INTO_REPOSITORY_FILES : [])]);
+  copyTemplate(TEMPLATE_DIR, dir, tokens, { skip });
   if (app) copyTemplate(join(TEMPLATE_DIR, APP_OVERLAY), dir, tokens);
+
+  // 1a. `--into`: the repository's files. Each is the root's, so it's written
+  //     there only when the root has none, and an existing one is left alone
+  //     apart from the edits worked out above.
+  const intoNotes = [];
+  const intoWrote = [];
+  if (into) {
+    const fromTemplate = (rel) =>
+      applyTokens(readFileSync(join(TEMPLATE_DIR, rel), "utf8"), tokens);
+    for (const edit of rootEdits) {
+      if (edit.note) intoNotes.push(edit.note);
+      else {
+        writeFileSync(edit.path, edit.contents);
+        intoWrote.push(edit.what);
+      }
+    }
+    if (!existsSync(join(repoRoot, "pnpm-workspace.yaml"))) {
+      // The template's header says it isn't a workspace, which this one is.
+      const workspace = fromTemplate("pnpm-workspace.yaml").replace(
+        /^# Not a workspace — .*\n# .*\n/m,
+        "# The workspace for this repository's apps. pnpm reads its settings from\n" +
+          "# THIS file, and `overrides` in package.json is silently ignored.\n",
+      );
+      write(repoRoot, "pnpm-workspace.yaml", addWorkspacePackage(workspace, intoPath));
+      intoWrote.push("pnpm-workspace.yaml");
+    }
+    for (const doc of ["docs/ARCHITECTURE.md", "docs/DECISIONS.md", "docs/RUNBOOK.md"]) {
+      if (existsSync(join(repoRoot, doc))) continue;
+      write(repoRoot, doc, fromTemplate(doc));
+      intoWrote.push(doc);
+    }
+    // The root's .gitignore when there is one, as long as it keeps this app's
+    // secrets out. A pattern anchored to the root (`/.dev.vars`) wouldn't, so
+    // git is asked, and when it can't say, the app gets its own.
+    if (!existsSync(join(repoRoot, ".gitignore"))) {
+      write(repoRoot, ".gitignore", fromTemplate("_gitignore"));
+      intoWrote.push(".gitignore");
+    } else {
+      const ignored = gitIgnores(repoRoot, `${intoPath}/.dev.vars`);
+      if (ignored !== true) {
+        write(dir, ".gitignore", fromTemplate("_gitignore"));
+        intoNotes.push(
+          ignored === false
+            ? `The root .gitignore doesn't ignore ${intoPath}/.dev.vars, so the app has its own .gitignore.`
+            : `git couldn't say whether ${intoPath}/.dev.vars is ignored, so the app has its own .gitignore.`,
+        );
+      }
+    }
+    // The workflow runs the root app's checks from the root, so the second
+    // app's would be new steps in it; they're the repository's to add.
+    intoNotes.push(
+      `CI: add \`pnpm run doctor:${intoScriptName(intoPath)}\` and ` +
+        `\`pnpm run build:${intoScriptName(intoPath)}\` to the repository's workflow.`,
+    );
+  }
 
   // 1b. Toolkit versions + module dependencies, merged into the copied package.json.
   //
@@ -477,7 +639,34 @@ async function main() {
     );
     // An app has no editors to seed, and no script to seed them with.
     if (app) delete pkg.scripts["seed:editors"];
+    // The root's pnpm runs the workspace, so the app doesn't pin its own.
+    if (into) delete pkg.packageManager;
     writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+  }
+
+  // 1c. `--into`: the root scripts that run this app from the root, added
+  //     beside the existing ones and never over one. A root with no
+  //     package.json gets a private one, pinning pnpm the way a scaffold does.
+  let intoScripts = { added: [], skipped: [] };
+  if (into) {
+    const rootPkgPath = join(repoRoot, "package.json");
+    const template = JSON.parse(readFileSync(join(TEMPLATE_DIR, "package.json"), "utf8"));
+    const rootPkg = existsSync(rootPkgPath)
+      ? JSON.parse(readFileSync(rootPkgPath, "utf8"))
+      : {
+          name: slugify(basename(repoRoot)) || "workspace",
+          private: true,
+          packageManager: template.packageManager,
+        };
+    intoScripts = mergeRootScripts(
+      rootPkg.scripts ?? {},
+      intoRootScripts(intoScriptName(intoPath), intoPath),
+    );
+    rootPkg.scripts = intoScripts.scripts;
+    writeFileSync(rootPkgPath, `${JSON.stringify(rootPkg, null, 2)}\n`);
+    for (const name of intoScripts.skipped) {
+      intoNotes.push(`The root already has a \`${name}\` script, so it was left as it was.`);
+    }
   }
 
   // 2. The typed config the generators + the app read.
@@ -576,6 +765,50 @@ async function main() {
   // `astroid ship` applies migrations from it on every deploy until the config
   // says another app owns the database (`deploy.migrations: false`).
   if (app && !existsSync(join(dir, "migrations"))) write(dir, "migrations/.gitkeep", "");
+
+  if (into) {
+    // Everything runs from the root: one install, one lockfile, and the root
+    // scripts added above.
+    const scriptName = intoScriptName(intoPath);
+    const inApp = `pnpm --dir ${intoPath}`;
+    const settings = workersBuildsSettings(intoPath);
+    const width = Math.max(...settings.map(([label]) => label.length));
+    process.stdout.write(
+      [
+        "",
+        `✓ Scaffolded ${name} → ${intoPath}${app ? " (an app with no editor)" : ""}`,
+        ...(intoWrote.length ? [`  at the repository root: ${intoWrote.join(", ")}`] : []),
+        ...(intoScripts.added.length ? [`  root scripts: ${intoScripts.added.join(", ")}`] : []),
+        "",
+        "Next steps, from the repository root:",
+        "  pnpm install",
+        ...(authMigrationOk
+          ? []
+          : [
+              "  # generate the Better Auth migration(s), as the stub files in its",
+              "  # migrations/ directory say, before applying migrations",
+            ]),
+        `  ${inApp} exec astroid provision`,
+        ...(app
+          ? []
+          : [
+              `  ${inApp} exec wrangler d1 migrations apply DB --remote`,
+              `  ${inApp} exec wrangler d1 execute DB --remote --file seed/home.seed.sql`,
+              `  OWNER_EMAIL=you@example.com ${inApp} run seed:editors`,
+            ]),
+        `  pnpm run dev:${scriptName}`,
+        `  pnpm run doctor:${scriptName}`,
+        "",
+        "A second app is a second Workers Builds project. Create one with:",
+        ...settings.map(([label, value]) => `  ${`${label}:`.padEnd(width + 2)}${value}`),
+        "Both projects deploy from the same release tag, through the one",
+        ".github/workflows/release.yml `astroid generate` writes at the root.",
+        ...(intoNotes.length ? ["", ...intoNotes.map((note) => `Note: ${note}`)] : []),
+        "",
+      ].join("\n"),
+    );
+    return;
+  }
 
   const rel = dir === process.cwd() ? "." : basename(dir);
   if (app) {
