@@ -157,6 +157,8 @@ async function cmdDoctor(cwd, flags) {
     astroidUsesQueues,
     astroidCrons,
     checkWranglerPreviews,
+    astroidRunsMigrations,
+    migrationsOwnershipError,
     generateAstroidReleaseWorkflow,
     ASTROID_RELEASE_WORKFLOW_PATH,
   } = await import(GENERATORS_URL);
@@ -326,12 +328,21 @@ async function cmdDoctor(cwd, flags) {
   // 3. migrations directory: the D1 `migrations_dir` wrangler.jsonc declares,
   //    or `migrations/`, the generated default, when it names none. A site that
   //    keeps its migrations under another name (drizzle/) isn't missing them.
+  //    An app with `deploy.migrations: false` applies none, because another
+  //    app owns the database's schema, so it needs no directory. It must not
+  //    name one either: that contradiction means someone expects it to migrate.
   const wranglerText = existsSync(wranglerPath) ? readFileSync(wranglerPath, "utf8") : "";
-  const migrationsDir =
-    wranglerText.match(/"migrations_dir"\s*:\s*"([^"]+)"/)?.[1]?.replace(/\/+$/, "") ??
-    "migrations";
-  if (existsSync(join(cwd, migrationsDir))) ok(`${migrationsDir}/ directory present`);
-  else warn(`no ${migrationsDir}/ directory — create your D1 schema migrations there.`);
+  if (!astroidRunsMigrations(config)) {
+    const ownership = migrationsOwnershipError(config, wranglerText);
+    if (ownership) err(ownership);
+    else ok("deploy.migrations is false: another app migrates this database");
+  } else {
+    const migrationsDir =
+      wranglerText.match(/"migrations_dir"\s*:\s*"([^"]+)"/)?.[1]?.replace(/\/+$/, "") ??
+      "migrations";
+    if (existsSync(join(cwd, migrationsDir))) ok(`${migrationsDir}/ directory present`);
+    else warn(`no ${migrationsDir}/ directory — create your D1 schema migrations there.`);
+  }
 
   // 4. Local secret provisioning—which modules will run dormant under
   //    `astroid dev`, and what to set to wake them.
@@ -501,7 +512,9 @@ async function cmdDeploy(cwd, flags, rest) {
   const assumeYes = rest.includes("--yes") || rest.includes("-y");
   const remoteArgs = rest.includes("--local") ? [] : ["--remote"];
 
-  await loadConfig(cwd, flags.config); // validates the config (throws on a bad shape)
+  const { config } = await loadConfig(cwd, flags.config); // validates the shape, or throws
+  const { astroidRunsMigrations, ASTROID_SKIP_MIGRATIONS_NOTE } = await import(GENERATORS_URL);
+  const migrate = astroidRunsMigrations(config);
   const wranglerPath = join(cwd, "wrangler.jsonc");
   if (!existsSync(wranglerPath)) fail("wrangler.jsonc not found — run inside an Astroid project.");
 
@@ -521,7 +534,11 @@ async function cmdDeploy(cwd, flags, rest) {
   out("  Provision:");
   if (plan.length === 0) out("    (all bindings already have ids)");
   for (const s of plan) out(`    wrangler ${s.args.join(" ")}`);
-  out(`\n  Migrate:  wrangler d1 migrations apply DB ${remoteArgs.join(" ")}`.trimEnd());
+  out(
+    migrate
+      ? `\n  Migrate:  wrangler d1 migrations apply DB ${remoteArgs.join(" ")}`.trimEnd()
+      : `\n  Migrate:  ${ASTROID_SKIP_MIGRATIONS_NOTE}`,
+  );
   out("  Secrets:  wrangler secret put SESSION_SECRET   (prompted)");
   out("  Deploy:   wrangler deploy\n");
   if (!facts.hasAccount) {
@@ -602,10 +619,14 @@ async function cmdDeploy(cwd, flags, rest) {
     }
   }
 
-  // 2) Migrations.
-  out(`\n▸ wrangler d1 migrations apply DB ${remoteArgs.join(" ")}`.trimEnd());
-  if (runInherit(["d1", "migrations", "apply", "DB", ...remoteArgs]).status !== 0)
-    fail("Migrations failed.");
+  // 2) Migrations, unless another app owns this database's schema.
+  if (!migrate) {
+    out(`\n${ASTROID_SKIP_MIGRATIONS_NOTE}`);
+  } else {
+    out(`\n▸ wrangler d1 migrations apply DB ${remoteArgs.join(" ")}`.trimEnd());
+    if (runInherit(["d1", "migrations", "apply", "DB", ...remoteArgs]).status !== 0)
+      fail("Migrations failed.");
+  }
 
   // 3) Secrets (interactive; wrangler prompts for the value).
   out("\n▸ wrangler secret put SESSION_SECRET");
@@ -875,76 +896,45 @@ function listStoreSecrets(wranglerBin, cwd, storeId, secretNamesFromList) {
 // `astroid ship` is what Workers Builds runs, so the deploy logic lives in the
 // repository instead of a dashboard field. An account move once rewrote a
 // site's dashboard deploy command to a bare `wrangler deploy`, and migrations
-// silently stopped. Migrations run first, so new code never meets an old schema.
+// silently stopped. Migrations run first, so new code never meets an old schema,
+// unless `deploy.migrations` is false because another app owns the database.
 //
 //   astroid ship production   the deploy/production build: migrate D1, then deploy
 //   astroid ship preview      every other branch: migrate the staging D1, then
 //                             `wrangler preview`, named for the branch
-async function cmdShip(cwd, target) {
+async function cmdShip(cwd, target, flags) {
   if (target !== "production" && target !== "preview") {
     fail("Usage: astroid ship production | preview");
   }
   const wranglerBin = resolveBin(cwd, "wrangler", "wrangler");
   if (!wranglerBin) fail("Could not find `wrangler` in this project.");
-  const run = (args) => {
-    out(`\n▸ wrangler ${args.join(" ")}`);
-    const res = spawnSync(process.execPath, [wranglerBin, ...args], { cwd, stdio: "inherit" });
-    if (res.status !== 0) process.exit(res.status ?? 1);
-  };
   const wranglerPath = join(cwd, "wrangler.jsonc");
   if (!existsSync(wranglerPath)) fail("wrangler.jsonc not found — run inside an Astroid project.");
 
-  if (target === "production") {
-    run(["d1", "migrations", "apply", "DB", "--remote"]);
-    run(["deploy"]);
-    return;
+  // The plan is pure and tested in src/project/ship.ts; this only runs it.
+  const { astroidShipPlan } = await import(GENERATORS_URL);
+  const { config } = await loadConfig(cwd, flags.config);
+  const steps = astroidShipPlan(target, config, {
+    wrangler: readFileSync(wranglerPath, "utf8"),
+    root: cwd,
+    branch: process.env.WORKERS_CI_BRANCH,
+  });
+  for (const step of steps) {
+    if (step.note) {
+      out(`\n${step.note}`);
+    } else if (step.write) {
+      const abs = join(cwd, step.write.path);
+      mkdirSync(dirname(abs), { recursive: true });
+      writeFileSync(abs, step.write.contents);
+    } else {
+      out(`\n▸ wrangler ${step.run.join(" ")}`);
+      const res = spawnSync(process.execPath, [wranglerBin, ...step.run], {
+        cwd,
+        stdio: "inherit",
+      });
+      if (res.status !== 0) process.exit(res.status ?? 1);
+    }
   }
-
-  // The staging database is declared only inside `previews`, and wrangler's
-  // migrations command reads top-level `d1_databases`. So write a throwaway
-  // config naming it, derived from wrangler.jsonc on every run, rather than a
-  // second committed file that could drift from the binding.
-  const { parseJsonc } = await import(GENERATORS_URL);
-  const config = parseJsonc(readFileSync(wranglerPath, "utf8"));
-  const prodDb = (config.d1_databases ?? []).find((d) => d.binding === "DB");
-  const stagingDb = (config.previews?.d1_databases ?? []).find((d) => d.binding === "DB");
-  if (stagingDb && prodDb) {
-    const migrationsDir = resolve(cwd, prodDb.migrations_dir ?? "migrations");
-    const tmp = join(cwd, ".wrangler", "astroid-preview-migrations.jsonc");
-    mkdirSync(dirname(tmp), { recursive: true });
-    writeFileSync(
-      tmp,
-      JSON.stringify(
-        {
-          d1_databases: [
-            {
-              binding: "PREVIEW_DB",
-              database_name: stagingDb.database_name,
-              database_id: stagingDb.database_id,
-              migrations_dir: migrationsDir,
-            },
-          ],
-        },
-        null,
-        2,
-      ),
-    );
-    run(["d1", "migrations", "apply", "PREVIEW_DB", "--remote", "--config", tmp]);
-  } else {
-    out("\n(no staging D1 in `previews`, so no staging migrations to apply)");
-  }
-
-  // Workers Builds names the branch in WORKERS_CI_BRANCH; a Preview name is a
-  // DNS label, so a branch like feature/12-login becomes feature-12-login.
-  const branch = process.env.WORKERS_CI_BRANCH;
-  const name = branch
-    ? branch
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 63)
-    : undefined;
-  run(["preview", ...(name ? ["--name", name] : [])]);
 }
 
 async function main() {
@@ -969,7 +959,7 @@ async function main() {
       await cmdDeploy(cwd, flags, rest);
       break;
     case "ship":
-      await cmdShip(cwd, rest[0]);
+      await cmdShip(cwd, rest[0], flags);
       break;
     case "provision":
       await cmdProvision(cwd, rest);

@@ -513,6 +513,15 @@ export interface DeployConfig {
   /** Media base for R2 + `cf-image` resizing—matches Louise's media route
    *  (`media.<brand>/cdn-cgi/image`). Default `"/media"`. */
   mediaBase?: string;
+  /**
+   * Whether `astroid ship` applies D1 migrations before it deploys. Default
+   * `true`. Set `false` for an app whose database another app migrates, such
+   * as a second Worker in the same repository that binds the first one's D1.
+   * One app owns a database's schema. When both migrate, one release tag runs
+   * two `wrangler d1 migrations apply` at once against one ledger, and a
+   * non-idempotent statement fails the second deploy.
+   */
+  migrations?: boolean;
 }
 
 export interface AstroidConfig {
