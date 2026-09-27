@@ -5,3 +5,4 @@
 
 export * from "./routes.js";
 export * from "./generate.js";
+export * from "./gateway.js";

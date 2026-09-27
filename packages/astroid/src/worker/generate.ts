@@ -144,10 +144,12 @@ export function generateAstroidWorker(config: AstroidConfig): string {
       // LOUISE_AI kill switch, so all three assists share one definition of
       // "is generation on?" instead of each re-deriving it. Embeddings keep
       // binding-presence as their switch—see the helper's comment.
+      // `gateway` routes both through AI Gateway when the site sets
+      // `AI_GATEWAY_ID`, and calls Workers AI directly when it doesn't.
       case "ai":
-        return "aiRoute({ resolveEditor, ai: aiRunner })";
+        return "aiRoute({ resolveEditor, ai: aiRunner, gateway: astroidAiGateway })";
       case "seoFix":
-        return "seoFixRoute({ table: pages, resolveEditor, ai: aiRunner })";
+        return "seoFixRoute({ table: pages, resolveEditor, ai: aiRunner, gateway: astroidAiGateway })";
       case "media": {
         // `altText` fills a new upload's alt from the image itself. Best-effort
         // by contract—a model error or a missing binding never fails the
@@ -221,6 +223,9 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   );
   p(`import { ${tables.join(", ")} } from "./schema.js";`);
   const astroidImports = [
+    ...(plan.some((route) => route.name === "ai" || route.name === "seoFix")
+      ? ["astroidAiGateway"]
+      : []),
     "astroidPagesCollection",
     "astroidPagesWriteHooks",
     "readModuleSecret",
