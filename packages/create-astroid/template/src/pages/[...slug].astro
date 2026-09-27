@@ -1,0 +1,76 @@
+---
+// Every page an owner makes in the Pages panel, served at its slug: `about` at
+// /about. The same render as the home page (src/lib/pages.ts): a visitor sees
+// the live row, and an editor in edit mode sees the latest pending draft, with
+// the same inline editing and Publish.
+//
+// A file route always wins over this one, so /contact and /login stay theirs.
+// `pagesRoute` refuses those slugs (ASTROID_RESERVED_SLUGS), so a page can't be
+// saved where it would never be reached.
+//
+// Anything else that matches nothing answers 404 here. That includes a hidden or
+// never-published page, and a renamed page's old path, which the middleware's
+// `redirectFor` then answers with a 301 to the new one.
+import Editable from "astroidjs/components/Editable.astro";
+import Sections from "astroidjs/components/Sections.astro";
+import { env } from "cloudflare:workers";
+import Site from "../layouts/Site.astro";
+import { readPage } from "../lib/pages";
+
+export const prerender = false;
+
+const { editMode } = Astro.locals;
+const slug = Astro.params.slug ?? "";
+
+// `home` is served at "/", never at "/home".
+if (slug === "home") return Astro.redirect("/", 301);
+
+const page = slug ? await readPage(env.DB, slug, { editMode }) : null;
+
+// Edge caching (ADR 0004), gated exactly as on the home page: never in edit
+// mode, only when ASTROID_EDGE_CACHE is "true", and never for a 404, so a page
+// published a minute later isn't hidden behind a cached miss.
+if (!page || editMode || env.ASTROID_EDGE_CACHE !== "true") {
+  Astro.cache.set(false);
+} else {
+  Astro.cache.set({ maxAge: 60 });
+}
+
+if (!page) Astro.response.status = 404;
+---
+
+{
+  page ? (
+    <Site
+      title={page.row.seo_title ?? page.title}
+      description={page.row.seo_description ?? undefined}
+      ogImage={page.row.og_image ?? undefined}
+      noindex={Boolean(page.row.noindex)}
+      versionedPageId={page.row.id}
+      sections={page.sections}
+    >
+      <main>
+        <Sections items={page.sections} db={env.DB} mediaBase={env.MEDIA_URL} />
+
+        <div class="mx-auto max-w-3xl px-6 py-16">
+          <Editable as="h1" collection="pages" key={page.row.id} field="title" class="text-5xl font-bold">
+            {page.title}
+          </Editable>
+          <Editable as="div" collection="pages" key={page.row.id} field="body" type="richtext" class="prose mt-6 max-w-none">
+            <Fragment set:html={page.body} />
+          </Editable>
+        </div>
+      </main>
+    </Site>
+  ) : (
+    <Site title="Page not found" noindex>
+      <main class="mx-auto max-w-3xl px-6 py-24 text-center">
+        <h1 class="text-4xl font-bold">Page not found</h1>
+        <p class="mt-4">This page doesn't exist, or it has moved.</p>
+        <p class="mt-8">
+          <a class="link" href="/">Go to the home page</a>
+        </p>
+      </main>
+    </Site>
+  )
+}
