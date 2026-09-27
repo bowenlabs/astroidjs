@@ -120,6 +120,44 @@ function generateAstroidStatusChecks(): string {
   ].join("\n");
 }
 
+/**
+ * `migrations/0004_page_redirects.sql`: the table that keeps a renamed page's
+ * old URL working (louise-toolkit's `pageRedirects`). The same DDL drizzle-kit
+ * writes for it, with `IF NOT EXISTS`, since a site that already added the
+ * table by hand must not fail on it.
+ */
+export const ASTROID_PAGE_REDIRECTS_MIGRATION = [
+  "-- Page redirects: a renamed page's old URL answers a 301 to the new one.",
+  "-- pagesRoute and versionsRoute record `/old → /new` when a slug changes, and",
+  "-- the middleware's redirectFor serves them. Scaffolded by astroidjs.",
+  "CREATE TABLE IF NOT EXISTS `page_redirects` (",
+  "\t`from_path` text PRIMARY KEY NOT NULL,",
+  "\t`to_path` text NOT NULL,",
+  "\t`code` integer DEFAULT 301 NOT NULL,",
+  "\t`created_at` integer",
+  ");",
+  "",
+].join("\n");
+
+/**
+ * `migrations/0005_media_alt_undecided.sql`: the one-time data migration for
+ * the three alt text states. Before louise-toolkit 0.35, an empty alt meant
+ * both "not written" and "cleared", so an existing `''` is ambiguous. This
+ * makes each one "not written" (NULL), so nothing silently becomes decorative,
+ * and the owner marks what is. The statement is louise-toolkit's
+ * `MEDIA_ALT_UNDECIDED_SQL("media")`, written out rather than imported so the
+ * CLI doesn't load `louise-toolkit/editor` and its drizzle-orm peer.
+ */
+export const ASTROID_MEDIA_ALT_MIGRATION = [
+  "-- Alt text has three states: NULL is not written yet, '' is decorative (an",
+  "-- image the owner marked for screen readers to skip), and anything else is",
+  "-- the description. An existing '' predates the decorative state, so it's",
+  '-- ambiguous; this makes each one "not written". It runs once, before the',
+  "-- health scan starts counting only NULL as missing. Scaffolded by astroidjs.",
+  'UPDATE "media" SET "alt" = NULL WHERE "alt" = \'\';',
+  "",
+].join("\n");
+
 /** `src/settings-hooks.ts`—the site's settings sanitizers, scaffolded once. */
 function generateAstroidSettingsHooks(): string {
   return [
@@ -162,6 +200,16 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // created, and the first sync wrote nothing while reporting success.
   const catalogSql = generateCatalogMigrationSql(config);
   if (catalogSql) files.push({ path: "migrations/0003_catalog.sql", contents: catalogSql });
+
+  // --- louise-toolkit 0.35's two schema changes -----------------------------
+  // Numbered after the catalog's 0003, and written into an existing site by
+  // `astroid generate` because a missing scaffold file is always written. The
+  // alt update is a no-op on a fresh database. Wrangler tracks migrations by
+  // filename, so a site that already has its own 0004 keeps both.
+  files.push(
+    { path: "migrations/0004_page_redirects.sql", contents: ASTROID_PAGE_REDIRECTS_MIGRATION },
+    { path: "migrations/0005_media_alt_undecided.sql", contents: ASTROID_MEDIA_ALT_MIGRATION },
+  );
 
   // --- the CWV beacon -------------------------------------------------------
   // A static file under public/, so it is same-origin and covered by

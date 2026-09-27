@@ -60,6 +60,29 @@ them unmounted meant rendering UI for a subsystem that could never have data.
   counts unhandled inquiries—the whole table, because the Inquiries tab
   reviews and _clears_ submissions, so a surviving row is one still waiting.
 
+### Renamed pages keep their old URL
+
+When an editor changes a page's slug, the Pages route records `/old → /new` in
+the `page_redirects` table, and the middleware answers a request for the old
+path with a 301 to the new one. It only runs after the page answered 404, so a
+page later created on the old path wins, and creating one clears the redirect.
+The query string carries over. `migrations/0004_page_redirects.sql` creates the
+table.
+
+A rename made in the Pages panel while the page has a pending draft also goes
+into that draft, so the next Publish keeps it instead of putting the old title
+or slug back.
+
+### Decorative images
+
+An image's alt text has three states: `NULL` is not written yet, `""` is
+decorative (the owner marked it for screen readers to skip), and anything else
+is its description. The Health card's "missing a description" count includes
+only `NULL`, so marking an image decorative in the Media panel takes it off the
+list. `migrations/0005_media_alt_undecided.sql` turns every `""` written before
+decorative images existed into `NULL`, because it used to mean both "not
+written" and "cleared".
+
 ### AI Gateway (off by default)
 
 The AI assists call Workers AI directly, so no successful call is logged
