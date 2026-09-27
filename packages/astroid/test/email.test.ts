@@ -107,11 +107,11 @@ describe("templates", () => {
   it("uses the brand name, never a hardcoded one", () => {
     const other = astroidMailTheme({
       ...config,
-      theme: { name: "Ghostfire", colors: { brand: "#fa824c" } },
+      theme: { name: "Example Organization", colors: { brand: "#fa824c" } },
     });
     const mail = passwordResetEmail(other, { url: "https://x/r", toEmail: "a@b.c" });
-    expect(mail.subject).toContain("Ghostfire");
-    expect(mail.html).toContain("Ghostfire");
+    expect(mail.subject).toContain("Example Organization");
+    expect(mail.html).toContain("Example Organization");
     expect(mail.html).not.toContain("Acme");
   });
 

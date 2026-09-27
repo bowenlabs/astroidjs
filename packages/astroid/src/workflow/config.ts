@@ -2,7 +2,7 @@
 //
 // `defineWorkflow`—staged, audited pipelines.
 //
-// The shape this generalizes is ghostfire.coffee's production floor, and the
+// The shape this generalizes is a client site's production floor, and the
 // framing correction in #256 is the important part: despite the name "order
 // tracker", it is NOT queue- or Durable-Object-driven. It is a synchronous SSR
 // + D1 state machine—an integer `stage` column advanced by sign-off rows,

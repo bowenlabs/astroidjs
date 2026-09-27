@@ -8,8 +8,8 @@
 // the Louise wiring (worker routes, middleware, Drizzle schema, theme tokens) a
 // site would otherwise hand-write per repo.
 //
-// ONE brand per project. Every site Astroid targets (coracle.coffee,
-// ghostfire.coffee, themidwestartist.com, louise-web) serves a single brand from a
+// ONE brand per project. Every site Astroid targets (the client sites its
+// patterns came from, and louise-web) serves a single brand from a
 // single deploy. The axis that genuinely multiplexes is *editors* (Louise's org
 // plugin, #100) and *audiences*—a gated portal alongside the public site, or a
 // per-merchant storefront on its own subdomain (`tenancy`)—not brands. So all
@@ -22,9 +22,9 @@
 // a second project.
 //
 // The vocabulary below is not invented: `Archetype`, `SectionKind`, and
-// `ModuleKind` are extracted from the real sites Astroid targets—a storefront
-// (coracle), a wholesale front (ghostfire), an artist portfolio (megbowen), and a
-// plain marketing baseline (louise-web).
+// `ModuleKind` are extracted from the real sites Astroid targets—a storefront,
+// a wholesale front, an artist portfolio, and a plain marketing baseline
+// (louise-web).
 
 import type { BlockCatalog, SectionCatalog } from "louise-toolkit/content";
 import type { RateRule } from "louise-toolkit/security";
@@ -46,8 +46,8 @@ import type { PwaConfig } from "./pwa/generate.js";
  * The starting shape the front-end takes. Not a fork—each archetype is a preset
  * of defaults (which sections/modules are on, nav shape) that the site then tunes.
  * `marketing` = the lean brochure floor (louise-web, no commerce); `storefront` =
- * DTC shop (coracle); `wholesale` = B2B/private-label (ghostfire); `portfolio` =
- * gallery + prints + client portal (megbowen).
+ * DTC shop; `wholesale` = B2B/private-label; `portfolio` = gallery + prints +
+ * client portal.
  */
 export type Archetype = "marketing" | "storefront" | "wholesale" | "portfolio";
 
@@ -102,7 +102,7 @@ export const ASTROID_ARCHETYPE_SECTIONS: Record<Archetype, SectionKind[]> = {
  * deploy and notice the absence.
  *
  * They are removed rather than left as TODOs. `orderTracking` in particular has
- * a real implementation waiting—`src/workflow/` is the ghostfire order tracker,
+ * a real implementation waiting—`src/workflow/` is a client site's order tracker,
  * generalized—but it is reached through `defineWorkflow`, not this flag, and
  * pretending otherwise is what made the flag misleading. Re-add each one in the
  * change that wires it.
@@ -198,8 +198,9 @@ export interface CommerceConfig {
   storefront?: CommerceProvider;
   /**
    * Invoices for work that isn't a catalog item—commissions, originals.
-   * Independent of `storefront`: themidwestartist.com runs Stripe here and
-   * Fourthwall as the storefront, because neither can do the other's job.
+   * Independent of `storefront`: a site can invoice through one provider (say,
+   * Stripe) and run its storefront through another (say, Fourthwall), because
+   * neither can do the other's job.
    */
   invoicing?: CommerceProvider;
   /**
@@ -207,7 +208,7 @@ export interface CommerceConfig {
    * counter or a market stall rather than through the site's own cart.
    *
    * Separate from `storefront` because they are genuinely different jobs and a
-   * site commonly runs both. themidwestartist.com sells print-on-demand merch
+   * site commonly runs both. An artist's site might sell print-on-demand merch
    * through Fourthwall (`storefront`) while originals and self-stocked prints
    * live in Square (`pos`) across several shops and galleries—one catalog per
    * rail, neither able to do the other's job.
@@ -372,9 +373,9 @@ export interface TenancyConfig {
    * sign-in) instead of JSON, and every data load on that host silently fails
    * while the same code works on the apex.
    *
-   * That is not hypothetical—it is why this default exists (found on
-   * themidwestartist.com's studio, where the whole admin app loaded and then
-   * fetched nothing).
+   * That is not hypothetical—it is why this default exists (found on a client
+   * site's studio host, where the whole admin app loaded and then fetched
+   * nothing).
    *
    * Set `[]` to rewrite everything, or add prefixes for other host-agnostic
    * surfaces (`/_actions`, `/webhooks`). Matching is prefix-based on a path
@@ -461,8 +462,8 @@ export interface SettingsConfig {
    * on top of (or, with `columns: []`, instead of) Astroid's base columns. The
    * generated `settingsRoute` + Action accept these; the Settings panel writes
    * them through the `settingsExtension` groups a site supplies to
-   * `mountSettings`. A site with a rich settings shape (coracle's footer columns,
-   * hours table, ui strings, shop/order config) lists their top-level keys here.
+   * `mountSettings`. A site with a rich settings shape (footer columns, an hours
+   * table, UI strings, shop/order config) lists their top-level keys here.
    */
   customKeys?: string[];
   /** Extra media-library image keys beyond the base logo/favicon/OG defaults—*
@@ -543,7 +544,7 @@ export interface DeployConfig {
 export interface AstroidConfig {
   /**
    * Stable project slug—the worker/D1/R2 base name and default subdomain (for example,
-   * `"coracle"`). Required and non-empty; it drives the generated binding names.
+   * `"example"`). Required and non-empty; it drives the generated binding names.
    */
   key: string;
   /** Hostnames this site serves (prod + preview), for custom-domain routes. */
@@ -564,7 +565,7 @@ export interface AstroidConfig {
    * A site-provided section catalog that REPLACES the built-in one for
    * SERVER-side validation + sanitization of `pages.sections` (the generated
    * pages route + versions route). A site with bespoke section designs—its own
-   * `.astro` components and field defs (coracle's 13 sections)—registers them
+   * `.astro` components and field defs (a dozen or more sections)—registers them
    * here so writes to its custom `_type`s validate instead of 422-ing against the
    * built-in vocabulary. The on-canvas editor already uses the site's catalog
    * (its `mountSections` call passes it); this closes the server half so both
@@ -620,7 +621,8 @@ export interface AstroidConfig {
    * Force the contact form + `inquiries` table on or off. Omit to detect from
    * the config (a `contact` section, or a wholesale-inquiry module). Set `true`
    * when a bespoke section captures inquiries under a name Astroid can't see
-   * (coracle's custom `contactForm`); set `false` to suppress it entirely.
+   * (for example, a custom `contactForm` section); set `false` to suppress it
+   * entirely.
    */
   inquiries?: boolean;
   /** Installable-app settings. Only read when `modules` includes `"pwa"`. */
@@ -637,9 +639,9 @@ export interface AstroidConfig {
  *
  * ```ts
  * export default defineAstroid({
- *   key: "coracle",
+ *   key: "example",
  *   archetype: "storefront",
- *   theme: { name: "Coracle Coffee", colors: { brand: "#1f6f78" } },
+ *   theme: { name: "Example Organization", colors: { brand: "#5b4bff" } },
  *   sections: ["hero", "banner", "productGrid", "locationHours", "contact"],
  *   commerce: { provider: "square" },
  *   deploy: { platform: "cloudflare" },

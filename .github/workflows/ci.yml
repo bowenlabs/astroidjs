@@ -34,6 +34,12 @@ jobs:
       - name: Dead-code check (Knip)
         run: corepack pnpm run knip
 
+      # The repository is public, so it names no client site: not in code,
+      # comments, tests, or docs. A text scan over every tracked file except the
+      # CHANGELOGs; the script says why and how to add a name.
+      - name: No client site names
+        run: corepack pnpm run lint:names
+
       # Prose style for every doc and all prose in code (Markdown, MDX, and the
       # comments and JSDoc in TypeScript and JavaScript), against the Google
       # developer documentation style guide and the Louise house package

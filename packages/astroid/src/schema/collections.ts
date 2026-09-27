@@ -56,7 +56,7 @@ const pageMediaBase = astroidMediaBase;
  * The section catalog a `pages` write is validated + sanitized against: the
  * site's own (`config.sectionCatalog`) when it registered bespoke sections, else
  * Astroid's built-in vocabulary. This is what lets a site with its own section
- * designs (coracle's 13) keep the same write contract as a stock Astroid site.
+ * designs keep the same write contract as a stock Astroid site.
  */
 function resolveSectionCatalog(config: AstroidConfig) {
   return config.sectionCatalog ?? astroidSectionCatalog;

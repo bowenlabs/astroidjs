@@ -2,9 +2,9 @@
 //
 // Provider → `CatalogItem` normalizers.
 //
-// This is the file the whole module exists for. themidwestartist.com's loader
-// says it outright: coracle runs the same helper over Square, "only the
-// content/repo reads differ—issue: repo drift." Two sites, one intent, two
+// This is the file the whole module exists for. One client site's loader says it
+// outright: another site runs the same helper over Square, and only the content
+// and repository reads differ, so the copies drift. Two sites, one intent, two
 // hand-written translations that drifted apart. The translation is mechanical,
 // so it belongs here once.
 //
