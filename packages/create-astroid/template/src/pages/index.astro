@@ -42,7 +42,7 @@ if (editMode || env.ASTROID_EDGE_CACHE !== "true") {
 // `requireLive: false`: an unpublished home keeps rendering rather than turning
 // the site's front door into a 404. Every other page is visitor-visible only
 // while it's live (src/pages/[...slug].astro).
-const page = await readPage(env.DB, "home", { editMode, requireLive: false });
+const page = await readPage(env, "home", { editMode, requireLive: false });
 const title = page?.title ?? "__BRAND_NAME__";
 const sections = page?.sections ?? [];
 ---

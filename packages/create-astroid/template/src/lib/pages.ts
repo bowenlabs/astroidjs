@@ -2,7 +2,17 @@
 // both call this, so every page renders the same way: a visitor sees the live
 // row, and an editor in edit mode sees the latest pending draft laid over it, so
 // in-progress edits resume across reloads.
+import { astroidPagesCollection } from "astroidjs";
 import { isPageLive } from "louise-toolkit/content";
+import { resumeDraft } from "louise-toolkit/editor";
+import astroidConfig from "../../astroid.config.js";
+import { pagesVersions } from "../schema";
+
+/** The page collection's slug keys the draft buffer, exactly as the saves do. */
+const pagesCollection = astroidPagesCollection(astroidConfig);
+
+/** The bindings a page read uses: the database, and the draft buffer. */
+type PageEnv = Pick<CloudflareEnv, "DB" | "DRAFTS">;
 
 /** The columns a page render reads. */
 export interface PageRow {
@@ -58,13 +68,13 @@ function parseSections(raw: unknown): unknown[] {
  * `redirectFor` then answers a renamed page's old URL with a redirect.
  */
 export async function readPage(
-  db: D1Database,
+  env: PageEnv,
   slug: string,
   { editMode, requireLive = true }: ReadPageOptions,
 ): Promise<RenderedPage | null> {
   let row: PageRow | null = null;
   try {
-    row = await db
+    row = await env.DB
       .prepare(
         "SELECT id, slug, title, body, sections, status, seo_title, seo_description, og_image, noindex FROM pages WHERE slug = ?",
       )
@@ -86,30 +96,23 @@ export async function readPage(
   };
   if (!editMode) return page;
 
-  // The latest PENDING draft: newer than every version ever published. An
-  // older draft is superseded, since a publish already moved past it, so it
-  // must not come back just because it's the newest row marked `draft`.
+  // The editor's work-in-progress: the DRAFTS buffer first, since every save
+  // writes through it and reaches D1 only when it flushes, then the newest
+  // pending draft in D1. Reading D1 alone showed an editor who reloaded before
+  // the flush an older page than the one they had just saved.
   try {
-    const draft = await db
-      .prepare(
-        "SELECT version_data FROM pages_versions WHERE parent_id = ?1 AND status = 'draft'" +
-          " AND id > COALESCE((SELECT MAX(id) FROM pages_versions WHERE parent_id = ?1 AND status = 'published'), 0)" +
-          " ORDER BY id DESC LIMIT 1",
-      )
-      .bind(row.id)
-      .first<{ version_data: string }>();
-    if (draft?.version_data) {
-      const d = JSON.parse(draft.version_data) as {
-        title?: unknown;
-        body?: unknown;
-        sections?: unknown;
-      };
-      if (typeof d.title === "string") page.title = d.title;
-      if (typeof d.body === "string") page.body = d.body;
+    const draft = await resumeDraft(
+      env.DB,
+      { versionsTable: pagesVersions, collection: pagesCollection.slug, bufferKv: env.DRAFTS },
+      { id: row.id },
+    );
+    if (draft) {
+      if (typeof draft.title === "string") page.title = draft.title;
+      if (typeof draft.body === "string") page.body = draft.body;
       // Sections stage as drafts like any other field, so edit mode renders the
       // draft's array; otherwise section edits would vanish on reload while
       // title edits survive.
-      if (d.sections !== undefined) page.sections = parseSections(d.sections);
+      if (draft.sections !== undefined) page.sections = parseSections(draft.sections);
     }
   } catch {
     // Non-fatal: fall back to the live row.
