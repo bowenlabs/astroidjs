@@ -2,14 +2,9 @@
 // both call this, so every page renders the same way: a visitor sees the live
 // row, and an editor in edit mode sees the latest pending draft laid over it, so
 // in-progress edits resume across reloads.
-import { astroidPagesCollection } from "astroidjs";
+import { astroidPageDraft } from "astroidjs/pages";
 import { isPageLive } from "louise-toolkit/content";
-import { resumeDraft } from "louise-toolkit/editor";
 import astroidConfig from "../../astroid.config.js";
-import { pagesVersions } from "../schema";
-
-/** The page collection's slug keys the draft buffer, exactly as the saves do. */
-const pagesCollection = astroidPagesCollection(astroidConfig);
 
 /** The bindings a page read uses: the database, and the draft buffer. */
 type PageEnv = Pick<CloudflareEnv, "DB" | "DRAFTS">;
@@ -101,11 +96,7 @@ export async function readPage(
   // pending draft in D1. Reading D1 alone showed an editor who reloaded before
   // the flush an older page than the one they had just saved.
   try {
-    const draft = await resumeDraft(
-      env.DB,
-      { versionsTable: pagesVersions, collection: pagesCollection.slug, bufferKv: env.DRAFTS },
-      { id: row.id },
-    );
+    const draft = await astroidPageDraft(astroidConfig, env, row.id);
     if (draft) {
       if (typeof draft.title === "string") page.title = draft.title;
       if (typeof draft.body === "string") page.body = draft.body;
