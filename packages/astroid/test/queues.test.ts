@@ -384,7 +384,8 @@ describe("generated worker", () => {
     const out = generateAstroidWorker(shop);
     expect(out).toContain('import { processBatch } from "louise-toolkit/queues";');
     expect(out).toContain('import { handleQueueMessage } from "./queue.js";');
-    expect(out).toContain("queue: (batch, env) => processBatch(batch,");
+    expect(out).toContain("queue: (batch, env, ctx) =>");
+    expect(out).toContain(": processBatch(batch, (message) => handleQueueMessage(env, message), {");
     expect(out).toContain("scheduled:");
     // The cron ENQUEUES rather than running inline, so the refresh takes the
     // same retry + DLQ path as everything else.
@@ -393,7 +394,7 @@ describe("generated worker", () => {
 
   it("keeps the consumer but drops the CATALOG cron when it's disabled", () => {
     const out = generateAstroidWorker({ ...shop, queues: { cron: false } });
-    expect(out).toContain("queue: (batch, env)");
+    expect(out).toContain("queue: (batch, env, ctx) =>");
     // The handler survives for the health scan; only the catalog re-sync goes.
     expect(out).toContain("scheduled:");
     expect(out).not.toContain("catalog_refresh");

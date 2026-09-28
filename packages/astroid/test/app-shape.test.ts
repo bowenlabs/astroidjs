@@ -50,8 +50,12 @@ describe("the editor-free app shape", () => {
     expect(middleware).toContain("resolveEditor: () => null");
     expect(middleware).not.toContain("redirectFor");
 
-    // No table of its own: only the site's re-export, and nothing imported.
-    expect(schema).not.toMatch(/^import |sqliteTable|pagesVersions|^export \{/m);
+    // No content table of its own: only incident capture's two, the site's
+    // re-export, and nothing imported.
+    expect(schema).not.toMatch(
+      /^import |sqliteTable|pagesVersions|^export \{ (?!deadLetters, incidents)/m,
+    );
+    expect(schema).toContain('export { deadLetters, incidents } from "louise-toolkit/incidents";');
     expect(schema).toContain('export * from "./schema.site.js";');
   });
 
@@ -120,7 +124,8 @@ describe("the editor-free app shape", () => {
 
   it("scaffolds none of the editor's files", () => {
     const paths = generateAstroidScaffoldFiles(app).map((f) => f.path);
-    expect(paths).toEqual(["src/schema.site.ts"]);
+    // Incident capture's migration is every shape's, not the editor's.
+    expect(paths).toEqual(["migrations/0006_incidents.sql", "src/schema.site.ts"]);
   });
 
   it("covers the versioned API, and drops the editor's sign-in rules", () => {

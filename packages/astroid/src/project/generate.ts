@@ -26,6 +26,11 @@ import {
 } from "../commerce/secrets.js";
 import type { AstroidConfig } from "../config.js";
 import {
+  ASTROID_INCIDENT_EVENTS_BINDING,
+  ASTROID_VERSION_METADATA_BINDING,
+  astroidIncidentEventsDataset,
+} from "../incidents/names.js";
+import {
   ASTROID_QUEUE_BINDING,
   ASTROID_QUEUE_RETRY_DELAY,
   astroidCrons,
@@ -258,6 +263,10 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p(`        "retry_delay": ${config.queues?.retryDelay ?? ASTROID_QUEUE_RETRY_DELAY},`);
     p(`        "dead_letter_queue": ${JSON.stringify(dlq)},`);
     p("      },");
+    p("      // The dead-letter queue's own consumer: the worker keeps each message");
+    p("      // in the `dead_letters` table and counts it as an incident, so a");
+    p("      // failed event is never lost unseen. No retries of its own.");
+    p(`      { "queue": ${JSON.stringify(dlq)}, "max_batch_size": 10, "max_retries": 0 },`);
     p("    ],");
     p("  },");
   }
@@ -267,6 +276,15 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
   } else {
     p("  // D1: this app's tables (src/schema.ts), or the database of the app that");
     p("  // owns the schema, bound by its id. Create one: `wrangler d1 create <name>`.");
+  }
+  p("  // The deployed version's ID, which each incident records as its release.");
+  p(`  "version_metadata": { "binding": ${JSON.stringify(ASTROID_VERSION_METADATA_BINDING)} },`);
+  if (!editor) {
+    // The editor shape lists this dataset beside the Core Web Vitals one below.
+    p("  // Analytics Engine: incident counts over time (louise-toolkit ADR 0022).");
+    p(
+      `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_INCIDENT_EVENTS_BINDING)}, "dataset": ${JSON.stringify(astroidIncidentEventsDataset(config))} }],`,
+    );
   }
   p('  "d1_databases": [');
   p("    {");
@@ -290,9 +308,10 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p("  // Analytics Engine: real-visitor Core Web Vitals. Free, and the ingest");
     p("  // route accepts-and-drops without it, so it costs nothing unused. Reading");
     p("  // the p75 back out needs CF_ACCOUNT_ID + CF_API_TOKEN (see .env.example)—");
-    p("  // until those are real the Health badge reads 'not measured yet'.");
+    p("  // until those are real the Health badge reads 'not measured yet'. The");
+    p("  // second dataset counts incidents over time (louise-toolkit ADR 0022).");
     p(
-      `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_VITALS_BINDING)}, "dataset": ${JSON.stringify(astroidVitalsDataset(config))} }],`,
+      `  "analytics_engine_datasets": [{ "binding": ${JSON.stringify(ASTROID_VITALS_BINDING)}, "dataset": ${JSON.stringify(astroidVitalsDataset(config))} }, { "binding": ${JSON.stringify(ASTROID_INCIDENT_EVENTS_BINDING)}, "dataset": ${JSON.stringify(astroidIncidentEventsDataset(config))} }],`,
     );
     p("  // Workers AI. Powers the editor's rewrite + SEO-suggest buttons and alt-text");
     p("  // generation on upload—all of which SHIP IN THE EDITOR DRAWER already and,");

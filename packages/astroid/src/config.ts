@@ -555,6 +555,25 @@ export interface StatusConfig {
   checks?: boolean;
 }
 
+/**
+ * Incident capture (louise-toolkit ADR 0022). Every Astroid site counts its
+ * failures into its own D1 and an Analytics Engine dataset; these settings add
+ * to that.
+ */
+export interface IncidentsConfig {
+  /**
+   * The failures that should alert: dotted names (`commerce.checkout`) and
+   * path prefixes (`/cart`). A site fact, so there's no default list.
+   */
+  critical?: string[];
+  /**
+   * Also send each incident to Sentry, the operator's issue system for a
+   * Monitored or Supported site. It reads the DSN from the `SENTRY_DSN`
+   * secret, and stays dormant while that's unset or a placeholder.
+   */
+  sentry?: boolean;
+}
+
 export interface DeployConfig {
   platform: "cloudflare";
   /** Media base for R2 + `cf-image` resizing—matches Louise's media route
@@ -685,6 +704,8 @@ export interface AstroidConfig {
   pages?: PagesConfig;
   /** The public status route's site-owned checks. */
   status?: StatusConfig;
+  /** Incident capture settings: what alerts, and whether Sentry gets a copy. */
+  incidents?: IncidentsConfig;
   /**
    * Force the contact form + `inquiries` table on or off. Omit to detect from
    * the config (a `contact` section, or a wholesale-inquiry module). Set `true`

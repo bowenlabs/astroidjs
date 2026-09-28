@@ -14,9 +14,19 @@
 
 import type { AstroidConfig } from "../config.js";
 import { ASTROID_VITALS_BINDING, generateAstroidCwvQuery } from "../analytics/index.js";
+import {
+  ASTROID_INCIDENT_EVENTS_BINDING,
+  ASTROID_SENTRY_DSN_BINDING,
+  ASTROID_VERSION_METADATA_BINDING,
+} from "../incidents/names.js";
 import { astroidEditorTable } from "../auth/index.js";
 import { astroidPortal } from "../portal/config.js";
-import { ASTROID_HEALTH_CRON, astroidCron, astroidUsesQueues } from "../queues/messages.js";
+import {
+  ASTROID_HEALTH_CRON,
+  astroidCron,
+  astroidQueueNames,
+  astroidUsesQueues,
+} from "../queues/messages.js";
 import {
   ASTROID_EDIT_SESSION_CLASS,
   ASTROID_REALTIME_BINDING,
@@ -220,6 +230,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     'import { cwvSqlQuery, parseCwvRows, summarizeCwv, vitalsRoute } from "louise-toolkit/analytics";',
   );
   if (inquiries) p('import { defineForm } from "louise-toolkit/forms";');
+  p(incidentsImport(queues));
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
   // Only when a route actually takes a runner—a project with no AI assists
   // should not import one, and knip would flag it if it did.
@@ -245,6 +256,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
     "setAstroidMediaBase",
     ...(inquiries ? ["sendInquiryMail"] : []),
     ...(queues ? ["type AstroidQueueMessage"] : []),
+    ...(config.incidents?.sentry ? ["sentryIncidents", "type SecretSource"] : []),
   ].sort();
   p(`import { ${astroidImports.join(", ")} } from "astroidjs";`);
   // The config lives at the PROJECT ROOT (create-astroid writes it there); this
@@ -502,6 +514,7 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("  return new Response(obj.body, { headers });");
   p("};");
   p();
+  emitIncidentPreamble(p, config, queues);
   // The queue message type parameter is what gives the `queue` consumer below a
   // typed `MessageBatch` instead of `MessageBatch<unknown>`.
   p(
@@ -539,15 +552,8 @@ export function generateAstroidWorker(config: AstroidConfig): string {
   p("    // An editor never reads from, and never writes to, the shared entry.");
   p("    bypass: isEditRequest,");
   p("  }),");
-  if (queues) {
-    p("  // Queue consumer. `processBatch` acks or retries each message");
-    p("  // INDEPENDENTLY, so one poisoned message can't block the rest of the");
-    p("  // batch from acking; Cloudflare routes it to the DLQ once it exceeds");
-    p("  // max_retries (see wrangler.jsonc).");
-    p(
-      "  queue: (batch, env) => processBatch(batch, (message) => handleQueueMessage(env, message)),",
-    );
-  }
+  emitIncidentOption(p, config);
+  if (queues) emitQueueOption(p, config);
   // ONE scheduled handler for every cron, dispatching on `controller.cron`.
   // Cloudflare gives no other way to tell them apart, and the strings here have
   // to match `astroidCrons` exactly—which is why both read the same constants
@@ -626,9 +632,21 @@ function generateAppWorker(config: AstroidConfig): string {
   p("// so it serves no editor routes and resolves no editor session.");
   p('import { handle } from "@astrojs/cloudflare/handler";');
   p('import { d1Check, statusRoute } from "louise-toolkit/editor";');
+  p(incidentsImport(queues));
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
   p('import { composeWorker, type WorkerRoute, withEdgeCache } from "louise-toolkit/worker";');
-  if (queues) p('import type { AstroidQueueMessage } from "astroidjs";');
+  const astroidImports = [
+    ...(queues ? ["type AstroidQueueMessage"] : []),
+    ...(config.incidents?.sentry ? ["sentryIncidents", "type SecretSource"] : []),
+  ].sort();
+  if (astroidImports.length > 0) {
+    const typeOnly = astroidImports.every((name) => name.startsWith("type "));
+    p(
+      typeOnly
+        ? `import type { ${astroidImports.map((name) => name.slice(5)).join(", ")} } from "astroidjs";`
+        : `import { ${astroidImports.join(", ")} } from "astroidjs";`,
+    );
+  }
   if (config.status?.checks) {
     p("// Your STATUS seam: the app's own checks for the public status route.");
     p("// Scaffolded once and yours to edit.");
@@ -662,6 +680,7 @@ function generateAppWorker(config: AstroidConfig): string {
   p("  statusRoute({ checks: STATUS_CHECKS, reuseMs: STATUS_REUSE_MS }),");
   p("];");
   p();
+  emitIncidentPreamble(p, config, queues);
   p(
     queues
       ? "export default composeWorker<CloudflareEnv, AstroidQueueMessage>({"
@@ -677,14 +696,8 @@ function generateAppWorker(config: AstroidConfig): string {
   p("  // directive from every other one, so Cloudflare's cookie-blind edge cache");
   p("  // never stores a signed-in customer's page.");
   p("  fetch: withEdgeCache((request, env, ctx) => handle(request, env, ctx)),");
-  if (queues) {
-    p("  // Queue consumer. `processBatch` acks or retries each message");
-    p("  // INDEPENDENTLY, so one poisoned message can't block the rest of the");
-    p("  // batch; Cloudflare routes it to the DLQ once it exceeds max_retries.");
-    p(
-      "  queue: (batch, env) => processBatch(batch, (message) => handleQueueMessage(env, message)),",
-    );
-  }
+  emitIncidentOption(p, config);
+  if (queues) emitQueueOption(p, config);
   if (scheduled) {
     p("  // Cron. Cloudflare fires this for EVERY trigger in wrangler.jsonc and");
     p("  // identifies which by `controller.cron`, so dispatch on it.");
@@ -936,4 +949,90 @@ export function generateAstroidMiddleware(config: AstroidConfig): string {
     "});",
     "",
   ].join("\n");
+}
+
+/** The `louise-toolkit/incidents` import both worker shapes emit. */
+function incidentsImport(queues: boolean): string {
+  const names = ["analyticsIncidents", "d1Incidents", ...(queues ? ["deadLetterConsumer"] : [])];
+  return `import { ${names.join(", ")} } from "louise-toolkit/incidents";`;
+}
+
+/**
+ * The declarations incident capture needs ahead of `composeWorker`, shared by
+ * both shapes (louise-toolkit ADR 0022). Its bindings are read through a local
+ * type rather than `CloudflareEnv`, because `src/env.d.ts` is scaffold-once: a
+ * site made before them still type-checks, and each sink skips what isn't bound.
+ */
+function emitIncidentPreamble(
+  p: (s?: string) => void,
+  config: AstroidConfig,
+  queues: boolean,
+): void {
+  p("// --- incidents --------------------------------------------------------------");
+  p("// Every failure this worker sees becomes an incident: counted into the site's");
+  p("// own D1 (the `incidents` table), and into Analytics Engine for counts over");
+  p("// time (louise-toolkit ADR 0022). These bindings are optional. A site whose");
+  p("// wrangler.jsonc predates them still type-checks, and a sink skips what isn't");
+  p("// bound.");
+  p("type IncidentBindings = {");
+  p(`  ${ASTROID_INCIDENT_EVENTS_BINDING}?: AnalyticsEngineDataset;`);
+  p(`  ${ASTROID_VERSION_METADATA_BINDING}?: WorkerVersionMetadata;`);
+  if (config.incidents?.sentry) p(`  ${ASTROID_SENTRY_DSN_BINDING}?: SecretSource;`);
+  p("};");
+  p("const incidentBindings = (env: CloudflareEnv) => env as CloudflareEnv & IncidentBindings;");
+  if (queues) {
+    const { dlq } = astroidQueueNames(config);
+    p("// The dead-letter queue's consumer: it keeps each message the queue gave up on");
+    p("// in the `dead_letters` table, counts it as an incident, and acks it, so a");
+    p("// failed webhook event is never lost unseen.");
+    p(`const DEAD_LETTER_QUEUE = ${JSON.stringify(dlq)};`);
+    p("const keepDeadLetters = deadLetterConsumer<CloudflareEnv, AstroidQueueMessage>(");
+    p("  (env) => env.DB,");
+    p(");");
+  }
+  p();
+}
+
+/** The `onIncident` option both shapes pass `composeWorker`. */
+function emitIncidentOption(p: (s?: string) => void, config: AstroidConfig): void {
+  const critical = config.incidents?.critical ?? [];
+  p("  // Incident capture (louise-toolkit ADR 0022). A throw is reported, then");
+  p("  // re-thrown, so responses don't change; the sinks run after the response.");
+  p("  onIncident: {");
+  p("    sinks: [");
+  p("      // The record: one row per failure, with a count, in the site's own D1.");
+  p("      d1Incidents((env: CloudflareEnv) => env.DB),");
+  p(
+    `      analyticsIncidents((env: CloudflareEnv) => incidentBindings(env).${ASTROID_INCIDENT_EVENTS_BINDING}),`,
+  );
+  if (config.incidents?.sentry) {
+    p("      // A copy for the operator's issue system, with the stack. Dormant until");
+    p(`      // the ${ASTROID_SENTRY_DSN_BINDING} secret holds a real DSN.`);
+    p(
+      `      sentryIncidents((env: CloudflareEnv) => incidentBindings(env).${ASTROID_SENTRY_DSN_BINDING}, { site: ${JSON.stringify(config.key)} }),`,
+    );
+  }
+  p("    ],");
+  if (critical.length > 0) {
+    p("    // What alerts, from `incidents.critical` in your config.");
+    p(`    critical: ${JSON.stringify(critical)},`);
+  }
+  p(`    release: (env) => incidentBindings(env).${ASTROID_VERSION_METADATA_BINDING}?.id,`);
+  p("  },");
+}
+
+/** The queue consumer both shapes emit: the dead-letter queue's batches to its
+ *  consumer, and the rest through `processBatch`, which reports a message's
+ *  last failed delivery as an incident. */
+function emitQueueOption(p: (s?: string) => void, config: AstroidConfig): void {
+  p("  // Queue consumer. `processBatch` acks or retries each message");
+  p("  // INDEPENDENTLY, so one poisoned message can't block the rest of the");
+  p("  // batch; Cloudflare routes it to the DLQ once it exceeds max_retries,");
+  p("  // which `maxRetries` matches, so its last failure counts as an incident.");
+  p("  queue: (batch, env, ctx) =>");
+  p("    batch.queue === DEAD_LETTER_QUEUE");
+  p("      ? keepDeadLetters(batch, env, ctx)");
+  p("      : processBatch(batch, (message) => handleQueueMessage(env, message), {");
+  p(`          maxRetries: ${config.queues?.maxRetries ?? 5},`);
+  p("        }),");
 }

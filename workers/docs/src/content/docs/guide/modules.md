@@ -158,6 +158,51 @@ generate`. That scaffolds `src/status-checks.ts` once. Export your checks from
 it as `statusChecks`, and the worker adds them after Astroid's. A check's name
 is in the public response, so don't put anything in one you wouldn't publish.
 
+### Incidents
+
+Every generated worker captures its failures (louise-toolkit ADR 0022): a throw
+from a route, the page handler, the queue consumer, or a cron, and every
+`reportDegraded` call. Each becomes one incident per distinct failure, counted
+into two places:
+
+- **The `incidents` table in the site's own D1.** It's the record: the Health
+  panel and Watchtower read it. `astroid generate` scaffolds its migration,
+  `migrations/0006_incidents.sql` (renumbered past your own), with the
+  `dead_letters` table beside it.
+- **The `INCIDENT_EVENTS` Analytics Engine dataset**, for counts over time. A
+  new project's `wrangler.jsonc` binds it; for an older one, add
+  `{ "binding": "INCIDENT_EVENTS", "dataset": "<key>_incidents" }` to
+  `analytics_engine_datasets`. Without it, the table still counts.
+
+Each incident records the deployed version from the `CF_VERSION_METADATA`
+binding, which a new project's `wrangler.jsonc` also has. For an older one, add
+`"version_metadata": { "binding": "CF_VERSION_METADATA" }`.
+
+With commerce's queue, the worker also consumes the queue's dead-letter queue:
+each message the queue gave up on is kept in `dead_letters`, counted as an
+incident, and acked, so a failed webhook event is never lost unseen. A new
+project's `wrangler.jsonc` declares that consumer; an older one needs
+`{ "queue": "<key>-commerce-dlq", "max_batch_size": 10, "max_retries": 0 }`
+added to `queues.consumers`.
+
+Two settings in `astroid.config.ts` add to it:
+
+```ts
+incidents: {
+  // What alerts. Dotted names and path prefixes; no default list.
+  critical: ["commerce.checkout", "/cart"],
+  // A copy to Sentry, for a Monitored or Supported site.
+  sentry: true,
+},
+```
+
+`sentry: true` sends each incident to Sentry with its stack, through Sentry's
+envelope endpoint with no SDK. It reads the DSN from the `SENTRY_DSN` secret,
+and stays dormant while that's unset or a placeholder. What reaches Sentry is
+the redacted message, the fingerprint, the path without its query string, and
+the stack's frames, tagged `louise_fingerprint`, so Watchtower can join each
+Sentry issue to its row.
+
 ### Edge caching (off by default)
 
 The generated worker wraps Astro's SSR fallback in `withEdgeCache`, Louise's

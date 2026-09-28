@@ -105,6 +105,7 @@ describe("decorative alt text (#85)", () => {
       "migrations/0003_catalog.sql",
       "migrations/0004_page_redirects.sql",
       "migrations/0005_media_alt_undecided.sql",
+      "migrations/0006_incidents.sql",
     ]);
   });
 });
