@@ -10,10 +10,12 @@ sidebar:
 A release is a tag, `v<major>.<minor>.<patch>`, on a commit of `main`, or of a
 `release/<version>` branch when a released version needs a patch. `astroid
 generate` writes `.github/workflows/release.yml` at the repository root, and on
-each tag it does three things:
+each tag it does four things:
 
 1. Checks that the tag is `v<major>.<minor>.<patch>` and sits on `main` or a
    `release/` branch.
+1. Checks that the tagged commit's `CI` check passed, and waits for it while
+   it runs. A tag releases only a commit with a green `CI`.
 1. Force-pushes the tagged commit to `deploy/production`. Workers Builds deploys
    that branch to production.
 1. Creates a GitHub release with generated notes.
@@ -25,6 +27,50 @@ earlier commit with the next patch version.
 The workflow holds no Cloudflare credential. `astroid doctor` fails when the
 file is missing or stale, so a hand edit can't quietly change which commits
 reach production.
+
+## A release needs a green CI
+
+Before it moves `deploy/production`, the release workflow reads the check run
+named `CI` on the tagged commit, from GitHub Actions, and releases only when its
+latest run succeeded:
+
+- **It passed:** the release goes ahead.
+- **It failed, or ended any other way:** the release fails, naming the result
+  and linking the run. Fix CI on a new commit and tag that, or, for a flaky
+  failure, rerun CI and then rerun the release.
+- **It's queued or running:** the release waits for it, checking every 20
+  seconds for up to 30 minutes. Releases already run one at a time, so a
+  waiting release only holds up the tags after it. If CI still hasn't finished,
+  the release fails; rerun it once CI passes.
+- **There's no `CI` run:** the release fails. CI runs on pushes to `main` and
+  `release/` branches, so a commit on either has a run unless its CI has no job
+  named `CI`.
+
+So a site's CI workflow needs a job named `CI` that runs on pushes to `main`
+and `release/**`. Make it an aggregator: one job that needs every other job and
+passes only when they all did. The workflow that `pnpm create astroid` scaffolds
+has one:
+
+```yaml
+ci:
+  name: CI
+  runs-on: ubuntu-latest
+  needs: [build]
+  if: always()
+  steps:
+    - name: Fail if any job did not succeed
+      run: |
+        echo "build=${{ needs.build.result }}"
+        [ "${{ needs.build.result }}" = "success" ]
+```
+
+Add each new job to its `needs`. The same job is the one required status to
+protect `main` with, so adding a job never means editing branch protection or
+the release. `if: always()` makes it report a failure when a job it needs
+fails, instead of being skipped.
+
+The workflow reads checks with its own `GITHUB_TOKEN`, so it asks for the
+`checks: read` permission. There's nothing to set up.
 
 ## What Workers Builds runs
 
@@ -136,7 +182,10 @@ empty, the release fails at its first step and names both.
 ## One-time setup
 
 Do this before a site's first release, and before you regenerate an existing
-site's `release.yml`. Otherwise its next release fails.
+site's `release.yml`. Otherwise its next release fails. The same goes for a
+job named `CI`: add one to the site's CI workflow, as
+[A release needs a green CI](#a-release-needs-a-green-ci) describes, before you
+regenerate.
 
 ### Create the GitHub App
 

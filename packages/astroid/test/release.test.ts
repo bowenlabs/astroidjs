@@ -1,4 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ASTROID_DEPLOY_BRANCH, generateAstroidReleaseWorkflow } from "../src/project/release.js";
 
@@ -97,5 +100,180 @@ describe("generateAstroidReleaseWorkflow", () => {
     for (const tag of ["1.4.0", "v1.4", "v1.4.0-rc.1", "v1x4x0", "release-1.4.0"]) {
       expect(check(tag)).toBe(false);
     }
+  });
+  // Tagging a commit doesn't make it tested. The release reads the commit's CI
+  // check before it moves deploy/production, and refuses anything but a pass.
+  it("reads CI with checks: read, after the tag check and before the push", () => {
+    expect(workflow).toMatch(
+      /\npermissions:\n {2}contents: write\n(?: {2}#.*\n)* {2}checks: read\n\n/,
+    );
+    expect(workflow).toContain("A release needs a green CI");
+    const step = workflow.match(/- name: Check that CI passed\n[\s\S]*?\n\n/)?.[0] ?? "";
+    expect(step).toContain("GH_TOKEN: ${{ github.token }}");
+    expect(step).toContain(
+      'gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/check-runs?check_name=CI&filter=latest"',
+    );
+    const tagCheck = workflow.indexOf("- name: Check the tag");
+    const ciCheck = workflow.indexOf("- name: Check that CI passed");
+    expect(tagCheck).toBeGreaterThan(0);
+    expect(ciCheck).toBeGreaterThan(tagCheck);
+    expect(workflow.indexOf("git push --force")).toBeGreaterThan(ciCheck);
+  });
+
+  // Run the CI check's own shell against a fake gh that answers with canned
+  // check runs, so the jq filters and the waiting run for real. A fake sleep
+  // counts the polls instead of taking them.
+  type CheckRun = Record<string, unknown>;
+  const checkRun = (status: string, conclusion: string | null, extra: CheckRun = {}) => ({
+    name: "CI",
+    status,
+    conclusion,
+    started_at: "2026-09-28T12:00:00Z",
+    html_url: "https://github.com/example-org/site/actions/runs/1/job/2",
+    details_url: "https://github.com/example-org/site/actions/runs/1/job/2",
+    app: { slug: "github-actions" },
+    ...extra,
+  });
+  // A job of this release workflow's own run, which the tagged commit also has.
+  const ownJob = checkRun("in_progress", null, {
+    name: "release",
+    details_url: "https://github.com/example-org/site/actions/runs/777/job/9",
+  });
+
+  const ciCheck = (ciResponses: CheckRun[][], otherRuns: CheckRun[] = []) => {
+    const script = workflow.match(
+      /- name: Check that CI passed\n[\s\S]*?run: \|\n([\s\S]*?)\n\n/,
+    )?.[1];
+    if (!script) throw new Error("no CI check in the workflow");
+    const dir = mkdtempSync(join(tmpdir(), "release-ci-"));
+    try {
+      ciResponses.forEach((runs, i) =>
+        writeFileSync(join(dir, `ci-${i}.json`), JSON.stringify({ check_runs: runs })),
+      );
+      writeFileSync(join(dir, "all.json"), JSON.stringify({ check_runs: [ownJob, ...otherRuns] }));
+      // gh api <path> --jq <filter>. Each CI read takes the next response, and
+      // the last one repeats.
+      writeFileSync(
+        join(dir, "gh"),
+        [
+          "#!/usr/bin/env bash",
+          'echo "$2" >> "$FAKE/calls"',
+          'if [[ "$2" == *check_name=CI* ]]; then',
+          '  n="$(cat "$FAKE/n" 2>/dev/null || echo 0)"',
+          '  file="$FAKE/ci-$n.json"',
+          '  if [ -f "$FAKE/ci-$((n + 1)).json" ]; then echo "$((n + 1))" > "$FAKE/n"; fi',
+          "else",
+          '  file="$FAKE/all.json"',
+          "fi",
+          'jq -r "$4" "$file"',
+        ].join("\n"),
+      );
+      writeFileSync(join(dir, "sleep"), '#!/usr/bin/env bash\necho "$1" >> "$FAKE/sleeps"\n');
+      chmodSync(join(dir, "gh"), 0o755);
+      chmodSync(join(dir, "sleep"), 0o755);
+      const read = (name: string) => {
+        try {
+          return readFileSync(join(dir, name), "utf8").split("\n").filter(Boolean);
+        } catch {
+          return [];
+        }
+      };
+      let ok = true;
+      let output: string;
+      try {
+        output = execFileSync(
+          "bash",
+          ["--noprofile", "--norc", "-eo", "pipefail", "-c", script.replace(/^ {10}/gm, "")],
+          {
+            env: {
+              ...process.env,
+              PATH: `${dir}:${process.env.PATH}`,
+              FAKE: dir,
+              SHA: "abc123",
+              GITHUB_REPOSITORY: "example-org/site",
+              GITHUB_RUN_ID: "777",
+            },
+            encoding: "utf8",
+          },
+        );
+      } catch (e) {
+        ok = false;
+        output = String((e as { stdout?: string }).stdout);
+      }
+      return { ok, output, calls: read("calls"), polls: read("sleeps").length };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it("releases a commit whose CI passed, without waiting", () => {
+    const { ok, output, calls, polls } = ciCheck([[checkRun("completed", "success")]]);
+    expect(ok).toBe(true);
+    expect(output).toContain("CI passed on abc123");
+    expect(calls[0]).toBe(
+      "repos/example-org/site/commits/abc123/check-runs?check_name=CI&filter=latest",
+    );
+    expect(polls).toBe(0);
+  });
+
+  it("refuses a commit whose CI ended in anything but success, naming it and linking the run", () => {
+    for (const conclusion of ["failure", "cancelled", "timed_out", "neutral", "skipped"]) {
+      const { ok, output } = ciCheck([[checkRun("completed", conclusion)]]);
+      expect(ok).toBe(false);
+      expect(output).toContain(`::error::CI on abc123 ended in ${conclusion}`);
+      expect(output).toContain("https://github.com/example-org/site/actions/runs/1/job/2");
+    }
+  });
+
+  it("waits for a queued or running CI, then follows its result", () => {
+    const passed = ciCheck([
+      [checkRun("queued", null)],
+      [checkRun("in_progress", null)],
+      [checkRun("completed", "success")],
+    ]);
+    expect(passed.ok).toBe(true);
+    expect(passed.polls).toBe(2);
+    const failed = ciCheck([[checkRun("in_progress", null)], [checkRun("completed", "failure")]]);
+    expect(failed.ok).toBe(false);
+    expect(failed.polls).toBe(1);
+    expect(failed.output).toContain("ended in failure");
+  });
+
+  it("gives up after 30 minutes of polling every 20 seconds", () => {
+    const { ok, output, polls } = ciCheck([[checkRun("in_progress", null)]]);
+    expect(ok).toBe(false);
+    expect(polls).toBe(90);
+    expect(output).toContain("::error::CI on abc123 didn't finish within 30 minutes");
+  });
+
+  it("refuses a commit with no CI run at once, counting none of its own jobs", () => {
+    const { ok, output, polls } = ciCheck([[]]);
+    expect(ok).toBe(false);
+    expect(polls).toBe(0);
+    expect(output).toContain("::error::abc123 has no CI run, so it can't be released.");
+    expect(output).toContain("CI runs on pushes to main and release/ branches");
+  });
+
+  // GitHub creates the aggregator's check run only once the jobs it needs
+  // finish, so no CI run while they run is a CI still to come.
+  it("waits for a CI that hasn't started while the commit's other jobs run", () => {
+    const { ok, polls } = ciCheck(
+      [[], [], [checkRun("completed", "success")]],
+      [checkRun("in_progress", null, { name: "lint" })],
+    );
+    expect(ok).toBe(true);
+    expect(polls).toBe(2);
+  });
+
+  it("counts only the github-actions app's CI, and the latest run of it", () => {
+    const otherApp = checkRun("completed", "success", { app: { slug: "another-app" } });
+    expect(ciCheck([[otherApp]]).output).toContain("has no CI run");
+    const earlier = { started_at: "2026-09-28T11:00:00Z" };
+    expect(
+      ciCheck([[checkRun("completed", "success"), checkRun("completed", "failure", earlier)]]).ok,
+    ).toBe(true);
+    expect(
+      ciCheck([[checkRun("completed", "failure"), checkRun("completed", "success", earlier)]]).ok,
+    ).toBe(false);
   });
 });
