@@ -1,5 +1,25 @@
 # astroidjs
 
+## 0.21.0
+
+### Minor Changes
+
+- 4b4f750: `astroidPageDraft(config, env, pageId)`, in the new `astroidjs/pages` subpath, reads the editor's work-in-progress on a page for a page route in edit mode. It checks the `DRAFTS` buffer before D1, the order every save writes, with the pages collection's slug and versions table derived from your config. It replaces the wrapper around louise-toolkit's `resumeDraft` that each site kept in `src/lib/louise-drafts.ts`, and a new project's `src/lib/pages.ts` now calls it.
+
+  **`drizzle-orm` is now a peer dependency** (`^0.45.0`), as it already is for louise-toolkit. Every Astroid project has it, because the generated schema imports it, so nothing changes for an existing site. `astroidPageDraft` is a subpath of its own so that the main `astroidjs` entry, which `astroid.config.ts` and the CLI load, doesn't import the editor.
+
+  **To adopt it:** delete your own draft wrapper, and in each page that called it, read the draft with `await astroidPageDraft(astroidConfig, env, pageId)`, then pick the fields you render (`sections`, `body`, `title`) from the snapshot it returns. Pass `env` with `DB` and, when bound, `DRAFTS`.
+
+- ecced26: Every generated worker captures incidents (louise-toolkit ADR 0022), and needs louise-toolkit 0.37.0 and @louise-toolkit/astro 0.6.0:
+
+  - **The generated worker** passes `composeWorker` an `onIncident` that counts each failure into the site's D1 `incidents` table and the `INCIDENT_EVENTS` Analytics Engine dataset, with the release from `CF_VERSION_METADATA`. Both bindings are optional; a site whose `wrangler.jsonc` predates them still type-checks.
+  - **The schema** re-exports `incidents` and `dead_letters`, and `astroid generate` scaffolds `migrations/0006_incidents.sql` for them. An app whose database another app migrates (`deploy.migrations: false`) gets neither.
+  - **The queue consumer** routes the commerce dead-letter queue's batches to louise-toolkit's `deadLetterConsumer`, which keeps each message and counts it (#43), and passes `processBatch` the queue's `maxRetries`, so a message's last failed delivery counts as an incident.
+  - **`incidents` in `defineAstroid`:** `critical` lists what alerts, and `sentry: true` adds the new `sentryIncidents` sink, which sends each incident to Sentry with its stack and no SDK, dormant until `SENTRY_DSN` holds a real DSN.
+  - **A new project's `wrangler.jsonc`** binds `INCIDENT_EVENTS` and `CF_VERSION_METADATA`, and consumes the dead-letter queue. `wrangler.jsonc` is scaffold-once, so an existing site adds these by hand; the modules guide has each line.
+
+  Run `astroid generate` after upgrading, then apply the new migration.
+
 ## 0.20.0
 
 ### Minor Changes
