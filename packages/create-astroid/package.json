@@ -33,10 +33,10 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.2",
-    "@louise-toolkit/astro": "^0.5.0",
+    "@louise-toolkit/astro": "^0.6.0",
     "astroidjs": "workspace:*",
     "better-auth": "^1.7.2",
-    "louise-toolkit": "^0.36.0"
+    "louise-toolkit": "^0.37.0"
   },
   "engines": {
     "node": ">=26.0.0"
