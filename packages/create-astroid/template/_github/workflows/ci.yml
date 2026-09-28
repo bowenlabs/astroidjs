@@ -1,8 +1,10 @@
 name: CI
 
+# A release tag needs this workflow's CI check to have passed on the tagged
+# commit, so it runs on every branch a release can come from.
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
 
 # Cancel superseded runs on the same ref (a force-push mid-run).
@@ -54,3 +56,17 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # One required status to protect main with, and the check a release reads, so
+  # adding a job above doesn't mean editing branch protection or the release.
+  # List every job in `needs`.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+    steps:
+      - name: Fail if any job did not succeed
+        run: |
+          echo "build=${{ needs.build.result }}"
+          [ "${{ needs.build.result }}" = "success" ]
