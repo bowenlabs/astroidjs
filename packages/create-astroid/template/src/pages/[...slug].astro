@@ -25,7 +25,7 @@ const slug = Astro.params.slug ?? "";
 // `home` is served at "/", never at "/home".
 if (slug === "home") return Astro.redirect("/", 301);
 
-const page = slug ? await readPage(env.DB, slug, { editMode }) : null;
+const page = slug ? await readPage(env, slug, { editMode }) : null;
 
 // Edge caching (ADR 0004), gated exactly as on the home page: never in edit
 // mode, only when ASTROID_EDGE_CACHE is "true", and never for a 404, so a page
