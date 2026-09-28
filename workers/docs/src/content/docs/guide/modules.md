@@ -69,7 +69,11 @@ through `src/lib/pages.ts`:
 - A visitor sees the page only while it's live (published, not hidden).
   Anything else answers the site's 404 page, with `noindex`.
 - An editor in edit mode sees any page, with its latest pending draft, and
-  edits it in place and publishes it like the home page.
+  edits it in place and publishes it like the home page. The draft comes from
+  `astroidPageDraft(config, env, pageId)` in `astroidjs/pages`, which checks
+  the `DRAFTS` buffer before D1, the order every save writes. A page route of
+  your own reads it the same way, or a reload before the buffer flushes shows
+  the editor an older page.
 - The head uses the page's own SEO title, description, share image, and
   `noindex`, and the edge cache follows the home page's rule.
 
