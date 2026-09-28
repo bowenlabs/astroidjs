@@ -1,5 +1,52 @@
 # astroidjs
 
+## 0.20.0
+
+### Minor Changes
+
+- 6efa091: A project can take payments without running the commerce pipeline, with `commerce: { provider: "square", pipeline: false }`. Before, `commerce` switched on the webhook receiver, the queue consumer, and the hourly catalog re-sync together, so a second app that only charges cards had to carry all three, or drop Astroid's CSP origins and checkout rate rule to avoid them.
+
+  - `pipeline: false` keeps the provider's CSP origins, the checkout rate rule, and the scaffolded checkout route and card component.
+  - It drops the webhook receivers, the queue and its consumer, and the catalog cron. `astroidCommercePipeline(config)` reports which a project runs.
+  - The webhook signing secret leaves the secret roster, `.env.example`, and the dormancy gate, so checkout goes live on the API credentials alone.
+  - `defineAstroid` refuses `queues.cron` alongside it, because that cron schedules the re-sync the option turns off.
+
+  **What to do:** nothing unless you want it. The default is unchanged: `commerce` still runs the pipeline. To turn it off in an existing project, set `pipeline: false`. Then delete the scaffolded `src/queue.ts` and `src/pages/api/webhooks/*`, and remove the `queues` block from `wrangler.jsonc`, since `astroid generate` never deletes a file you own.
+
+- 305bb78: A project can be an app with no pages to edit, with `editor: false` in `defineAstroid`. Every project used to be a Louise-edited site, so an app with no pages to edit, such as an order app whose menu comes from Square, carried an editor, an auth seam, a draft buffer, and a media bucket it never used, or dropped Astroid and hand-wrote its middleware, CSP, and rate limiting.
+
+  - **Generated files:** with `editor: false`, the generated worker and middleware carry no editor routes, no `./auth.js` seam, and no edit mode. The worker keeps the gate, so everything under `/api/louise` except the public status route is refused, and route responses keep their security headers.
+  - **Schema:** `src/schema.ts` emits no `pages`, versions, or framework tables. An app reads a table another app owns by importing it from `louise-toolkit/db`.
+  - **Bindings:** `wrangler.jsonc` binds no draft buffer, media bucket, Images, Workers AI, or vitals dataset. It binds mail only when a portal sends password resets. There's no daily health scan, so an app with nothing scheduled has no `triggers` and no `scheduled` handler.
+  - **Scaffold-once files:** no content migrations, CWV beacon, Actions surface, or gallery page.
+  - **Rate rules:** the editor's sign-in rules are replaced by one covering every POST under `/api/v1` (`ASTROID_API_PREFIX`), the app's versioned JSON API.
+  - **Doctor:** `astroid doctor` checks only what the shape uses: no `DRAFTS`, `MEDIA`, or `send_email` unless a portal needs it, and no cron check when nothing is scheduled.
+  - **What stays:** the rate limiter, CSP, security headers, status route, and the `portal`, `pwa`, `commerce`, `map`, and `tenancy` modules.
+  - **Refused options:** `defineAstroid` refuses every option that configures the editor alongside `editor: false`: `sections`, `sectionCatalog`, `blockCatalog`, `media`, `pages`, `settings`, `inquiries: true`, `deploy.mediaBase`, and the `realtime` and `wholesaleInquiry` modules.
+  - **`deploy.migrations: false` fix:** the generated `wrangler.jsonc` now leaves out `migrations_dir` under this setting, which `astroid doctor` otherwise reports as a contradiction on a fresh scaffold.
+  - **`create-astroid --app`:** scaffolds the shape. It uses the same template without the editor's files, plus an app layout, a home screen, and the root of the `/api/v1` API.
+
+  **What to do:** nothing for an existing site. `editor` defaults to `true`, and every generated file is unchanged. To start an app, run `create-astroid --app`.
+
+- 7680719: A site can credit the agency that built it in the footer, with a `credit` block in `defineAstroid` and the new `<Credit>` component. Sites used to hand-roll this, so the markup, link attributes, and styling drifted from one to the next.
+
+  - `credit: { name, href, logo?, rel?, label? }` is optional and has no default, so a site without it renders exactly as before. `defineAstroid` requires an absolute `http` or `https` `href`, and a `logo` that is a root-relative path or an `https` URL.
+  - `astroidjs/components/Credit.astro` renders "Site by" and the name, small and at 70% of the theme's text color. The mark is a mask filled with the text color, so one single-color SVG works on every theme, and it's hidden from screen readers so the name is read once. It renders nothing without `credit`.
+  - `create-astroid --credit-name <name> --credit-href <url>` writes the block, and the scaffold's layout renders the credit in a footer when it's set.
+
+  **What to do:** nothing, unless you want a credit. To add one to an existing site, set `credit` in `astroid.config.ts` and put `<Credit config={astroidConfig} />` in your footer.
+
+- 68b893b: Astroid moves to louise-toolkit 0.37 and @louise-toolkit/astro 0.6. Nothing in the generated trio changes; this release lets a site take the toolkit's new features without installing a second copy of it.
+
+  - The `louise-toolkit` peer range is `^0.37.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.37.0` and `@louise-toolkit/astro` `^0.6.0`.
+  - Among what 0.37 adds: incident capture through `composeWorker`'s `onIncident`, scoped agent tokens for the MCP endpoint, opening hours and pickup times in `louise-toolkit/dates`, order-ahead menu tabs from Square's category tree, tip math, and Square catalog reads that leave out archived items.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.37 and `@louise-toolkit/astro` to 0.6 along with this release. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Run `astroid generate`, then `astroid doctor`.
+  3. Read louise-toolkit 0.37's upgrade notes. The ones a site is likely to meet: `createLouiseMiddleware` now reports a page's thrown error as an incident, which does nothing unless `composeWorker` has `onIncident`; the rich-text color picker offers the brand roles and no longer the state colors; a published document comes back with nested group fields (`page.seo.title`, not `page.seo_title`); and `saveRoute` refuses a table with no primary key at startup.
+
 ## 0.19.0
 
 ### Minor Changes
