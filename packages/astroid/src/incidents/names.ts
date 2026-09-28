@@ -12,8 +12,9 @@ export const ASTROID_INCIDENT_EVENTS_BINDING = "INCIDENT_EVENTS";
 /** The version metadata binding a report's `release` comes from. */
 export const ASTROID_VERSION_METADATA_BINDING = "CF_VERSION_METADATA";
 
-/** The secret the Sentry sink reads its DSN from. */
-export const ASTROID_SENTRY_DSN_SECRET = "SENTRY_DSN";
+/** The binding the Sentry sink reads its DSN from: a Worker secret or a
+ *  Secrets Store binding. This is its name, not the DSN. */
+export const ASTROID_SENTRY_DSN_BINDING = "SENTRY_DSN";
 
 /** The incident counts dataset: `<key>_incidents`, apart from the Core Web Vitals one. */
 export function astroidIncidentEventsDataset(config: AstroidConfig): string {

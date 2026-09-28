@@ -16,7 +16,7 @@ import type { AstroidConfig } from "../config.js";
 import { ASTROID_VITALS_BINDING, generateAstroidCwvQuery } from "../analytics/index.js";
 import {
   ASTROID_INCIDENT_EVENTS_BINDING,
-  ASTROID_SENTRY_DSN_SECRET,
+  ASTROID_SENTRY_DSN_BINDING,
   ASTROID_VERSION_METADATA_BINDING,
 } from "../incidents/names.js";
 import { astroidEditorTable } from "../auth/index.js";
@@ -977,7 +977,7 @@ function emitIncidentPreamble(
   p("type IncidentBindings = {");
   p(`  ${ASTROID_INCIDENT_EVENTS_BINDING}?: AnalyticsEngineDataset;`);
   p(`  ${ASTROID_VERSION_METADATA_BINDING}?: WorkerVersionMetadata;`);
-  if (config.incidents?.sentry) p(`  ${ASTROID_SENTRY_DSN_SECRET}?: SecretSource;`);
+  if (config.incidents?.sentry) p(`  ${ASTROID_SENTRY_DSN_BINDING}?: SecretSource;`);
   p("};");
   p("const incidentBindings = (env: CloudflareEnv) => env as CloudflareEnv & IncidentBindings;");
   if (queues) {
@@ -1007,9 +1007,9 @@ function emitIncidentOption(p: (s?: string) => void, config: AstroidConfig): voi
   );
   if (config.incidents?.sentry) {
     p("      // A copy for the operator's issue system, with the stack. Dormant until");
-    p(`      // the ${ASTROID_SENTRY_DSN_SECRET} secret holds a real DSN.`);
+    p(`      // the ${ASTROID_SENTRY_DSN_BINDING} secret holds a real DSN.`);
     p(
-      `      sentryIncidents((env: CloudflareEnv) => incidentBindings(env).${ASTROID_SENTRY_DSN_SECRET}, { site: ${JSON.stringify(config.key)} }),`,
+      `      sentryIncidents((env: CloudflareEnv) => incidentBindings(env).${ASTROID_SENTRY_DSN_BINDING}, { site: ${JSON.stringify(config.key)} }),`,
     );
   }
   p("    ],");
