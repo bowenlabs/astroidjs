@@ -139,6 +139,12 @@ it returns `null`, re-prices at that location live from Square, and charges the
 same one. `SquareCard.astro` takes `locationId` as a prop rather than reading the
 environment.
 
+The route charges in `business.currency`, which it reads from
+`astroid.config.ts` at request time through `astroidBusiness(astroidConfig,
+"currency")`, so it never carries a currency literal. `commerce` requires
+`business.currency`, and only a currency with 2 minor-unit digits, because the
+mirror and the route convert prices by a factor of 100.
+
 That route also runs the **dormancy gate before verification** rather than after
 it: per-location re-pricing is itself a Square call, so checking provisioning
 afterwards would call Square with a placeholder credential—the one thing the
@@ -183,6 +189,17 @@ const rows = items
 
 Omitting `locationId` is unchanged behaviour, and correct for a single-location
 account.
+
+Both adapters take a `currency` option for a price the provider sent without
+one. Pass the site's, and a variant with no currency of its own takes it;
+without it, that variant's `currency` is `null` rather than a guess.
+`catalogNormalizer(provider, { currency })` passes it through, and returns a
+one-argument function that's safe to hand to `Array.map`:
+
+```ts
+const { currency } = astroidBusiness(astroidConfig);
+const rows = items.map((i) => squareToCatalogItem(i, { locationId, currency }));
+```
 
 ## Taking payments without the pipeline
 

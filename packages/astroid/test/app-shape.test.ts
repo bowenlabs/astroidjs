@@ -14,6 +14,7 @@ const app: AstroidConfig = {
   archetype: "storefront",
   editor: false,
   theme: { name: "Example Organization", colors: { brand: "#5b4bff" } },
+  business: { currency: "EUR" },
   deploy: { platform: "cloudflare" },
 };
 

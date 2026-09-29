@@ -41,6 +41,11 @@ pnpm create astroid [directory] [options]
   --square-locations <n> single | multi — with --commerce square; multi is one
                         Square Location per merchant, resolved from the request
                         host rather than SQUARE_LOCATION_ID
+  --time-zone <zone>    The business's IANA time zone, for example Europe/Berlin
+  --currency <code>     Its ISO 4217 currency, for example EUR; required with
+                        --commerce
+  --country <code>      Its ISO 3166-1 alpha-2 country, for example DE
+  --locale <tag>        The site's BCP 47 locale, for example de-DE
   --map                 Self-hosted PMTiles/MapLibre location map
   --pwa                 Installable PWA: a scoped service worker that never
                         caches /api/* or the editor, plus a manifest

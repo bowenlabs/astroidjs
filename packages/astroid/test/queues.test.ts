@@ -24,6 +24,7 @@ const shop: AstroidConfig = {
   ...base,
   archetype: "storefront",
   commerce: { provider: "square" },
+  business: { currency: "EUR" },
 };
 
 describe("astroidUsesQueues / astroidCron", () => {

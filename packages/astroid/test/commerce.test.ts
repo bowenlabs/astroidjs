@@ -1,6 +1,7 @@
 import { repairCart } from "louise-toolkit/commerce";
 import { describe, expect, it, vi } from "vitest";
 import {
+  catalogNormalizer,
   fourthwallToCatalogItem,
   squareItemSoldAt,
   squareToCatalogItem,
@@ -42,6 +43,7 @@ const base: AstroidConfig = {
   key: "acme",
   archetype: "storefront",
   theme: { name: "Acme", colors: { brand: "#1f6e6d" } },
+  business: { currency: "EUR" },
 };
 
 describe("commerce roles", () => {
@@ -220,9 +222,7 @@ describe("catalog adapters", () => {
     expect(square.price).toBe(18);
     expect(fw.price).toBe(24);
     // Square prices in cents, Fourthwall in major units; the mirror stores major.
-    expect(square.variants).toContainEqual(
-      expect.objectContaining({ id: "V1", price: 18, currency: "USD" }),
-    );
+    expect(square.variants).toContainEqual(expect.objectContaining({ id: "V1", price: 18 }));
   });
 
   it("survives a product with no variants or images", () => {
@@ -234,6 +234,51 @@ describe("catalog adapters", () => {
       variants: [],
     });
     expect(fourthwallToCatalogItem({ id: "Y", name: "Bare" }).price).toBe(0);
+  });
+});
+
+describe("catalog adapters — currency", () => {
+  const item = {
+    id: "SQ1",
+    name: "House Blend",
+    variations: [
+      { id: "V1", name: "12oz", priceCents: 1800 },
+      { id: "V2", name: "2lb", priceCents: 3800, currency: "GBP" },
+    ],
+  };
+  const product = {
+    id: "FW1",
+    name: "Tote",
+    variants: [
+      { id: "A", name: "L", unitPrice: { value: 32 } },
+      { id: "B", name: "S", unitPrice: { value: 24, currency: "GBP" } },
+    ],
+  };
+  const currencies = (catalogItem: { variants?: unknown }) =>
+    (catalogItem.variants as { currency: string | null }[]).map((v) => v.currency);
+
+  it("fills a price the provider sent without a currency from the site's", () => {
+    // The provider's own currency always wins; the option only fills a gap.
+    expect(currencies(squareToCatalogItem(item, { currency: "EUR" }))).toEqual(["EUR", "GBP"]);
+    expect(currencies(fourthwallToCatalogItem(product, { currency: "EUR" }))).toEqual([
+      "EUR",
+      "GBP",
+    ]);
+  });
+
+  it("leaves the gap as null rather than guessing a currency", () => {
+    expect(currencies(squareToCatalogItem(item))).toEqual([null, "GBP"]);
+    expect(currencies(fourthwallToCatalogItem(product))).toEqual([null, "GBP"]);
+  });
+
+  it("passes the currency through catalogNormalizer, and survives Array.map", () => {
+    // `.map` passes the index as a second argument, which would otherwise land
+    // in the adapter's options.
+    const square = catalogNormalizer("square", { currency: "EUR" })!;
+    const fourthwall = catalogNormalizer("fourthwall", { currency: "EUR" })!;
+    expect([item as never].map(square).map(currencies)).toEqual([["EUR", "GBP"]]);
+    expect([product as never].map(fourthwall).map(currencies)).toEqual([["EUR", "GBP"]]);
+    expect(catalogNormalizer("stripe")).toBeNull();
   });
 });
 
@@ -343,14 +388,14 @@ describe("catalog adapters — location scoping", () => {
   it("leaves unscoped output byte-identical to before", () => {
     // The whole change is additive; a single-location account must see no
     // difference at all.
-    expect(squareToCatalogItem(shared)).toEqual({
+    expect(squareToCatalogItem(shared, { currency: "EUR" })).toEqual({
       externalId: "SQ1",
       name: "House Blend",
       images: [],
       price: 18,
       variants: [
-        { id: "V1", name: "12oz", sku: null, price: 18, currency: "USD" },
-        { id: "V2", name: "2lb", sku: null, price: 38, currency: "USD" },
+        { id: "V1", name: "12oz", sku: null, price: 18, currency: "EUR" },
+        { id: "V2", name: "2lb", sku: null, price: 38, currency: "EUR" },
       ],
     });
   });
@@ -836,6 +881,21 @@ describe("generated checkout route", () => {
     expect(gate).toBeLessThan(route.indexOf("request.json()"));
     expect(gate).toBeLessThan(route.indexOf("verifyCheckout(body.lines"));
     expect(gate).toBeLessThan(route.indexOf("createPayment("));
+  });
+});
+
+describe("generated checkout route — currency", () => {
+  it("charges in business.currency from the config, not a literal", () => {
+    // The route is scaffolded once, so a literal would outlive a change to the
+    // config. It reads the currency at request time instead.
+    for (const locations of ["single", "multi"] as const) {
+      const route = generateAstroidCheckoutRoute(
+        defineAstroid({ ...base, commerce: { provider: "square", square: { locations } } }),
+      ) as string;
+      expect(route).toContain('currency: astroidBusiness(astroidConfig, "currency")');
+      expect(route).toMatch(/import \{\s*astroidBusiness,[\s\S]*\} from "astroidjs";/);
+      expect(route).not.toMatch(/"[A-Z]{3}"/);
+    }
   });
 });
 

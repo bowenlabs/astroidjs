@@ -29,6 +29,7 @@
 import type { BlockCatalog, SectionCatalog } from "louise-toolkit/content";
 import type { RateRule } from "louise-toolkit/security";
 import { assertAuthIsolation } from "./auth/index.js";
+import { assertBusiness } from "./business.js";
 import type { CatalogMirrorConfig } from "./commerce/mirror.js";
 import { assertCommerceRoles } from "./commerce/roles.js";
 import { AstroidConfigError } from "./errors.js";
@@ -429,7 +430,57 @@ export interface SeoConfig {
   businessType?: string;
   /** `@handle` for Twitter/X card attribution. */
   twitterHandle?: string;
-  /** Open Graph locale, for example, `"en_US"`. */
+  /**
+   * Open Graph locale, for example, `"de_DE"`. Defaults to `business.locale`
+   * in Open Graph form, so set this only when the two differ. Read it through
+   * `astroidSeoLocale(config)`, which applies that default.
+   */
+  locale?: string;
+}
+
+/**
+ * Facts about the business the site serves, which louise-toolkit takes as
+ * parameters rather than guessing: `louise-toolkit/dates` needs the time zone,
+ * `formatMoney` the currency and locale, and the Square wallet sheet the
+ * country and currency.
+ *
+ * None has a default, since a default would be a guess about someone else's
+ * business. `commerce` requires `currency`; the rest stay unset until the site
+ * states them. Read them through `astroidBusiness(config)`.
+ *
+ * ```ts
+ * business: {
+ *   timeZone: "Europe/Berlin",
+ *   currency: "EUR",
+ *   country: "DE",
+ *   locale: "de-DE",
+ * },
+ * ```
+ */
+export interface BusinessConfig {
+  /**
+   * IANA time zone of the business, for example, `"Europe/Berlin"`. Opening
+   * hours, "open now", and any date shown as the business's local time read
+   * it, never the Worker's clock or the visitor's browser.
+   */
+  timeZone?: string;
+  /**
+   * ISO 4217 code of the currency the site charges in, for example, `"EUR"`,
+   * in uppercase. Required with `commerce`, which supports only currencies
+   * with 2 minor-unit digits.
+   */
+  currency?: string;
+  /**
+   * ISO 3166-1 alpha-2 code of the country the business operates in, for
+   * example, `"DE"`, in uppercase. A payment provider's wallet sheet, such as
+   * Apple Pay through Square, needs it.
+   */
+  country?: string;
+  /**
+   * BCP 47 language tag the site is written in, for example, `"de-DE"`, in
+   * canonical form. It formats money and dates, and it's the default for
+   * `seo.locale`, in Open Graph form (`de_DE`) when it has a region.
+   */
   locale?: string;
 }
 
@@ -691,6 +742,8 @@ export interface AstroidConfig {
    * `send` against a binding that doesn't exist.
    */
   crons?: AstroidCron[];
+  /** The business's time zone, currency, country, and locale. None has a default. */
+  business?: BusinessConfig;
   /** Title template, structured-data type, and social-card attribution. */
   seo?: SeoConfig;
   /** Additions to the rate-limit rules + CSP origins Astroid derives. */
@@ -735,6 +788,7 @@ export interface AstroidConfig {
  *   theme: { name: "Example Organization", colors: { brand: "#5b4bff" } },
  *   sections: ["hero", "banner", "productGrid", "locationHours", "contact"],
  *   commerce: { provider: "square" },
+ *   business: { timeZone: "Europe/Berlin", currency: "EUR", country: "DE", locale: "de-DE" },
  *   deploy: { platform: "cloudflare" },
  * });
  * ```
@@ -1007,6 +1061,10 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   // Fourthwall, a storefront over Stripe) fails here rather than at runtime on
   // the first invoice, as a missing function.
   assertCommerceRoles(config.commerce);
+
+  // A time zone, currency, country, or locale that `Intl` doesn't know fails
+  // here, and so does `commerce` without the currency it charges in.
+  assertBusiness(config);
 
   // A media limit above the platform's own body cap is unhonourable—reject it
   // here rather than let an editor watch a 120 MB upload die at the edge.

@@ -7,6 +7,7 @@
 // its table: import `siteSettings` from "louise-toolkit/db" where you need it.
 import Credit from "astroidjs/components/Credit.astro";
 import Seo from "astroidjs/components/Seo.astro";
+import { astroidBusiness, astroidSeoLocale } from "astroidjs";
 import astroidConfig from "../../astroid.config.js";
 import "../styles/site.css";
 
@@ -18,10 +19,14 @@ interface Props {
 }
 
 const { title, description, noindex } = Astro.props;
+
+// The page language is `business.locale` from astroid.config.ts, and English,
+// the language this template is written in, until the config states one.
+const lang = astroidBusiness(astroidConfig).locale ?? "en";
 ---
 
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang={lang} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -32,7 +37,7 @@ const { title, description, noindex } = Astro.props;
       noindex={noindex}
       titleTemplate={astroidConfig.seo?.titleTemplate}
       twitterHandle={astroidConfig.seo?.twitterHandle}
-      locale={astroidConfig.seo?.locale}
+      locale={astroidSeoLocale(astroidConfig)}
     />
   </head>
   <body class="min-h-screen bg-base-100 text-base-content">

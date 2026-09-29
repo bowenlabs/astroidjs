@@ -113,7 +113,8 @@ its sequence**—extend it (shipping, tax, an order row, a receipt), don't repla
 it. It re-prices every line from the D1 catalog mirror (the client's price is a
 _staleness check_, never an input to the charge—accept a `unitPrice` from the
 request body and anyone buys anything for a penny) and derives the Square
-idempotency key from the verified cart **and** the cart id. Hand-rolling
+idempotency key from the verified cart **and** the cart id. It charges in
+`business.currency` from `astroid.config.ts`. Hand-rolling
 `createPayment` without a stable, cart-scoped idempotency key is the failure this
 route exists to prevent: a double-clicked Pay button charges twice, and a
 constant (or omitted) key lets two customers' identical carts collide into a

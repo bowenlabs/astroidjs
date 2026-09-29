@@ -80,6 +80,7 @@ export function generateAstroidCheckoutRoute(config: AstroidConfig): string | nu
     'import type { APIRoute } from "astro";',
     'import { env } from "cloudflare:workers";',
     "import {",
+    "  astroidBusiness,",
     "  checkoutIdempotencyKey,",
     multi ? null : "  readCatalog,",
     "  resolveCommerceStatus,",
@@ -292,8 +293,12 @@ export function generateAstroidCheckoutRoute(config: AstroidConfig): string | nu
     "    },",
     "    {",
     "      sourceId,",
-    "      // The SERVER's number, never the client's.",
-    '      amountMoney: { amount: check.subtotalCents, currency: "USD" },',
+    "      // The SERVER's number, never the client's, in the site's",
+    "      // `business.currency` from astroid.config.ts.",
+    "      amountMoney: {",
+    "        amount: check.subtotalCents,",
+    '        currency: astroidBusiness(astroidConfig, "currency"),',
+    "      },",
     multi
       ? "      // The location the cart was PRICED against—necessarily the same one,\n" +
         "      // or the sale rings against a merchant who never quoted this total."

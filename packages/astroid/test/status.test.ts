@@ -16,6 +16,7 @@ const base = (over: Partial<AstroidConfig> = {}): AstroidConfig =>
     key: "acme",
     archetype: "storefront",
     theme: { name: "Acme", colors: { brand: "#123456" } },
+    business: { currency: "EUR" },
     ...over,
   });
 
