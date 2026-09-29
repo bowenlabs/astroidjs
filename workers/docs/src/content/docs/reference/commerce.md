@@ -6,7 +6,7 @@ sidebar:
 ---
 
 ```ts
-import { verifyCheckout, checkoutIdempotencyKey } from "astroidjs";
+import { verifyCheckout, checkoutAttemptKey, checkoutAttempts } from "astroidjs";
 ```
 
 ## `verifyCheckout(lines, lookup, options?)`
@@ -96,7 +96,86 @@ const lookup: ScopedPriceLookup = async (ids, scope) => ({
 A plain `PriceLookup` stays assignable to `ScopedPriceLookup`—a single-location
 store changes nothing.
 
+## `checkoutAttemptKey(attempt, operation, extra?)`
+
+```ts
+function checkoutAttemptKey(
+  attempt: { identity: string; lines: readonly CheckoutAttemptLine[] },
+  operation: string,
+  extra?: unknown,
+): Promise<string>;
+```
+
+An idempotency key for one operation of one checkout attempt. An attempt is the
+client's checkout-session id plus the lines as the customer chose them: variant,
+quantity, and add-on ids. **Prices and the tip never enter the key.** A retry
+after a lost response can meet a repaired price or a reset tip, and it has to
+reuse the key, so Square returns the first payment or refuses the key rather
+than charging again.
+
+- `identity` is required and empty is refused, as it is for
+  `checkoutIdempotencyKey`: a key from the cart alone collides between two buyers
+  of the same thing. Keep it with `checkoutSession` from
+  `louise-toolkit/commerce`, which persists the id beside a stored cart and
+  changes it when the cart changes.
+- `operation` names the provider call (`"payment"`, `"order"`), since Square
+  scopes keys per operation.
+- `extra` is anything else that makes the operation distinct: the order body for
+  an order key, so a retry with another pickup time gets a new order, or a
+  location ID.
+
+The key is 40 hexadecimal characters, inside Square's 45-character cap. It
+tolerates an untrusted body, so a route can derive it before `verifyCheckout`
+checks the lines.
+
+## `checkoutAttempts(options)`
+
+```ts
+function checkoutAttempts<Result>(options: {
+  kv: CheckoutAttemptKv;
+  ttlSeconds?: number; // 7200
+  prefix?: string; // "checkout:attempt:"
+}): {
+  key(attempt: CheckoutAttempt, context?: unknown): Promise<string>;
+  read(key: string): Promise<CheckoutOutcome<Result> | null>;
+  write(key: string, outcome: CheckoutOutcome<Result>, waitUntil?): Promise<void>;
+};
+```
+
+Records of settled attempts, so a retry of a paid attempt gets its result back
+instead of a refusal. That's how a customer whose response was lost sees the
+order they paid for.
+
+```ts
+const attempts = checkoutAttempts<PaidCheckout>({ kv: env.RL });
+const recordKey = await attempts.key(attempt, { fulfillment });
+const settled = await attempts.read(recordKey);
+if (settled?.status === "paid") return json({ ...settled.result, replayed: true });
+// ...re-price, charge...
+await attempts.write(recordKey, { status: "paid", result }, waitUntil);
+```
+
+- Look the record up **before** re-pricing and before any gate that can change
+  between tries, such as opening hours. A customer who paid and retries after a
+  price change, or after closing, should see their order.
+- Record only definite outcomes: `paid`, or `declined` for a decline where
+  nothing was charged. Leave an ambiguous failure, such as a timeout, unrecorded,
+  so a retry reuses the key.
+- Pass `context` for what else makes the outcome this attempt's, such as pickup
+  or shipping. A retry that switched to shipping mustn't be shown the pickup
+  order.
+- Keep `ttlSeconds` longer than the client's `idleMs`, so a retry the client
+  still calls this attempt finds the record.
+
+KV is a convenience, not the record of truth. It's eventually consistent, a
+failed read is a miss, and a failed write is logged. Either way the payment key
+still stops the second charge.
+
 ## `checkoutIdempotencyKey(verified, scope, identity)`
+
+**Deprecated:** use `checkoutAttemptKey`. This key hashes the verified prices and
+subtotal, so a retry after a lost response that meets a changed price goes out
+under a new key and is charged twice.
 
 ```ts
 function checkoutIdempotencyKey(

@@ -6,6 +6,9 @@ import {
   squareToCatalogItem,
 } from "../src/commerce/adapters.js";
 import {
+  type CheckoutAttemptKv,
+  checkoutAttemptKey,
+  checkoutAttempts,
   checkoutIdempotencyKey,
   type PriceLookup,
   type ScopedPriceLookup,
@@ -802,6 +805,185 @@ describe("checkoutIdempotencyKey", () => {
     expect(await checkoutIdempotencyKey(cart, "order", "cart_alice")).not.toBe(
       await checkoutIdempotencyKey(cart, "refund", "cart_alice"),
     );
+  });
+});
+
+describe("checkoutAttemptKey", () => {
+  const attempt = {
+    identity: "session_alice",
+    lines: [
+      { variantId: "A", quantity: 1, modifierIds: ["OAT", "SHOT"] },
+      { variantId: "B", quantity: 2 },
+    ],
+  };
+
+  it("is stable for one attempt, so a retry reuses the payment key", async () => {
+    expect(await checkoutAttemptKey(attempt, "payment")).toBe(
+      await checkoutAttemptKey(attempt, "payment"),
+    );
+  });
+
+  it("leaves prices out: a retry that meets a repaired price keeps the key", async () => {
+    // The double charge this closes: `checkoutIdempotencyKey` hashed the verified
+    // prices, so a customer whose paid response was lost, and who retried after
+    // a price change, went out under a new key and was charged twice.
+    const priced = (unitPriceCents: number) => ({
+      ...attempt,
+      lines: attempt.lines.map((l) => ({ ...l, unitPriceCents })),
+    });
+    expect(await checkoutAttemptKey(priced(450), "payment")).toBe(
+      await checkoutAttemptKey(priced(475), "payment"),
+    );
+  });
+
+  it("separates DIFFERENT buyers with identical carts", async () => {
+    expect(await checkoutAttemptKey(attempt, "payment")).not.toBe(
+      await checkoutAttemptKey({ ...attempt, identity: "session_bob" }, "payment"),
+    );
+  });
+
+  it("refuses an empty identity rather than silently colliding", async () => {
+    await expect(checkoutAttemptKey({ ...attempt, identity: "" }, "payment")).rejects.toThrow(
+      AstroidUsageError,
+    );
+    await expect(checkoutAttemptKey({ ...attempt, identity: "  " }, "payment")).rejects.toThrow(
+      /identity/i,
+    );
+  });
+
+  it("ignores line and add-on ORDER but not what was chosen", async () => {
+    const reordered = {
+      ...attempt,
+      lines: [attempt.lines[1], { ...attempt.lines[0], modifierIds: ["SHOT", "OAT"] }],
+    };
+    expect(await checkoutAttemptKey(reordered, "payment")).toBe(
+      await checkoutAttemptKey(attempt, "payment"),
+    );
+    const moreB = { ...attempt, lines: [attempt.lines[0], { variantId: "B", quantity: 3 }] };
+    expect(await checkoutAttemptKey(moreB, "payment")).not.toBe(
+      await checkoutAttemptKey(attempt, "payment"),
+    );
+    const swapped = { ...attempt, lines: [{ ...attempt.lines[0], modifierIds: ["OAT"] }] };
+    expect(await checkoutAttemptKey(swapped, "payment")).not.toBe(
+      await checkoutAttemptKey({ ...attempt, lines: [attempt.lines[0]] }, "payment"),
+    );
+  });
+
+  it("separates operations, and `extra` separates what else differs", async () => {
+    expect(await checkoutAttemptKey(attempt, "payment")).not.toBe(
+      await checkoutAttemptKey(attempt, "order"),
+    );
+    expect(await checkoutAttemptKey(attempt, "order", { pickupAt: "09:00" })).not.toBe(
+      await checkoutAttemptKey(attempt, "order", { pickupAt: "09:15" }),
+    );
+  });
+
+  it("fits Square's 45-character cap", async () => {
+    expect(await checkoutAttemptKey(attempt, "payment")).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("survives an untrusted body, before verifyCheckout polices it", async () => {
+    const junk = { identity: "session_alice", lines: [null, 7, { modifierIds: "x" }] };
+    await expect(checkoutAttemptKey(junk as unknown as typeof attempt, "payment")).resolves.toMatch(
+      /^[0-9a-f]{40}$/,
+    );
+    await expect(
+      checkoutAttemptKey({ identity: "session_alice", lines: "x" } as never, "payment"),
+    ).resolves.toMatch(/^[0-9a-f]{40}$/);
+  });
+});
+
+describe("checkoutAttempts", () => {
+  const attempt = { identity: "session_alice", lines: [{ variantId: "A", quantity: 1 }] };
+
+  function memoryKv(): CheckoutAttemptKv & { puts: { key: string; ttl?: number }[] } {
+    const data = new Map<string, string>();
+    const puts: { key: string; ttl?: number }[] = [];
+    return {
+      puts,
+      get: async (key) => data.get(key) ?? null,
+      put: async (key, value, options) => {
+        puts.push({ key, ttl: options?.expirationTtl });
+        data.set(key, value);
+      },
+    };
+  }
+
+  it("reads back a paid attempt's result", async () => {
+    const attempts = checkoutAttempts<{ paymentId: string }>({ kv: memoryKv() });
+    const key = await attempts.key(attempt);
+    expect(await attempts.read(key)).toBeNull();
+    await attempts.write(key, { status: "paid", result: { paymentId: "P1" } });
+    expect(await attempts.read(key)).toEqual({ status: "paid", result: { paymentId: "P1" } });
+  });
+
+  it("reads back a decline", async () => {
+    const attempts = checkoutAttempts({ kv: memoryKv() });
+    const key = await attempts.key(attempt);
+    await attempts.write(key, { status: "declined" });
+    expect(await attempts.read(key)).toEqual({ status: "declined" });
+  });
+
+  it("keys the record by its context, so pickup isn't shown to shipping", async () => {
+    const attempts = checkoutAttempts({ kv: memoryKv() });
+    expect(await attempts.key(attempt, { kind: "pickup" })).not.toBe(
+      await attempts.key(attempt, { kind: "shipping" }),
+    );
+  });
+
+  it("never shares a key with the payment", async () => {
+    const attempts = checkoutAttempts({ kv: memoryKv(), prefix: "" });
+    expect(await attempts.key(attempt)).not.toBe(await checkoutAttemptKey(attempt, "payment"));
+  });
+
+  it("writes with the TTL and prefix, and hands the write to waitUntil", async () => {
+    const kv = memoryKv();
+    const attempts = checkoutAttempts({ kv, ttlSeconds: 600, prefix: "staging:" });
+    const key = await attempts.key(attempt);
+    const waitUntil = vi.fn();
+    await attempts.write(key, { status: "declined" }, waitUntil);
+    expect(key.startsWith("staging:")).toBe(true);
+    expect(kv.puts).toEqual([{ key, ttl: 600 }]);
+    expect(waitUntil).toHaveBeenCalledOnce();
+    expect(waitUntil.mock.calls[0]?.[0]).toBeInstanceOf(Promise);
+  });
+
+  it("defaults to two hours", async () => {
+    const kv = memoryKv();
+    const attempts = checkoutAttempts({ kv });
+    await attempts.write(await attempts.key(attempt), { status: "declined" });
+    expect(kv.puts[0]?.ttl).toBe(7200);
+    expect(kv.puts[0]?.key.startsWith("checkout:attempt:")).toBe(true);
+  });
+
+  it("reads a KV failure or a garbled record as a miss, and never throws on write", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const broken = checkoutAttempts({
+        kv: {
+          get: async () => {
+            throw new Error("KV down");
+          },
+          put: async () => {
+            throw new Error("KV down");
+          },
+        },
+      });
+      const key = await broken.key(attempt);
+      expect(await broken.read(key)).toBeNull();
+      await expect(broken.write(key, { status: "declined" })).resolves.toBeUndefined();
+
+      const garbled = checkoutAttempts({
+        kv: { get: async () => '{"status":"paid"}', put: async () => {} },
+      });
+      expect(await garbled.read(key)).toBeNull();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("refuses a TTL below KV's floor", () => {
+    expect(() => checkoutAttempts({ kv: memoryKv(), ttlSeconds: 30 })).toThrow(AstroidUsageError);
   });
 });
 
