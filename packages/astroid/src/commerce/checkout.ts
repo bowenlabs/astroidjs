@@ -354,16 +354,19 @@ async function hex40(canonical: string): Promise<string> {
     .slice(0, 40);
 }
 
-/** The lines as the customer chose them, order-insensitive. Tolerant of an
- *  untrusted body: the route can derive a key before `verifyCheckout` polices
- *  the lines, and a malformed line only makes a key nothing else matches. */
-function attemptLines(lines: readonly CheckoutAttemptLine[]): string[] {
-  return (Array.isArray(lines) ? lines : [])
-    .map((l: Partial<CheckoutAttemptLine> | null) => {
-      const modifiers = Array.isArray(l?.modifierIds) ? [...l.modifierIds].map(String).sort() : [];
-      return `${String(l?.variantId)}:${String(l?.quantity)}:${modifiers.join(",")}`;
-    })
-    .sort();
+/** The lines as the customer chose them: how many of each variant-and-add-ons
+ *  combination, order-insensitive and JSON-encoded, so a separator inside an id
+ *  can't make two carts match. Tolerant of an untrusted body: the route can
+ *  derive a key before `verifyCheckout` polices the lines, and a malformed line
+ *  only makes a key nothing else matches. */
+function attemptLines(lines: readonly CheckoutAttemptLine[]): [string, number][] {
+  const quantities = new Map<string, number>();
+  for (const l of (Array.isArray(lines) ? lines : []) as (Partial<CheckoutAttemptLine> | null)[]) {
+    const modifiers = Array.isArray(l?.modifierIds) ? l.modifierIds.map(String).sort() : [];
+    const identity = JSON.stringify([String(l?.variantId), modifiers]);
+    quantities.set(identity, (quantities.get(identity) ?? 0) + Number(l?.quantity));
+  }
+  return [...quantities].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /**

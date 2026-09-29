@@ -869,6 +869,32 @@ describe("checkoutAttemptKey", () => {
     );
   });
 
+  it("can't be fooled by separators inside ids", async () => {
+    const one = { identity: "s", lines: [{ variantId: "a:1", quantity: 2 }] };
+    const two = { identity: "s", lines: [{ variantId: "a", quantity: 1, modifierIds: ["2:"] }] };
+    expect(await checkoutAttemptKey(one, "payment")).not.toBe(
+      await checkoutAttemptKey(two, "payment"),
+    );
+    const joined = {
+      identity: "s",
+      lines: [{ variantId: "A", quantity: 1, modifierIds: ["x,y"] }],
+    };
+    const split = {
+      identity: "s",
+      lines: [{ variantId: "A", quantity: 1, modifierIds: ["x", "y"] }],
+    };
+    expect(await checkoutAttemptKey(joined, "payment")).not.toBe(
+      await checkoutAttemptKey(split, "payment"),
+    );
+  });
+
+  it("treats one line of 2 and two identical lines of 1 as the same attempt", async () => {
+    const b = { variantId: "B", quantity: 1 };
+    expect(await checkoutAttemptKey({ identity: "s", lines: [b, b] }, "payment")).toBe(
+      await checkoutAttemptKey({ identity: "s", lines: [{ ...b, quantity: 2 }] }, "payment"),
+    );
+  });
+
   it("separates operations, and `extra` separates what else differs", async () => {
     expect(await checkoutAttemptKey(attempt, "payment")).not.toBe(
       await checkoutAttemptKey(attempt, "order"),
