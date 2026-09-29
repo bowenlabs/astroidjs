@@ -6,7 +6,15 @@ sidebar:
 ---
 
 `handleWebhook`, `astroidQueueHandler`, `astroidUsesQueues`, `astroidQueueNames`,
-`affectsCatalog`.
+`astroidWranglerQueues`, `checkWranglerQueues`, `affectsCatalog`.
+
+`astroidWranglerQueues(wrangler)` reads the commerce queue's names from a
+`wrangler.jsonc`: the queue the `COMMERCE_QUEUE` producer sends to, that
+queue's `dead_letter_queue`, and every queue the Worker consumes. It's where
+the generated worker's dead-letter queue name comes from, so a site's names
+never have to match its `key`. `astroidQueueNames(config)` is only the
+`<key>-commerce` pair that a new scaffold writes into `wrangler.jsonc`.
+`checkWranglerQueues` is the `astroid doctor` check that compares the two files.
 
 `astroidCrons(config)` returns every cron expression the project needs—`ASTROID_HEALTH_CRON` (daily, always) plus `astroidCron(config)` (the hourly
 catalog re-sync, commerce only, and not under `commerce.pipeline: false`). Cloudflare fires **one** `scheduled` handler for

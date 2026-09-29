@@ -79,7 +79,13 @@ export const ASTROID_QUEUE_BINDING = "COMMERCE_QUEUE";
  */
 export const ASTROID_QUEUE_RETRY_DELAY = 30;
 
-/** Queue names derived from the project key—the main queue and its DLQ. */
+/**
+ * The names a new scaffold gives the main queue and its DLQ, from the project
+ * key. They're defaults for the `wrangler.jsonc` that `create-astroid` writes,
+ * not a site's names: an existing site's queues are whatever its
+ * `wrangler.jsonc` says, which may predate its key. Read those with
+ * `astroidWranglerQueues`.
+ */
 export function astroidQueueNames(config: AstroidConfig): { queue: string; dlq: string } {
   return { queue: `${config.key}-commerce`, dlq: `${config.key}-commerce-dlq` };
 }

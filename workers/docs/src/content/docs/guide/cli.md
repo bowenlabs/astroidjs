@@ -58,9 +58,12 @@ when the two disagree.
 
 This distinction is the one worth internalising:
 
-- **Generated**—`src/schema.ts`, `src/worker.ts`, `src/middleware.ts`. A pure
+- **Generated**—`src/schema.ts`, `src/worker.ts`, `src/middleware.ts`. A
   function of your config, rewritten on every `generate`, and they carry a
-  do-not-hand-edit banner. `doctor` fails if one has drifted.
+  do-not-hand-edit banner. `doctor` fails if one has drifted. The one fact they
+  take from elsewhere is the commerce queue's dead-letter queue name, which
+  `src/worker.ts` reads from `wrangler.jsonc`, so run `generate` after you
+  rename a queue there.
 - **Scaffold-once**—`wrangler.jsonc`, `src/auth.ts`, `src/queue.ts`,
   `src/portal-auth.ts`, the service worker, the map embed. Written when absent and
   never overwritten, because each exists to be edited. `wrangler.jsonc` is in this
