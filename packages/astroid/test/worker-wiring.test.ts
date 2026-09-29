@@ -582,7 +582,7 @@ describe("card checkout", () => {
     expect(route).toContain("Math.round(item.price * 100)");
   });
 
-  it("requires a high-entropy checkout-session id for the idempotency key", () => {
+  it("requires a high-entropy checkout-session ID for the idempotency key", () => {
     const route = generateAstroidScaffoldFiles(square).find(
       (f) => f.path === "src/pages/api/checkout.ts",
     )?.contents;
@@ -608,6 +608,10 @@ describe("card checkout", () => {
     // Only a definite decline is recorded; anything else leaves the attempt open.
     expect(route).toContain('error.category === "PAYMENT_METHOD_ERROR"');
     expect(route).toContain('{ status: "declined" }, waitUntil');
+    // An ambiguous failure answers with a retry-safe message rather than a
+    // bare 500, and records nothing, so the retry reuses the key.
+    expect(route).toContain("return json({ error: UNCONFIRMED }, 502);");
+    expect(route).not.toContain("throw error;");
   });
 
   it("simulates rather than calling Square with a dummy credential", () => {

@@ -107,8 +107,8 @@ function checkoutAttemptKey(
 ```
 
 An idempotency key for one operation of one checkout attempt. An attempt is the
-client's checkout-session id plus the lines as the customer chose them: variant,
-quantity, and add-on ids. **Prices and the tip never enter the key.** A retry
+client's checkout-session ID plus the lines as the customer chose them: variant,
+quantity, and add-on IDs. **Prices and the tip never enter the key.** A retry
 after a lost response can meet a repaired price or a reset tip, and it has to
 reuse the key, so Square returns the first payment or refuses the key rather
 than charging again.
@@ -116,7 +116,7 @@ than charging again.
 - `identity` is required and empty is refused, as it is for
   `checkoutIdempotencyKey`: a key from the cart alone collides between two buyers
   of the same thing. Keep it with `checkoutSession` from
-  `louise-toolkit/commerce`, which persists the id beside a stored cart and
+  `louise-toolkit/commerce`, which persists the ID beside a stored cart and
   changes it when the cart changes.
 - `operation` names the provider call (`"payment"`, `"order"`), since Square
   scopes keys per operation.
@@ -161,11 +161,18 @@ await attempts.write(recordKey, { status: "paid", result }, waitUntil);
 - Record only definite outcomes: `paid`, or `declined` for a decline where
   nothing was charged. Leave an ambiguous failure, such as a timeout, unrecorded,
   so a retry reuses the key.
+- Tell the client which is which. After a paid response or `declined: true`,
+  the client must start a new checkout-session ID (`rotate()` on
+  `checkoutSession`). Otherwise every retry, even with another card, gets the
+  recorded decline back until the record expires. After any other failure, it
+  retries with the same ID.
 - Pass `context` for what else makes the outcome this attempt's, such as pickup
-  or shipping. A retry that switched to shipping mustn't be shown the pickup
+  or shipping. A retry that switched to shipping must not be shown the pickup
   order.
 - Keep `ttlSeconds` longer than the client's `idleMs`, so a retry the client
   still calls this attempt finds the record.
+
+See [ADR 0023](https://github.com/bowenlabs/astroidjs/blob/main/docs/adr/0023-checkout-attempts.md) for why the key and the records work this way.
 
 KV is a convenience, not the record of truth. It's eventually consistent, a
 failed read is a miss, and a failed write is logged. Either way the payment key

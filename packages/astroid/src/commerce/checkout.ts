@@ -270,7 +270,7 @@ export async function verifyCheckout(
  * not an edge case.
  *
  * Pass something stable across a retry of THIS attempt and distinct between
- * buyers—a cart id, a checkout-session id, or a portal user id. Do not pass a
+ * buyers—a cart id, a checkout-session ID, or a portal user id. Do not pass a
  * value that varies per request (a fresh uuid defeats the dedupe and a
  * double-click charges twice), and do not pass a constant.
  *
@@ -292,7 +292,7 @@ export async function checkoutIdempotencyKey(
   // goes missing is not something the caller finds out about.
   if (typeof identity !== "string" || identity.trim().length === 0) {
     throw new AstroidUsageError(
-      "checkoutIdempotencyKey requires a non-empty `identity` (a cart id, checkout-session id, " +
+      "checkoutIdempotencyKey requires a non-empty `identity` (a cart id, checkout-session ID, " +
         "or user id). Without it the key is a function of the cart alone, so two customers " +
         "buying the same items collide and the second is never charged.",
     );
@@ -307,7 +307,7 @@ export async function checkoutIdempotencyKey(
 }
 
 // ── Checkout attempts ─────────────────────────────────────────────────────────
-// An attempt is one checkout-session id with one set of lines as the customer
+// An attempt is one checkout-session ID with one set of lines as the customer
 // chose them: variant, quantity, and add-ons. Never the verified prices or a
 // tip, so a retry after a price repair, or after a reload that reset the tip,
 // is still the same attempt.
@@ -327,20 +327,20 @@ export async function checkoutIdempotencyKey(
 /** One checkout attempt: whose it is, and the lines as the customer chose them. */
 export interface CheckoutAttempt {
   /**
-   * The client's checkout-session id: stable across a retry and a reload of
+   * The client's checkout-session ID: stable across a retry and a reload of
    * this attempt, and distinct between buyers. `checkoutSession` in
    * `louise-toolkit/commerce` keeps one beside a stored cart.
    */
   identity: string;
   /** The lines as the client sent them. Only the variant, the quantity, and
-   *  the add-on ids are read, so prices never reach the key. */
+   *  the add-on IDs are read, so prices never reach the key. */
   lines: readonly CheckoutAttemptLine[];
 }
 
 export interface CheckoutAttemptLine {
   variantId: string;
   quantity: number;
-  /** Selected add-on ids, in any order. */
+  /** Selected add-on IDs, in any order. */
   modifierIds?: readonly string[];
 }
 
@@ -355,7 +355,7 @@ async function hex40(canonical: string): Promise<string> {
 }
 
 /** The lines as the customer chose them: how many of each variant-and-add-ons
- *  combination, order-insensitive and JSON-encoded, so a separator inside an id
+ *  combination, order-insensitive and JSON-encoded, so a separator inside an ID
  *  can't make two carts match. Tolerant of an untrusted body: the route can
  *  derive a key before `verifyCheckout` polices the lines, and a malformed line
  *  only makes a key nothing else matches. */
@@ -375,7 +375,7 @@ function attemptLines(lines: readonly CheckoutAttemptLine[]): [string, number][]
  * `operation` names the provider call (`"payment"`, `"order"`), since Square
  * scopes keys per operation and two calls must never share one. `extra` is
  * anything else that makes the operation distinct, such as the order body for
- * an order key or a location id for a multi-location store. Leave the tip and
+ * an order key or a location ID for a multi-location store. Leave the tip and
  * the verified prices out of it: a retry that differs only there has to reuse
  * the payment's key, or it's charged again.
  *
@@ -391,7 +391,7 @@ export async function checkoutAttemptKey(
   const identity = typeof attempt.identity === "string" ? attempt.identity.trim() : "";
   if (!identity) {
     throw new AstroidUsageError(
-      "checkoutAttemptKey requires a non-empty `identity` (a checkout-session id). Without it " +
+      "checkoutAttemptKey requires a non-empty `identity` (a checkout-session ID). Without it " +
         "the key is a function of the cart alone, so two customers buying the same items " +
         "collide and the second is never charged.",
     );
@@ -416,7 +416,7 @@ export interface CheckoutAttemptsOptions {
   kv: CheckoutAttemptKv;
   /**
    * How long a record lives, in seconds. Two hours by default. Keep it longer
-   * than the client keeps an idle checkout-session id, so a retry the client
+   * than the client keeps an idle checkout-session ID, so a retry the client
    * still calls this attempt finds the record. KV's floor is 60.
    */
   ttlSeconds?: number;
@@ -429,7 +429,7 @@ export interface CheckoutAttempts<Result> {
    * The record key for an attempt. `context` is what else makes the outcome
    * this attempt's: how it's fulfilled (pickup or shipping, the time, the
    * rate), or the location. A retry that switched from pickup to shipping
-   * mustn't be shown the pickup order as its success.
+   * must not be shown the pickup order as its success.
    */
   key(attempt: CheckoutAttempt, context?: unknown): Promise<string>;
   /** The outcome kept under `key`, or null. A KV failure reads as null. */

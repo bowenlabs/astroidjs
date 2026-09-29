@@ -111,7 +111,7 @@ which is the drift the module exists to kill.
 **Checkout is server-authoritative.** `verifyCheckout` treats the client's price
 as a staleness check, never an input to the charge: re-price server-side, refuse
 on mismatch. `checkoutAttemptKey` derives the payment's key from a required
-checkout-session id and the lines as the customer chose them, **never the
+checkout-session ID and the lines as the customer chose them, **never the
 prices or a tip**. A double-clicked Pay button, or a retry after a lost response
 that meets a repaired price, charges once, while two customers buying the same
 thing stay two charges.
@@ -120,7 +120,7 @@ thing stay two charges.
 const key = await checkoutAttemptKey({ identity: checkoutSessionId, lines }, "payment");
 ```
 
-Keep the id beside the cart with `checkoutSession` from `louise-toolkit/commerce`.
+Keep the ID beside the cart with `checkoutSession` from `louise-toolkit/commerce`.
 It's required, and empty is refused, because a key derived from cart contents
 alone collides between customers: providers scope idempotency keys per account
 for about 24 hours, so the second buyer's charge is deduped into the first

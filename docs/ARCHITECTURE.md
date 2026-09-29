@@ -164,7 +164,7 @@ A site can run two Better Auth instances.
   a checkout-session ID the client keeps beside the cart, never from prices, so
   two buyers with identical carts never share a charge and one buyer's retry
   never makes a second. A settled attempt is kept in KV and replayed before
-  re-pricing.
+  re-pricing ([ADR 0023](adr/0023-checkout-attempts.md)).
 
 ## Verification
 
