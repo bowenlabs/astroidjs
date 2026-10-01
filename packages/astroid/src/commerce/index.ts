@@ -13,7 +13,15 @@ export {
   squareToCatalogItem,
 } from "./adapters.js";
 export {
+  type CheckoutAttempt,
+  type CheckoutAttemptKv,
+  type CheckoutAttemptLine,
+  type CheckoutAttempts,
+  type CheckoutAttemptsOptions,
+  checkoutAttemptKey,
+  checkoutAttempts,
   type CheckoutIssue,
+  type CheckoutOutcome,
   type CheckoutRefusal,
   type CheckoutScope,
   type CheckoutVerification,

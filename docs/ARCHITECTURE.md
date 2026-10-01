@@ -79,7 +79,9 @@ contract.
 - **Regenerated:** `src/schema.ts`, `src/worker.ts`, and `src/middleware.ts`
   (`generateAstroidProject`). `astroid generate` rewrites them from the config
   every time, so nobody edits them by hand. `astroid doctor` fails when they're
-  stale.
+  stale. The one input that isn't the config is the commerce queue's
+  dead-letter queue name, read from `wrangler.jsonc`, because a site's queues
+  can predate its `key` and a name restated from the key never matched them.
 - **Scaffolded once:** everything in `generateAstroidScaffoldFiles`, plus
   `wrangler.jsonc`. They're written when missing and never overwritten, so a
   site can own them. `wrangler.jsonc` is kept out of regeneration so the binding
@@ -160,8 +162,11 @@ A site can run two Better Auth instances.
   server-authoritative checkout route and a card input. It doesn't generate a
   cart, a checkout page, shipping, or tax. Where a cart lives is a project's
   decision. The route rejects a cross-origin request first, re-prices every line
-  from the mirror, and derives its idempotency key from the cart and a per-cart
-  ID the client sends, so two buyers with identical carts never share a charge.
+  from the mirror, and derives its idempotency key from the lines as chosen and
+  a checkout-session ID the client keeps beside the cart, never from prices, so
+  two buyers with identical carts never share a charge and one buyer's retry
+  never makes a second. A settled attempt is kept in KV and replayed before
+  re-pricing ([ADR 0023](adr/0023-checkout-attempts.md)).
 
 ## Verification
 

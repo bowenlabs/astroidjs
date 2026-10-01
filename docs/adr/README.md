@@ -17,9 +17,10 @@ both indexes before claiming one.
 
 ## Records
 
-|                                                |                                              |
-| ---------------------------------------------- | -------------------------------------------- |
-| [0003](0003-astroid-component-primitive-dx.md) | Component-primitive DX: typed `.astro` props |
+|                                                |                                                                             |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| [0003](0003-astroid-component-primitive-dx.md) | Component-primitive DX: typed `.astro` props                                |
+| [0023](0023-checkout-attempts.md)              | Checkout attempts: a payment key without prices, and settled outcomes in KV |
 
 ## What stayed in louise-toolkit
 

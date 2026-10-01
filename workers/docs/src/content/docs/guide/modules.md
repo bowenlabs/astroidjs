@@ -184,10 +184,20 @@ binding, which a new project's `wrangler.jsonc` also has. For an older one, add
 
 With commerce's queue, the worker also consumes the queue's dead-letter queue:
 each message the queue gave up on is kept in `dead_letters`, counted as an
-incident, and acked, so a failed webhook event is never lost unseen. A new
-project's `wrangler.jsonc` declares that consumer; an older one needs
-`{ "queue": "<key>-commerce-dlq", "max_batch_size": 10, "max_retries": 0 }`
-added to `queues.consumers`.
+incident, and acked, so a failed webhook event is never lost unseen. The worker
+knows which queue that is from `wrangler.jsonc`: the `dead_letter_queue` of the
+consumer for the queue the `COMMERCE_QUEUE` producer sends to. `astroid
+generate` reads it there, so a site whose queues are named differently from its
+`key` works unchanged; run `astroid generate` again after you rename one.
+
+A new project's `wrangler.jsonc` names its queues `<key>-commerce` and
+`<key>-commerce-dlq`, and declares the dead-letter queue's consumer. An older
+one may need that consumer added to `queues.consumers`, with the dead-letter
+queue's own name:
+`{ "queue": "<your dead-letter queue>", "max_batch_size": 10, "max_retries": 0 }`.
+`astroid doctor` reports a dead-letter queue with no consumer, and a
+`src/worker.ts` that captures dead letters from a different queue than
+`wrangler.jsonc` routes them to.
 
 Two settings in `astroid.config.ts` add to it:
 

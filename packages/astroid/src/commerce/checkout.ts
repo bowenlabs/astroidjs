@@ -270,12 +270,17 @@ export async function verifyCheckout(
  * not an edge case.
  *
  * Pass something stable across a retry of THIS attempt and distinct between
- * buyers—a cart id, a checkout-session id, or a portal user id. Do not pass a
+ * buyers—a cart id, a checkout-session ID, or a portal user id. Do not pass a
  * value that varies per request (a fresh uuid defeats the dedupe and a
  * double-click charges twice), and do not pass a constant.
  *
  * `scope` remains the OPERATION—`"order"` vs `"refund"`—so the two can never
  * collide for one buyer. It is not an identity and never was.
+ *
+ * @deprecated Use {@link checkoutAttemptKey}. This key hashes the verified
+ * prices and subtotal, so a retry after a lost response that meets a changed
+ * price goes out under a new key and is charged a second time. The attempt key
+ * leaves prices out.
  */
 export async function checkoutIdempotencyKey(
   verified: { lines: VerifiedLine[]; subtotalCents: number },
@@ -287,7 +292,7 @@ export async function checkoutIdempotencyKey(
   // goes missing is not something the caller finds out about.
   if (typeof identity !== "string" || identity.trim().length === 0) {
     throw new AstroidUsageError(
-      "checkoutIdempotencyKey requires a non-empty `identity` (a cart id, checkout-session id, " +
+      "checkoutIdempotencyKey requires a non-empty `identity` (a cart id, checkout-session ID, " +
         "or user id). Without it the key is a function of the cart alone, so two customers " +
         "buying the same items collide and the second is never charged.",
     );
@@ -298,9 +303,192 @@ export async function checkoutIdempotencyKey(
     total: verified.subtotalCents,
     lines: verified.lines.map((l) => `${l.variantId}:${l.quantity}:${l.unitPriceCents}`).sort(),
   });
+  return hex40(canonical);
+}
+
+// ── Checkout attempts ─────────────────────────────────────────────────────────
+// An attempt is one checkout-session ID with one set of lines as the customer
+// chose them: variant, quantity, and add-ons. Never the verified prices or a
+// tip, so a retry after a price repair, or after a reload that reset the tip,
+// is still the same attempt.
+//
+// The payment's idempotency key is the attempt alone. However a retry differs
+// from the first try (a new card token, another tip, a repaired price), the
+// provider returns the first payment or refuses the reused key. It never
+// charges one attempt twice. An order key can add the order body through
+// `extra`, so a retry with another pickup time gets a new order, whose payment
+// the reused payment key then guards.
+//
+// The outcome of each attempt can also be kept in KV (`checkoutAttempts`), so a
+// retry of a paid attempt gets that result back instead of a refusal. KV is a
+// convenience, not the record of truth: a missing record falls through to the
+// provider, which refuses the payment key.
+
+/** One checkout attempt: whose it is, and the lines as the customer chose them. */
+export interface CheckoutAttempt {
+  /**
+   * The client's checkout-session ID: stable across a retry and a reload of
+   * this attempt, and distinct between buyers. `checkoutSession` in
+   * `louise-toolkit/commerce` keeps one beside a stored cart.
+   */
+  identity: string;
+  /** The lines as the client sent them. Only the variant, the quantity, and
+   *  the add-on IDs are read, so prices never reach the key. */
+  lines: readonly CheckoutAttemptLine[];
+}
+
+export interface CheckoutAttemptLine {
+  variantId: string;
+  quantity: number;
+  /** Selected add-on IDs, in any order. */
+  modifierIds?: readonly string[];
+}
+
+/** SHA-256 of a string as 40 hex characters: within Square's 45-character cap
+ *  on an idempotency key, and Stripe's 255. */
+async function hex40(canonical: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical));
   return [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 40);
+}
+
+/** The lines as the customer chose them: how many of each variant-and-add-ons
+ *  combination, order-insensitive and JSON-encoded, so a separator inside an ID
+ *  can't make two carts match. Tolerant of an untrusted body: the route can
+ *  derive a key before `verifyCheckout` polices the lines, and a malformed line
+ *  only makes a key nothing else matches. */
+function attemptLines(lines: readonly CheckoutAttemptLine[]): [string, number][] {
+  const quantities = new Map<string, number>();
+  for (const l of (Array.isArray(lines) ? lines : []) as (Partial<CheckoutAttemptLine> | null)[]) {
+    const modifiers = Array.isArray(l?.modifierIds) ? l.modifierIds.map(String).sort() : [];
+    const identity = JSON.stringify([String(l?.variantId), modifiers]);
+    quantities.set(identity, (quantities.get(identity) ?? 0) + Number(l?.quantity));
+  }
+  return [...quantities].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/**
+ * An idempotency key for one operation of one checkout attempt.
+ *
+ * `operation` names the provider call (`"payment"`, `"order"`), since Square
+ * scopes keys per operation and two calls must never share one. `extra` is
+ * anything else that makes the operation distinct, such as the order body for
+ * an order key or a location ID for a multi-location store. Leave the tip and
+ * the verified prices out of it: a retry that differs only there has to reuse
+ * the payment's key, or it's charged again.
+ *
+ * `identity` is required, and empty is refused, for the reason
+ * `checkoutIdempotencyKey` gives: a key from the cart alone collides between
+ * two buyers of the same thing.
+ */
+export async function checkoutAttemptKey(
+  attempt: CheckoutAttempt,
+  operation: string,
+  extra?: unknown,
+): Promise<string> {
+  const identity = typeof attempt.identity === "string" ? attempt.identity.trim() : "";
+  if (!identity) {
+    throw new AstroidUsageError(
+      "checkoutAttemptKey requires a non-empty `identity` (a checkout-session ID). Without it " +
+        "the key is a function of the cart alone, so two customers buying the same items " +
+        "collide and the second is never charged.",
+    );
+  }
+  return hex40(JSON.stringify({ operation, identity, lines: attemptLines(attempt.lines), extra }));
+}
+
+/** What a settled attempt came to. Only definite outcomes are kept: an
+ *  ambiguous failure, such as a timeout, leaves the attempt open. */
+export type CheckoutOutcome<Result> =
+  | { status: "paid"; result: Result }
+  /** The provider declined the card, and nothing was charged. */
+  | { status: "declined" };
+
+/** The slice of a KV namespace the attempt records use. */
+export interface CheckoutAttemptKv {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+}
+
+export interface CheckoutAttemptsOptions {
+  kv: CheckoutAttemptKv;
+  /**
+   * How long a record lives, in seconds. Two hours by default. Keep it longer
+   * than the client keeps an idle checkout-session ID, so a retry the client
+   * still calls this attempt finds the record. KV's floor is 60.
+   */
+  ttlSeconds?: number;
+  /** Prefixed to every record's KV key. `"checkout:attempt:"` by default. */
+  prefix?: string;
+}
+
+export interface CheckoutAttempts<Result> {
+  /**
+   * The record key for an attempt. `context` is what else makes the outcome
+   * this attempt's: how it's fulfilled (pickup or shipping, the time, the
+   * rate), or the location. A retry that switched from pickup to shipping
+   * must not be shown the pickup order as its success.
+   */
+  key(attempt: CheckoutAttempt, context?: unknown): Promise<string>;
+  /** The outcome kept under `key`, or null. A KV failure reads as null. */
+  read(key: string): Promise<CheckoutOutcome<Result> | null>;
+  /**
+   * Keep `outcome` under `key`. Never rejects: a failed write is logged. Pass
+   * `waitUntil` so a client that disconnects first, the very case the record
+   * exists for, doesn't cancel the write.
+   */
+  write(
+    key: string,
+    outcome: CheckoutOutcome<Result>,
+    waitUntil?: (promise: Promise<unknown>) => void,
+  ): Promise<void>;
+}
+
+/**
+ * Records of settled checkout attempts in KV.
+ *
+ * Look an attempt up before re-pricing and before any gate that can change
+ * between tries (opening hours, a shipping region), so a customer who paid and
+ * retries after closing time or a price change sees their order rather than a
+ * refusal. Write the outcome as soon as it's definite.
+ */
+export function checkoutAttempts<Result>(
+  options: CheckoutAttemptsOptions,
+): CheckoutAttempts<Result> {
+  const { kv, ttlSeconds = 2 * 60 * 60, prefix = "checkout:attempt:" } = options;
+  if (!Number.isInteger(ttlSeconds) || ttlSeconds < 60) {
+    throw new AstroidUsageError(
+      `checkoutAttempts needs a whole \`ttlSeconds\` of at least 60 (KV's floor), got ${ttlSeconds}.`,
+    );
+  }
+  return {
+    async key(attempt, context) {
+      return prefix + (await checkoutAttemptKey(attempt, "record", context));
+    },
+    async read(key) {
+      try {
+        const raw = await kv.get(key);
+        const record = raw ? (JSON.parse(raw) as Partial<CheckoutOutcome<Result>>) : null;
+        if (record?.status === "paid" && "result" in record) {
+          return { status: "paid", result: record.result as Result };
+        }
+        if (record?.status === "declined") return { status: "declined" };
+      } catch (error) {
+        // A miss is safe: the provider still refuses the payment key.
+        console.error("[astroid:commerce] checkout attempt read failed", error);
+      }
+      return null;
+    },
+    write(key, outcome, waitUntil) {
+      const written = kv
+        .put(key, JSON.stringify(outcome), { expirationTtl: ttlSeconds })
+        .catch((error: unknown) => {
+          console.error("[astroid:commerce] checkout attempt write failed", error);
+        });
+      waitUntil?.(written);
+      return written;
+    },
+  };
 }
