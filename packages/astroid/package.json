@@ -42,6 +42,11 @@
       "import": "./dist/pages/index.js",
       "default": "./dist/pages/index.js"
     },
+    "./seo": {
+      "types": "./dist/seo/runtime.d.ts",
+      "import": "./dist/seo/runtime.js",
+      "default": "./dist/seo/runtime.js"
+    },
     "./components/*.astro": "./src/components/*.astro",
     "./components/Collection": {
       "types": "./src/components/Collection.tsx",

@@ -11,6 +11,7 @@ import Seo from "astroidjs/components/Seo.astro";
 import StructuredData from "astroidjs/components/StructuredData.astro";
 import { astroidBusiness, astroidSeoLocale } from "astroidjs";
 import { env } from "cloudflare:workers";
+import { astroidIndexingDisabled } from "astroidjs/seo";
 import astroidConfig from "../../astroid.config.js";
 import LouiseEdit from "../components/LouiseEdit.astro";
 import "../styles/site.css";
@@ -45,13 +46,12 @@ type Settings = {
   contact_phone: string | null;
   contact_address: string | null;
   social_links: string | null;
-  disable_indexing: number | null;
 };
 let row: Settings | null = null;
 try {
   row = await env.DB.prepare(
     `SELECT site_name, tagline, meta_description, default_og_image_url, logo_url,
-            contact_email, contact_phone, contact_address, social_links, disable_indexing
+            contact_email, contact_phone, contact_address, social_links
      FROM site_settings WHERE id = 1`,
   ).first<Settings>();
 } catch {
@@ -75,7 +75,9 @@ const settings = {
       return undefined;
     }
   })(),
-  disableIndexing: Boolean(row?.disable_indexing),
+  // **Hide from search engines**: every page prints `noindex` while it's on,
+  // the same switch that makes robots.txt serve `Disallow: /`.
+  disableIndexing: await astroidIndexingDisabled(astroidConfig, env),
 };
 
 // The page language is `business.locale` from astroid.config.ts, and English,

@@ -206,7 +206,9 @@ clearing a field in the editor falls back instead of publishing a blank `<meta>`
 The title template applies only when a page supplies its own title, so the home
 page reads `Acme Coffee`, not `Acme Coffee | Acme Coffee`. `disableIndexing` in
 settings is a site-wide kill switch that beats any page asking to be indexed—useful
-for staging.
+for staging. `astroidIndexingDisabled` from `astroidjs/seo` reads it, and the
+layout, the sitemap, and `astroidRobotsRoute` all call it, so turning the switch
+on noindexes every page as well as blocking the crawl.
 
 `<StructuredData>` emits a schema.org `@graph`: the business, the `WebSite`, and
 optionally the entity the page is _about_ (a Product, a VisualArtwork). The
@@ -216,8 +218,12 @@ The payload is escaped with `escapeJsonLd`, not `JSON.stringify`—`stringify`
 doesn't escape `<`, so an editor-authored value containing `</script>` would
 close the tag early and inject markup into `<head>`.
 
-`robots.txt` and `sitemap.xml` derive their disallow list from the same config
-(`astroidNoindexPaths`), so the two files can't disagree about what's crawlable.
+`robots.txt` and `sitemap.xml` derive their lists from the same config.
+`robots.txt` blocks only what no crawler should fetch (`astroidDisallowPaths`:
+`/api` and the editor), and the sitemap also leaves out the pages that print
+`noindex` (`astroidNoindexPaths`), because a crawler blocked from a page never
+sees its `noindex`. Both match on path segments, so `/account` doesn't hide
+`/accounts`.
 Both are **origin-aware**—built from the serving origin rather than a
 configured domain, because a preview deploy advertising the production host
 invites its content to be indexed under the real domain.
