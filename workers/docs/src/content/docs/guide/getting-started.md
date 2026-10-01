@@ -66,7 +66,7 @@ pnpm create astroid [directory] [options]
   --portal              Customer/member portal (a second, isolated auth instance)
   --realtime            Live multi-editor editing (a per-page Durable Object)
   --time-zone <zone>    The business's IANA time zone, for example, Europe/Berlin
-  --currency <code>     Its ISO 4217 currency, for example, EUR (needs --commerce)
+  --currency <code>     Its ISO 4217 currency, for example, EUR (required with --commerce)
   --country <code>      Its ISO 3166-1 alpha-2 country, for example, DE
   --locale <tag>        The site's BCP 47 locale, for example, de-DE
   --credit-name <name>  A "Site by <name>" credit in the footer
