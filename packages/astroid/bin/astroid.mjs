@@ -87,6 +87,12 @@ async function loadConfig(cwd, explicit) {
   return { config, path };
 }
 
+/** The project's `wrangler.jsonc` text, or null when it doesn't exist yet. */
+function readWrangler(cwd) {
+  const wranglerPath = join(cwd, "wrangler.jsonc");
+  return existsSync(wranglerPath) ? readFileSync(wranglerPath, "utf8") : null;
+}
+
 /**
  * The scaffold files with each migration placed in the `DB` binding's
  * `migrations_dir` and numbered past the site's own migrations. Without this a
@@ -94,10 +100,7 @@ async function loadConfig(cwd, explicit) {
  */
 async function scaffoldFilesFor(cwd, files) {
   const { astroidMigrationsDir, resolveAstroidScaffoldPaths } = await import(GENERATORS_URL);
-  const wranglerPath = join(cwd, "wrangler.jsonc");
-  const migrationsDir = astroidMigrationsDir(
-    existsSync(wranglerPath) ? readFileSync(wranglerPath, "utf8") : null,
-  );
+  const migrationsDir = astroidMigrationsDir(readWrangler(cwd));
   const dirPath = join(cwd, migrationsDir);
   const existing = existsSync(dirPath) ? readdirSync(dirPath) : [];
   return resolveAstroidScaffoldPaths(files, { migrationsDir, existing });
@@ -112,7 +115,15 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
     ASTROID_RELEASE_WORKFLOW_PATH,
   } = await import(GENERATORS_URL);
   const { config } = await loadConfig(cwd, flags.config);
-  const files = generateAstroidProject(config);
+  // The worker takes the commerce queue's dead-letter queue name from
+  // wrangler.jsonc, so a site whose queues predate its key still captures its
+  // dead letters.
+  let files;
+  try {
+    files = generateAstroidProject(config, { wrangler: readWrangler(cwd) });
+  } catch (error) {
+    fail(error.message);
+  }
   for (const file of files) {
     const abs = join(cwd, file.path);
     mkdirSync(dirname(abs), { recursive: true });
@@ -174,6 +185,7 @@ async function cmdDoctor(cwd, flags) {
     astroidCrons,
     astroidHasEditor,
     checkWranglerPreviews,
+    checkWranglerQueues,
     astroidRunsMigrations,
     migrationsOwnershipError,
     generateAstroidReleaseWorkflow,
@@ -191,8 +203,16 @@ async function cmdDoctor(cwd, flags) {
 
   ok(`config loads and validates (${rel(cwd, configPath)})`);
 
-  // 1. Generated trio freshness—regenerate in memory, diff against disk.
-  for (const file of generateAstroidProject(config)) {
+  // 1. Generated trio freshness—regenerate in memory, diff against disk. The
+  //    worker reads its dead-letter queue name from wrangler.jsonc, so a
+  //    wrangler.jsonc that doesn't parse leaves nothing to compare.
+  let generated = [];
+  try {
+    generated = generateAstroidProject(config, { wrangler: readWrangler(cwd) });
+  } catch (error) {
+    err(`${error.message} The generated files can't be checked until it does.`);
+  }
+  for (const file of generated) {
     const abs = join(cwd, file.path);
     if (!existsSync(abs)) {
       err(`${file.path} is missing — run \`astroid generate\`.`);
@@ -202,7 +222,9 @@ async function cmdDoctor(cwd, flags) {
       // disk is not the project the config describes—which is the single
       // condition doctor exists to catch. As a warning it printed "healthy" and
       // exited 0, so `pnpm run doctor` could not gate CI on it.
-      err(`${file.path} is stale (out of sync with your config) — run \`astroid generate\`.`);
+      err(
+        `${file.path} is stale (out of sync with your config or wrangler.jsonc) — run \`astroid generate\`.`,
+      );
     } else {
       ok(`${file.path} is up to date`);
     }
@@ -363,6 +385,19 @@ async function cmdDoctor(cwd, flags) {
     for (const m of previews.ok) ok(m);
     for (const m of previews.warnings) warn(m);
     for (const m of previews.errors) err(m);
+
+    // 2c. The commerce queue's dead-letter routing: whether the generated
+    //     worker captures dead letters from the queue wrangler.jsonc routes
+    //     them to, and whether anything consumes that queue.
+    const workerPath = join(cwd, "src/worker.ts");
+    const queues = checkWranglerQueues(
+      config,
+      readFileSync(wranglerPath, "utf8"),
+      existsSync(workerPath) ? readFileSync(workerPath, "utf8") : null,
+    );
+    for (const m of queues.ok) ok(m);
+    for (const m of queues.warnings) warn(m);
+    for (const m of queues.errors) err(m);
   }
 
   // 3. migrations directory: the D1 `migrations_dir` wrangler.jsonc declares,

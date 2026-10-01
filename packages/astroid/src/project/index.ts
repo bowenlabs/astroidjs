@@ -7,6 +7,7 @@ export * from "./generate.js";
 export * from "./actions.js";
 export * from "./scaffold.js";
 export * from "./migrations.js";
+export * from "./queues.js";
 export * from "./seed.js";
 export * from "./previews.js";
 export * from "./release.js";

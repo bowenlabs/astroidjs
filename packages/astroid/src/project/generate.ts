@@ -5,9 +5,10 @@
 // Two tiers of generated file, deliberately kept apart:
 //
 //   1. The REGENERATED trio (`generateAstroidProject`)—`src/schema.ts`,
-//      `src/worker.ts`, `src/middleware.ts`. Pure functions of the config, marked
-//      "do not hand-edit". `astroid generate` (and `dev`/`build`) rewrite these on
-//      every run, and `astroid doctor` diffs them to catch drift.
+//      `src/worker.ts`, `src/middleware.ts`. Functions of the config, plus the
+//      queue names wrangler.jsonc declares, marked "do not hand-edit".
+//      `astroid generate` (and `dev`/`build`) rewrite these on every run, and
+//      `astroid doctor` diffs them to catch drift.
 //
 //   2. The SCAFFOLD-ONCE files (`generateAstroidWrangler`, …)—`wrangler.jsonc`
 //      and friends. `create-astroid` writes them once; the developer then owns
@@ -47,6 +48,7 @@ import { ASTROID_SECRET_PLACEHOLDER } from "../secrets.js";
 import { astroidHasEditor } from "../shape.js";
 import { tenancyZone } from "../tenancy/index.js";
 import { generateAstroidSchema } from "../schema/generate.js";
+import { astroidWranglerQueues } from "./queues.js";
 import { ASTROID_AI_GATEWAY_VAR } from "../worker/gateway.js";
 import { generateAstroidMiddleware, generateAstroidWorker } from "../worker/generate.js";
 
@@ -81,17 +83,40 @@ export const ASTROID_GENERATED_FILES = [
   "src/middleware.ts",
 ] as const;
 
+/** What {@link generateAstroidProject} reads besides the config. */
+export interface GenerateAstroidProjectOptions {
+  /**
+   * The site's `wrangler.jsonc` text, for the names it gives the commerce
+   * queue. `null` or left out means the file doesn't exist yet, so the names
+   * are the ones {@link generateAstroidWrangler} would scaffold.
+   */
+  wrangler?: string | null;
+}
+
 /**
- * The regenerated trio—the files that are a pure function of the Astroid config
- * and carry a "do not hand-edit" banner. `astroid generate` writes exactly these,
- * and `astroid doctor` regenerates them in-memory to diff against disk. Scaffold-
- * once files (wrangler.jsonc, astro.config, auth.ts) are NOT here by design.
+ * The regenerated trio—the files that carry a "do not hand-edit" banner.
+ * `astroid generate` writes exactly these, and `astroid doctor` regenerates
+ * them in-memory to diff against disk. Scaffold-once files (wrangler.jsonc,
+ * astro.config, auth.ts) are NOT here by design.
+ *
+ * They're a function of the config, plus one fact the config doesn't hold: the
+ * commerce queue's dead-letter queue, which `wrangler.jsonc` names. A site
+ * whose queues predate its `key` names them its own way, so restating the name
+ * from the key would miss every dead letter.
  */
-export function generateAstroidProject(config: AstroidConfig): GeneratedFile[] {
+export function generateAstroidProject(
+  config: AstroidConfig,
+  options: GenerateAstroidProjectOptions = {},
+): GeneratedFile[] {
   const [schema, worker, middleware] = ASTROID_GENERATED_FILES;
+  // Read only when there's a queue, so a site without one never depends on
+  // its wrangler.jsonc parsing here.
+  const deadLetterQueue = astroidUsesQueues(config)
+    ? astroidWranglerQueues(options.wrangler ?? generateAstroidWrangler(config)).deadLetterQueue
+    : null;
   return [
     { path: schema, contents: generateAstroidSchema(config) },
-    { path: worker, contents: generateAstroidWorker(config) },
+    { path: worker, contents: generateAstroidWorker(config, { deadLetterQueue }) },
     { path: middleware, contents: generateAstroidMiddleware(config) },
   ];
 }

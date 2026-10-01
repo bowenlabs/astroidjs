@@ -79,7 +79,9 @@ contract.
 - **Regenerated:** `src/schema.ts`, `src/worker.ts`, and `src/middleware.ts`
   (`generateAstroidProject`). `astroid generate` rewrites them from the config
   every time, so nobody edits them by hand. `astroid doctor` fails when they're
-  stale.
+  stale. The one input that isn't the config is the commerce queue's
+  dead-letter queue name, read from `wrangler.jsonc`, because a site's queues
+  can predate its `key` and a name restated from the key never matched them.
 - **Scaffolded once:** everything in `generateAstroidScaffoldFiles`, plus
   `wrangler.jsonc`. They're written when missing and never overwritten, so a
   site can own them. `wrangler.jsonc` is kept out of regeneration so the binding

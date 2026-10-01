@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { defineAstroid } from "../src/config.js";
-import { generateAstroidWrangler } from "../src/project/generate.js";
+import { AstroidConfigError } from "../src/errors.js";
+import { generateAstroidProject, generateAstroidWrangler } from "../src/project/generate.js";
+import { astroidWranglerQueues, checkWranglerQueues } from "../src/project/queues.js";
 import { astroidQueueHandler } from "../src/queues/consumer.js";
 import {
   affectsCatalog,
@@ -45,7 +47,7 @@ describe("astroidUsesQueues / astroidCron", () => {
     expect(astroidCron(base)).toBeNull();
   });
 
-  it("names the queue and its DLQ off the project key", () => {
+  it("names a new scaffold's queue and its DLQ off the project key", () => {
     expect(astroidQueueNames(shop)).toEqual({ queue: "acme-commerce", dlq: "acme-commerce-dlq" });
   });
 });
@@ -605,5 +607,160 @@ describe("astroidQueue (#69)", () => {
       { provider: "square", secret: "real", queue: producer, verify: () => true },
     );
     expect(res.status).toBe(503);
+  });
+});
+
+/**
+ * A wrangler.jsonc whose queues predate the project key: the config says
+ * `acme`, but the queues were created as `acme-legacy-*`, so nothing derived
+ * from the key matches them.
+ */
+function legacyWrangler({
+  dlq = "acme-legacy-commerce-dlq",
+  consumeDlq = true,
+}: { dlq?: string | null; consumeDlq?: boolean } = {}): string {
+  const deadLetter = dlq ? `, "dead_letter_queue": "${dlq}"` : "";
+  const dlqConsumer =
+    dlq && consumeDlq
+      ? `,\n      { "queue": "${dlq}", "max_batch_size": 10, "max_retries": 0 }`
+      : "";
+  return `{
+  // Created before the site had its key.
+  "name": "acme",
+  "queues": {
+    "producers": [{ "queue": "acme-legacy-commerce", "binding": "COMMERCE_QUEUE" }],
+    "consumers": [
+      { "queue": "acme-legacy-commerce", "max_retries": 5${deadLetter} }${dlqConsumer},
+    ],
+  },
+}`;
+}
+
+const workerOf = (config: AstroidConfig, wrangler?: string | null) =>
+  generateAstroidProject(config, { wrangler }).find((f) => f.path === "src/worker.ts")!.contents;
+
+describe("astroidWranglerQueues", () => {
+  it("reads a new scaffold's names back out of its wrangler.jsonc", () => {
+    expect(astroidWranglerQueues(generateAstroidWrangler(shop))).toEqual({
+      queue: "acme-commerce",
+      deadLetterQueue: "acme-commerce-dlq",
+      consumers: ["acme-commerce", "acme-commerce-dlq"],
+    });
+  });
+
+  it("follows the COMMERCE_QUEUE producer, whatever the queue is called", () => {
+    expect(astroidWranglerQueues(legacyWrangler())).toEqual({
+      queue: "acme-legacy-commerce",
+      deadLetterQueue: "acme-legacy-commerce-dlq",
+      consumers: ["acme-legacy-commerce", "acme-legacy-commerce-dlq"],
+    });
+  });
+
+  it("reports no dead-letter queue when the consumer names none, or there's no producer", () => {
+    expect(astroidWranglerQueues(legacyWrangler({ dlq: null })).deadLetterQueue).toBeNull();
+    expect(astroidWranglerQueues('{ "name": "acme" }')).toEqual({
+      queue: null,
+      deadLetterQueue: null,
+      consumers: [],
+    });
+  });
+
+  it("refuses a wrangler.jsonc that doesn't parse, rather than guessing a name", () => {
+    expect(() => astroidWranglerQueues("{ not json")).toThrow(AstroidConfigError);
+  });
+});
+
+describe("the generated worker's dead-letter queue", () => {
+  it("is the name wrangler.jsonc gives it, even when the key differs", () => {
+    const out = workerOf(shop, legacyWrangler());
+    expect(out).toContain('const DEAD_LETTER_QUEUE = "acme-legacy-commerce-dlq";');
+    expect(out).not.toContain("acme-commerce-dlq");
+    expect(out).toContain("batch.queue === DEAD_LETTER_QUEUE");
+  });
+
+  it("is left out when wrangler.jsonc names none, so every batch goes to processBatch", () => {
+    const out = workerOf(shop, legacyWrangler({ dlq: null }));
+    expect(out).not.toContain("DEAD_LETTER_QUEUE");
+    expect(out).not.toContain("deadLetterConsumer");
+    expect(out).toContain(
+      'import { analyticsIncidents, d1Incidents } from "louise-toolkit/incidents";',
+    );
+    expect(out).toContain("queue: (batch, env) =>");
+    expect(out).toContain("processBatch(batch, (message) => handleQueueMessage(env, message), {");
+  });
+
+  it("follows wrangler.jsonc in an app with no editor too", () => {
+    const app: AstroidConfig = { ...shop, editor: false };
+    expect(workerOf(app, legacyWrangler())).toContain(
+      'const DEAD_LETTER_QUEUE = "acme-legacy-commerce-dlq";',
+    );
+  });
+
+  it("is the scaffold's name before wrangler.jsonc exists, the same worker a fresh site gets", () => {
+    const fresh = generateAstroidWrangler(shop);
+    expect(workerOf(shop)).toBe(workerOf(shop, fresh));
+    expect(workerOf(shop, null)).toBe(generateAstroidWorker(shop));
+    expect(workerOf(shop)).toContain('const DEAD_LETTER_QUEUE = "acme-commerce-dlq";');
+  });
+
+  it("never reads wrangler.jsonc for a project with no queue", () => {
+    expect(() => generateAstroidProject(base, { wrangler: "{ not json" })).not.toThrow();
+  });
+});
+
+describe("checkWranglerQueues", () => {
+  it("passes a worker generated from the same wrangler.jsonc", () => {
+    const wrangler = legacyWrangler();
+    const findings = checkWranglerQueues(shop, wrangler, workerOf(shop, wrangler));
+    expect(findings.errors).toEqual([]);
+    expect(findings.warnings).toEqual([]);
+    expect(findings.ok).toEqual([
+      "wrangler: dead-letter queue `acme-legacy-commerce-dlq` has a consumer",
+      "src/worker.ts captures dead letters from `acme-legacy-commerce-dlq`",
+    ]);
+  });
+
+  it("flags a worker whose constant came from the key instead of wrangler.jsonc", () => {
+    const stale = generateAstroidWorker(shop);
+    const findings = checkWranglerQueues(shop, legacyWrangler(), stale);
+    expect(findings.errors).toHaveLength(1);
+    expect(findings.errors[0]).toContain("captures dead letters from `acme-commerce-dlq`");
+    expect(findings.errors[0]).toContain("`acme-legacy-commerce-dlq`");
+    expect(findings.errors[0]).toContain("astroid generate");
+  });
+
+  it("flags a worker that captures no dead letters while wrangler.jsonc routes them", () => {
+    const none = workerOf(shop, legacyWrangler({ dlq: null }));
+    expect(checkWranglerQueues(shop, legacyWrangler(), none).errors[0]).toContain(
+      "doesn't capture dead letters",
+    );
+    expect(
+      checkWranglerQueues(shop, legacyWrangler({ dlq: null }), workerOf(shop, legacyWrangler()))
+        .errors[0],
+    ).toContain("names no dead-letter queue");
+  });
+
+  it("warns about a dead-letter queue with no consumer", () => {
+    const wrangler = legacyWrangler({ consumeDlq: false });
+    const findings = checkWranglerQueues(shop, wrangler, workerOf(shop, wrangler));
+    expect(findings.errors).toEqual([]);
+    expect(findings.warnings).toHaveLength(1);
+    expect(findings.warnings[0]).toContain("but nothing consumes it");
+    expect(findings.warnings[0]).toContain('{ "queue": "acme-legacy-commerce-dlq"');
+  });
+
+  it("warns when the commerce queue names no dead-letter queue", () => {
+    const wrangler = legacyWrangler({ dlq: null });
+    const findings = checkWranglerQueues(shop, wrangler, workerOf(shop, wrangler));
+    expect(findings.errors).toEqual([]);
+    expect(findings.warnings[0]).toContain("names no `dead_letter_queue`");
+  });
+
+  it("stays quiet when there's no queue, nothing to read, or no worker yet", () => {
+    const empty = { ok: [], errors: [], warnings: [] };
+    expect(checkWranglerQueues(base, legacyWrangler(), null)).toEqual(empty);
+    expect(checkWranglerQueues(shop, "{ not json", null)).toEqual(empty);
+    expect(checkWranglerQueues(shop, '{ "name": "acme" }', null)).toEqual(empty);
+    expect(checkWranglerQueues(shop, legacyWrangler(), null).errors).toEqual([]);
   });
 });
