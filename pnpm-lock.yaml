@@ -205,7 +205,7 @@ importers:
         version: 0.45.3(kysely@0.29.5)
       louise-toolkit:
         specifier: ^0.37.0
-        version: 0.37.0(@better-auth/passkey@1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2))(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)
+        version: 0.37.2(@better-auth/passkey@1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2))(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)
       solid-js:
         specifier: ^1.9.15
         version: 1.9.15
@@ -232,7 +232,7 @@ importers:
         version: 1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11)
       louise-toolkit:
         specifier: ^0.37.0
-        version: 0.37.0(@better-auth/passkey@1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2))(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)
+        version: 0.37.2(@better-auth/passkey@1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2))(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)
 
   workers/docs:
     dependencies:
@@ -3188,49 +3188,6 @@ packages:
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
-
-  louise-toolkit@0.37.0:
-    resolution: {integrity: sha512-UHkqr0zdPuvkvqjXJVoD4Z80R+zMzkaUa91OfrVEk2dcWhyBdGKszYQdqGW7SD9tiXTR2RI8axfYklXuNSSFLQ==}
-    engines: {node: '>=24.0.0'}
-    hasBin: true
-    peerDependencies:
-      '@better-auth/passkey': ^1.6.23
-      '@cloudflare/puppeteer': ^1.0.0
-      '@prosekit/pm': ^0.1.18
-      '@resvg/resvg-wasm': ^2.6.2
-      '@tanstack/solid-query': ^5.101.2
-      '@tanstack/solid-router': ^1.170.0
-      '@vercel/stega': ^1.1.0
-      better-auth: ^1.6.23
-      drizzle-orm: ^0.45.0
-      harper.js: ^2.4.0
-      prosekit: ^0.21.4
-      solid-js: ^1.9.14
-    peerDependenciesMeta:
-      '@better-auth/passkey':
-        optional: true
-      '@cloudflare/puppeteer':
-        optional: true
-      '@prosekit/pm':
-        optional: true
-      '@resvg/resvg-wasm':
-        optional: true
-      '@tanstack/solid-query':
-        optional: true
-      '@tanstack/solid-router':
-        optional: true
-      '@vercel/stega':
-        optional: true
-      better-auth:
-        optional: true
-      drizzle-orm:
-        optional: true
-      harper.js:
-        optional: true
-      prosekit:
-        optional: true
-      solid-js:
-        optional: true
 
   louise-toolkit@0.37.2:
     resolution: {integrity: sha512-3UqiG3b4XGMRm/ay660U3Q30lFJnXsel5TbfitD6nAuaYUxzmbdXlTHaHOCdbimOO7EBI93QOFi2eJeeBfi8Dw==}
@@ -6953,13 +6910,6 @@ snapshots:
   lodash.merge@4.6.2: {}
 
   longest-streak@3.1.0: {}
-
-  louise-toolkit@0.37.0(@better-auth/passkey@1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2))(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15):
-    optionalDependencies:
-      '@better-auth/passkey': 1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2)
-      better-auth: 1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11)
-      drizzle-orm: 0.45.3(kysely@0.29.5)
-      solid-js: 1.9.15
 
   louise-toolkit@0.37.2(@better-auth/passkey@1.7.2(@better-auth/core@1.7.2(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.4.0(zod@4.5.4))(jose@6.2.10)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(better-call@1.4.0(zod@4.5.4))(nanostores@1.5.2))(better-auth@1.7.2(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15)(vitest@4.1.11))(drizzle-orm@0.45.3(kysely@0.29.5))(solid-js@1.9.15):
     optionalDependencies:
