@@ -582,13 +582,36 @@ describe("card checkout", () => {
     expect(route).toContain("Math.round(item.price * 100)");
   });
 
-  it("requires a high-entropy cartId for the idempotency key", () => {
+  it("requires a high-entropy checkout-session ID for the idempotency key", () => {
     const route = generateAstroidScaffoldFiles(square).find(
       (f) => f.path === "src/pages/api/checkout.ts",
     )?.contents;
-    expect(route).toContain('checkoutIdempotencyKey(check, "order", cartId)');
+    // The attempt, never the verified prices: a retry that meets a repaired
+    // price must reuse the key, or it's charged twice.
+    expect(route).toContain('checkoutAttemptKey(attempt, "payment")');
+    expect(route).not.toContain("checkoutIdempotencyKey");
     // Guessable ids let someone else's identical cart dedupe into your charge.
-    expect(route).toContain("/^[0-9a-f-]{36}$/i.test(cartId)");
+    expect(route).toContain("/^[0-9a-f-]{36}$/i.test(checkoutSessionId)");
+  });
+
+  it("replays a settled attempt BEFORE re-pricing, and records the outcome", () => {
+    const route =
+      generateAstroidScaffoldFiles(square).find((f) => f.path === "src/pages/api/checkout.ts")
+        ?.contents ?? "";
+    // A customer who paid and retries after a price change sees their payment,
+    // not a price-changed refusal.
+    expect(route.indexOf("attempts().read(recordKey)")).toBeGreaterThan(0);
+    expect(route.indexOf("attempts().read(recordKey)")).toBeLessThan(
+      route.indexOf("verifyCheckout("),
+    );
+    expect(route).toContain('{ status: "paid", result }, waitUntil');
+    // Only a definite decline is recorded; anything else leaves the attempt open.
+    expect(route).toContain('error.category === "PAYMENT_METHOD_ERROR"');
+    expect(route).toContain('{ status: "declined" }, waitUntil');
+    // An ambiguous failure answers with a retry-safe message rather than a
+    // bare 500, and records nothing, so the retry reuses the key.
+    expect(route).toContain("return json({ error: UNCONFIRMED }, 502);");
+    expect(route).not.toContain("throw error;");
   });
 
   it("simulates rather than calling Square with a dummy credential", () => {

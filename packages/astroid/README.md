@@ -110,19 +110,23 @@ which is the drift the module exists to kill.
 
 **Checkout is server-authoritative.** `verifyCheckout` treats the client's price
 as a staleness check, never an input to the charge: re-price server-side, refuse
-on mismatch. `checkoutIdempotencyKey` derives a stable key from the verified cart
-**and a required `identity`**, so a double-clicked Pay button charges once—while
-two customers buying the same thing stay two charges.
+on mismatch. `checkoutAttemptKey` derives the payment's key from a required
+checkout-session ID and the lines as the customer chose them, **never the
+prices or a tip**. A double-clicked Pay button, or a retry after a lost response
+that meets a repaired price, charges once, while two customers buying the same
+thing stay two charges.
 
 ```ts
-const key = await checkoutIdempotencyKey(check, "order", cartId);
+const key = await checkoutAttemptKey({ identity: checkoutSessionId, lines }, "payment");
 ```
 
-Pass something stable across a retry of this attempt and distinct between buyers
-(a cart id, checkout-session id, or portal user id). It is required, and empty is
-refused, because a key derived from cart contents alone collides between
-customers: providers scope idempotency keys per account for about 24 hours, so the second
-buyer's charge is deduped into the first buyer's order and never happens.
+Keep the ID beside the cart with `checkoutSession` from `louise-toolkit/commerce`.
+It's required, and empty is refused, because a key derived from cart contents
+alone collides between customers: providers scope idempotency keys per account
+for about 24 hours, so the second buyer's charge is deduped into the first
+buyer's order and never happens. `checkoutAttempts` keeps each settled attempt
+in KV, so a customer who paid and retries gets their result back instead of a
+refusal. `checkoutIdempotencyKey`, which hashes prices, is deprecated.
 
 ## The webhook pipeline
 

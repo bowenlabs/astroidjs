@@ -162,8 +162,11 @@ A site can run two Better Auth instances.
   server-authoritative checkout route and a card input. It doesn't generate a
   cart, a checkout page, shipping, or tax. Where a cart lives is a project's
   decision. The route rejects a cross-origin request first, re-prices every line
-  from the mirror, and derives its idempotency key from the cart and a per-cart
-  ID the client sends, so two buyers with identical carts never share a charge.
+  from the mirror, and derives its idempotency key from the lines as chosen and
+  a checkout-session ID the client keeps beside the cart, never from prices, so
+  two buyers with identical carts never share a charge and one buyer's retry
+  never makes a second. A settled attempt is kept in KV and replayed before
+  re-pricing ([ADR 0023](adr/0023-checkout-attempts.md)).
 
 ## Verification
 
