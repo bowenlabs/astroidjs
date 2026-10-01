@@ -107,6 +107,50 @@ migrates it.
 editor's files, plus an app layout, a home screen, and the root of the
 `/api/v1` API.
 
+### Business facts
+
+A site's time zone, currency, country, and locale are facts about the business,
+and louise-toolkit takes each as a parameter rather than guessing it. State them
+once in `business`:
+
+```ts
+business: {
+  timeZone: "Europe/Berlin", // IANA
+  currency: "EUR", // ISO 4217
+  country: "DE", // ISO 3166-1 alpha-2
+  locale: "de-DE", // BCP 47
+},
+```
+
+None has a default, since a default would be a guess about someone else's
+business, and a wrong one fails quietly: opening hours an hour off, or a charge
+in the wrong currency. `commerce` requires `currency`, because every charge and
+catalog price uses it. `defineAstroid` validates each fact with `Intl`, and
+refuses, for example, a lowercase `"eur"` or an Open Graph `"de_DE"`.
+
+Read them through `astroidBusiness`, and pass them to the toolkit. Name a fact
+to get it as a `string`, or an error naming the field when the config doesn't
+state it:
+
+```ts
+import { astroidBusiness } from "astroidjs";
+import { formatMoney } from "louise-toolkit/commerce";
+import astroidConfig from "../astroid.config";
+
+const price = formatMoney(
+  { amount: 1250, currency: astroidBusiness(astroidConfig, "currency") },
+  { locale: astroidBusiness(astroidConfig, "locale") },
+);
+```
+
+`locale` also sets the scaffold's `<html lang>`, and it's the default for
+`seo.locale`, in Open Graph form: `de-DE` gives `og:locale` `de_DE`. Set
+`seo.locale` only when the two differ.
+
+`create-astroid` takes them as `--time-zone`, `--currency`, `--country`, and
+`--locale`, and prompts for each in a terminal. `--commerce` needs
+`--currency`.
+
 ### Agency credit
 
 An agency that builds the site can credit itself in the footer. It's a site

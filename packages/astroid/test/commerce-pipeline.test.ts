@@ -19,6 +19,7 @@ const base: AstroidConfig = {
   key: "acme",
   archetype: "storefront",
   theme: { name: "Acme", colors: { brand: "#1f6e6d" } },
+  business: { currency: "EUR" },
 };
 const piped: AstroidConfig = { ...base, commerce: { provider: "square" } };
 /** Takes payments; another project receives the webhooks and re-syncs. */

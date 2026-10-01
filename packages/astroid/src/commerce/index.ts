@@ -1,6 +1,7 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 
 export {
+  type CatalogAdapterOptions,
   catalogNormalizer,
   type FourthwallProductLike,
   fourthwallToCatalogItem,

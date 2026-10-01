@@ -75,8 +75,18 @@ function variationPriceAt(
   return override?.priceCents != null ? override.priceCents : v.priceCents;
 }
 
+/** Options every catalog adapter takes. */
+export interface CatalogAdapterOptions {
+  /**
+   * The currency of a price the provider sent without one: the site's
+   * `business.currency`, from `astroidBusiness(config).currency`. Without it,
+   * such a variant's `currency` is `null` rather than a guess.
+   */
+  currency?: string;
+}
+
 /** Options for {@link squareToCatalogItem}. */
-export interface SquareAdapterOptions {
+export interface SquareAdapterOptions extends CatalogAdapterOptions {
   /**
    * Resolve prices and presence for one merchant location. Omit for a
    * single-location account, where base prices are the only prices.
@@ -177,7 +187,8 @@ export function squareToCatalogItem(
           ? undefined
           : (v.locationOverrides ?? []).find((o) => o.locationId === locationId)?.currency) ??
         v.currency ??
-        "USD",
+        options.currency ??
+        null,
       // Only meaningful when scoped: `sold_out` is a per-location flag, so an
       // unscoped read has no single answer and omits it rather than guessing.
       ...(locationId === undefined
@@ -198,7 +209,10 @@ export function squareToCatalogItem(
  * Fourthwall already prices in major units, so there's no conversion—mirroring
  * `lowestPrice` in `louise-toolkit/commerce/fourthwall`.
  */
-export function fourthwallToCatalogItem(product: FourthwallProductLike): CatalogItem {
+export function fourthwallToCatalogItem(
+  product: FourthwallProductLike,
+  options: CatalogAdapterOptions = {},
+): CatalogItem {
   const prices = (product.variants ?? [])
     .map((v) => v.unitPrice?.value)
     .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
@@ -214,7 +228,7 @@ export function fourthwallToCatalogItem(product: FourthwallProductLike): Catalog
       name: v.name,
       sku: v.sku ?? null,
       price: v.unitPrice?.value ?? 0,
-      currency: v.unitPrice?.currency ?? "USD",
+      currency: v.unitPrice?.currency ?? options.currency ?? null,
       attributes: v.attributes ?? null,
       stock: v.stock ?? null,
     })),
@@ -229,13 +243,24 @@ export function fourthwallToCatalogItem(product: FourthwallProductLike): Catalog
  * so it can only hold the invoicing role and never reaches a catalog sync. The
  * config validation in `assertCommerceRoles` makes that unreachable anyway; this
  * returns null rather than throwing so a caller can degrade.
+ *
+ * Pass `{ currency: astroidBusiness(config).currency }` so a price the
+ * provider sent without a currency takes the site's. The returned function
+ * takes one argument, so it's safe to hand straight to `Array.map`.
  */
-export function catalogNormalizer(provider: string): ((item: never) => CatalogItem) | null {
+export function catalogNormalizer(
+  provider: string,
+  options: CatalogAdapterOptions = {},
+): ((item: never) => CatalogItem) | null {
   switch (provider) {
     case "square":
-      return squareToCatalogItem as (item: never) => CatalogItem;
+      return ((item: SquareItemLike) => squareToCatalogItem(item, options)) as (
+        item: never,
+      ) => CatalogItem;
     case "fourthwall":
-      return fourthwallToCatalogItem as (item: never) => CatalogItem;
+      return ((item: FourthwallProductLike) => fourthwallToCatalogItem(item, options)) as (
+        item: never,
+      ) => CatalogItem;
     default:
       return null;
   }

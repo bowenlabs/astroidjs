@@ -9,6 +9,7 @@
 import Credit from "astroidjs/components/Credit.astro";
 import Seo from "astroidjs/components/Seo.astro";
 import StructuredData from "astroidjs/components/StructuredData.astro";
+import { astroidBusiness, astroidSeoLocale } from "astroidjs";
 import { env } from "cloudflare:workers";
 import astroidConfig from "../../astroid.config.js";
 import LouiseEdit from "../components/LouiseEdit.astro";
@@ -76,10 +77,14 @@ const settings = {
   })(),
   disableIndexing: Boolean(row?.disable_indexing),
 };
+
+// The page language is `business.locale` from astroid.config.ts, and English,
+// the language this template is written in, until the config states one.
+const lang = astroidBusiness(astroidConfig).locale ?? "en";
 ---
 
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang={lang} data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -91,7 +96,7 @@ const settings = {
       noindex={noindex}
       titleTemplate={astroidConfig.seo?.titleTemplate}
       twitterHandle={astroidConfig.seo?.twitterHandle}
-      locale={astroidConfig.seo?.locale}
+      locale={astroidSeoLocale(astroidConfig)}
     />
     <StructuredData config={astroidConfig} settings={settings} />
   </head>

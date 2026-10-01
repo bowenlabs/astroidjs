@@ -147,6 +147,17 @@ const slugify = (s) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 40);
 
+/** `defineAstroid`, with a config error printed as its message and a clean exit. */
+function validConfig(config) {
+  try {
+    return defineAstroid(config);
+  } catch (error) {
+    if (error?.name !== "AstroidConfigError") throw error;
+    process.stderr.write(`create-astroid: ${error.message}\n`);
+    process.exit(1);
+  }
+}
+
 async function prompt(question, fallback) {
   if (!process.stdin.isTTY) return fallback;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
@@ -238,6 +249,17 @@ function astroidConfigSource(config) {
           "  },",
         ]
       : []),
+    // Must be emitted: the layout reads the locale, and generated commerce code
+    // the currency, from THIS file. In the order the config type declares them.
+    ...(config.business
+      ? [
+          "  business: {",
+          ...["timeZone", "currency", "country", "locale"]
+            .filter((fact) => config.business[fact])
+            .map((fact) => `    ${fact}: ${JSON.stringify(config.business[fact])},`),
+          "  },",
+        ]
+      : []),
     // Must be emitted: the scaffold's layout reads `credit` from THIS file at
     // render time, so a config without it renders no footer.
     ...(config.credit
@@ -292,6 +314,11 @@ Options:
                         no editor, sign-in, or content tables, and a versioned
                         JSON API under /api/v1. Its settings stay in the editor
                         of a site that has one
+  --time-zone <zone>    The business's IANA time zone, for example Europe/Berlin
+  --currency <code>     The ISO 4217 currency it charges in, for example EUR;
+                        required with --commerce
+  --country <code>      The ISO 3166-1 alpha-2 country it operates in, for example DE
+  --locale <tag>        The BCP 47 locale the site is written in, for example de-DE
   --credit-name <name>  Credit who built the site in the footer ("Site by <name>")
   --credit-href <url>   Where the credit links; needs --credit-name, and the
                         other way round
@@ -299,7 +326,9 @@ Options:
   -v, --version         Show the create-astroid version
 
 Anything not passed as a flag is prompted for; in a non-TTY every prompt takes
-its default, so the command is CI-safe. The target directory must be empty.
+its default, so the command is CI-safe. The four business facts have no
+default: left blank, each stays out of astroid.config.ts, except the currency a
+--commerce site charges in. The target directory must be empty.
 With --app there is no archetype prompt; --archetype still sets the business
 type in structured data.
 `;
@@ -412,6 +441,35 @@ async function main() {
     process.exit(1);
   }
 
+  // The business facts (`business` in astroid.config.ts). Each is a fact about
+  // someone's business, so none has a default: a blank answer, and every answer
+  // in a non-TTY, leaves it out of the config. `defineAstroid` validates what's
+  // given, below.
+  const fact = async (flag, question) =>
+    typeof flags[flag] === "string" ? flags[flag].trim() : (await prompt(question, "")).trim();
+  const business = Object.fromEntries(
+    [
+      ["timeZone", await fact("time-zone", "Time zone, IANA (for example, Europe/Berlin)")],
+      [
+        "currency",
+        await fact(
+          "currency",
+          `Currency, ISO 4217 (for example, EUR)${commerce ? "" : "; blank to skip"}`,
+        ),
+      ],
+      ["country", await fact("country", "Country, ISO 3166-1 alpha-2 (for example, DE)")],
+      ["locale", await fact("locale", "Locale, BCP 47 (for example, de-DE)")],
+    ].filter(([, value]) => value),
+  );
+  // Refused here with the flag's name: a charge needs a currency, and guessing
+  // one would charge a customer in money the business doesn't take.
+  if (commerce && !business.currency) {
+    process.stderr.write(
+      "create-astroid: --commerce needs --currency, the ISO 4217 code the site charges in (for example, --currency EUR)\n",
+    );
+    process.exit(1);
+  }
+
   // A pair or nothing: a credit with no link, or a link with nothing to show,
   // is a half-typed flag rather than a choice.
   const creditName = typeof flags["credit-name"] === "string" ? flags["credit-name"] : undefined;
@@ -470,7 +528,9 @@ async function main() {
   }
 
   // Validate + normalize through the real config surface (throws on a bad shape).
-  const config = defineAstroid({
+  // A bad flag value, such as `--currency eur`, is reported as its message
+  // rather than a stack trace.
+  const config = validConfig({
     key,
     archetype,
     ...(host ? { hosts: [host] } : {}),
@@ -493,6 +553,7 @@ async function main() {
     // dropping a module whenever both were passed.
     ...(modules.length > 0 ? { modules } : {}),
     ...(creditName && creditHref ? { credit: { name: creditName, href: creditHref } } : {}),
+    ...(Object.keys(business).length > 0 ? { business } : {}),
     deploy: { platform: "cloudflare" },
   });
 

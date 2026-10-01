@@ -48,7 +48,8 @@ pnpm create astroid my-site
 ```
 
 Every option is prompted for; in a non-TTY each prompt takes its default, so the
-command is CI-safe. The target directory must be empty.
+command is CI-safe. The business facts have no default, so a blank answer leaves
+each out of the config. The target directory must be empty.
 
 ```
 pnpm create astroid [directory] [options]
@@ -64,6 +65,10 @@ pnpm create astroid [directory] [options]
   --pwa                 Installable PWA (scoped service worker + manifest)
   --portal              Customer/member portal (a second, isolated auth instance)
   --realtime            Live multi-editor editing (a per-page Durable Object)
+  --time-zone <zone>    The business's IANA time zone, for example, Europe/Berlin
+  --currency <code>     Its ISO 4217 currency, for example, EUR (required with --commerce)
+  --country <code>      Its ISO 3166-1 alpha-2 country, for example, DE
+  --locale <tag>        The site's BCP 47 locale, for example, de-DE
   --credit-name <name>  A "Site by <name>" credit in the footer
   --credit-href <url>   Where the credit links (pairs with --credit-name)
   --app                 An app with no pages to edit (editor: false)

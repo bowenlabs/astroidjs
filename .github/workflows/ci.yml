@@ -130,10 +130,14 @@ jobs:
           - { leg: marketing-map, archetype: marketing, flags: "--map" }
           - { leg: portfolio, archetype: portfolio, flags: "" }
           - { leg: storefront, archetype: storefront, flags: "" }
-          - { leg: storefront-square, archetype: storefront, flags: "--commerce square" }
+          # `--commerce` needs `--currency`. This leg passes every business
+          # fact, so the layout compiles against a config that states them.
+          - leg: storefront-square
+            archetype: storefront
+            flags: "--commerce square --currency EUR --country DE --time-zone Europe/Berlin --locale de-DE"
           - leg: storefront-square-multi
             archetype: storefront
-            flags: "--commerce square --square-locations multi"
+            flags: "--commerce square --currency EUR --square-locations multi"
           # The editor-free app shape: a different trio, env.d.ts and layout,
           # laid over the template, so nothing else compiles them. The second
           # leg adds the modules the shape keeps; its catalog table is what
@@ -141,7 +145,7 @@ jobs:
           - { leg: app, archetype: marketing, flags: "--app" }
           - leg: app-modules
             archetype: storefront
-            flags: "--app --portal --pwa --commerce square"
+            flags: "--app --portal --pwa --commerce square --currency EUR"
           # `--into`: a second app scaffolded into the first repository. The
           # script checks the first app comes out unchanged, then doctors,
           # type-checks and builds both from one install at the root.
