@@ -8,6 +8,7 @@ export {
   resolvePageSeo,
 } from "./resolve.js";
 export {
+  astroidDisallowPaths,
   astroidNoindexPaths,
   astroidRobotsTxt,
   astroidSitemapXml,

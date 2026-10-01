@@ -2,10 +2,12 @@
 // Scaffolded once and yours to edit: add your own routes (a product catalog, a
 // gallery) to the `entries` array below.
 //
-// `astroidSitemapXml` drops anything matching the config's noindex prefixes, so
-// this file and robots.txt can never disagree about what's crawlable.
+// `astroidSitemapXml` drops every path the config keeps out of the index
+// (`astroidNoindexPaths`), and lists nothing while **Hide from search engines**
+// is on, the same switch robots.txt and every page's `noindex` follow.
 import type { APIRoute } from "astro";
 import { astroidSitemapXml, type SitemapEntry } from "astroidjs";
+import { astroidIndexingDisabled } from "astroidjs/seo";
 import { env } from "cloudflare:workers";
 import astroidConfig from "../../astroid.config.js";
 
@@ -31,7 +33,8 @@ export const GET: APIRoute = async (context) => {
     // No DB binding yet (pre-provision)—ship the root-only sitemap.
   }
 
-  return new Response(astroidSitemapXml(astroidConfig, entries, { origin }), {
+  const disableIndexing = await astroidIndexingDisabled(astroidConfig, env);
+  return new Response(astroidSitemapXml(astroidConfig, entries, { origin, disableIndexing }), {
     headers: {
       "content-type": "application/xml; charset=utf-8",
       "cache-control": "public, max-age=3600",

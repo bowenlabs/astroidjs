@@ -12,6 +12,8 @@
 #     buffer), and none of them stores it. Reaching those throws needs a real D1,
 #     so no unit test covers them, and before louise-toolkit 0.31.1 the buffered
 #     path answered 200 and failed later, at publish. See docs/LESSONS.md.
+#   - The Settings panel's Hide from search engines switch reaches robots.txt,
+#     the sitemap, and the home page's `noindex`, through a real D1.
 #   - The built CSS carries the section library's utility classes. Tailwind v4
 #     doesn't scan node_modules, so without the template's `@source` line every
 #     section renders unstyled, and nothing but the built CSS shows it.
@@ -140,6 +142,33 @@ echo "    ok: the live row's sections are unchanged"
 expect 200 "$(status_of -X PATCH "$BASE/api/louise/pages/1" -d '{"seoTitle":"Served"}')" \
   "valid Pages route PATCH"
 
+echo "==> Hide from search engines reaches robots.txt, the sitemap, and every page"
+# One reader (astroidIndexingDisabled) behind all three, read through Drizzle
+# against the real migration: a column it can't read turns robots.txt into a
+# 503, which this catches.
+page() { curl -s -m 30 "$BASE$1"; }
+ROBOTS="$(page /robots.txt)"
+grep -qx 'Disallow: /api/' <<<"$ROBOTS" || fail "robots.txt doesn't block /api/: $ROBOTS"
+# Sign-in prints noindex itself, so a crawler has to be able to fetch it.
+if grep -q 'Disallow: /login' <<<"$ROBOTS"; then fail "robots.txt disallows the noindex sign-in page"; fi
+if page / | grep -q 'name="robots"'; then fail "the home page is noindex with the switch off"; fi
+echo "    ok: crawlable with the switch off, before the settings row exists"
+# The row is created on first run; the Settings panel can't write without it.
+SEEDED="$(status_of -X POST "$BASE/api/louise/seed")"
+[ "$SEEDED" = 200 ] || [ "$SEEDED" = 201 ] || fail "settings seed: expected 200 or 201, got $SEEDED"
+expect 200 "$(status_of -X PATCH "$BASE/api/louise/settings" -d '{"disableIndexing":true}')" \
+  "Settings PATCH turns the switch on"
+[ "$(page /robots.txt)" = $'User-agent: *\nDisallow: /' ] ||
+  fail "robots.txt doesn't disallow everything with the switch on: $(page /robots.txt)"
+echo "    ok: robots.txt disallows everything"
+page / | grep -q '<meta name="robots" content="noindex, nofollow"' ||
+  fail "the home page isn't noindex with the switch on"
+echo "    ok: the home page prints noindex"
+if page /sitemap.xml | grep -q '<url>'; then fail "the sitemap lists pages with the switch on"; fi
+echo "    ok: the sitemap is empty"
+expect 200 "$(status_of -X PATCH "$BASE/api/louise/settings" -d '{"disableIndexing":false}')" \
+  "Settings PATCH turns the switch off"
+
 echo "==> the built CSS carries the section library's utilities"
 # Classes the section components use and the template doesn't, so only the
 # `@source` line in src/styles/site.css can put them in the CSS.
@@ -152,4 +181,4 @@ for class in divide-base-300 lg:grid-cols-4 marker:content-none size-10 gap-x-6;
   echo "    ok: .$escaped"
 done
 
-echo "==> OK: served scaffold refuses invalid sections and ships the section CSS"
+echo "==> OK: served scaffold refuses invalid sections, follows Hide from search engines, and ships the section CSS"

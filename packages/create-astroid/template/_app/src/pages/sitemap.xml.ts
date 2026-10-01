@@ -3,8 +3,9 @@
 //
 // It doesn't read a `pages` table, even when this app shares a database with a
 // site that has one: those pages are served from the site's origin, not this
-// app's. `astroidSitemapXml` drops anything matching the config's noindex
-// prefixes, so this file and robots.txt can never disagree.
+// app's. `astroidSitemapXml` drops every path the config keeps out of the
+// index (`astroidNoindexPaths`), which includes everything robots.txt
+// disallows.
 import type { APIRoute } from "astro";
 import { astroidSitemapXml, type SitemapEntry } from "astroidjs";
 import astroidConfig from "../../astroid.config.js";

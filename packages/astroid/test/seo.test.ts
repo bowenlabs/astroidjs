@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { resolvePageSeo } from "../src/seo/resolve.js";
-import { astroidNoindexPaths, astroidRobotsTxt, astroidSitemapXml } from "../src/seo/routes.js";
+import {
+  astroidDisallowPaths,
+  astroidNoindexPaths,
+  astroidRobotsTxt,
+  astroidSitemapXml,
+} from "../src/seo/routes.js";
 import { astroidStructuredData, escapeJsonLd } from "../src/seo/structured-data.js";
 
 const settings = {
@@ -181,20 +186,52 @@ describe("escapeJsonLd", () => {
   });
 });
 
+const full: AstroidConfig = {
+  ...config,
+  portal: { enabled: true },
+  commerce: { provider: "square" },
+};
+
+describe("astroidDisallowPaths", () => {
+  it("lists only what no crawler should fetch: the API and the editor", () => {
+    expect(astroidDisallowPaths(config)).toEqual(["/api", "/louise"]);
+    // The portal's auth mount sits under /api, so it adds nothing...
+    expect(astroidDisallowPaths(full)).toEqual(["/api", "/louise"]);
+    // ...unless the config moves it.
+    expect(
+      astroidDisallowPaths({ ...config, portal: { enabled: true, basePath: "/portal-auth" } }),
+    ).toEqual(["/api", "/louise", "/portal-auth"]);
+  });
+
+  it("leaves out pages that print noindex, so a crawler can see the tag", () => {
+    for (const page of ["/login", "/account", "/register", "/checkout", "/cart", "/portal"]) {
+      expect(astroidDisallowPaths(full)).not.toContain(page);
+    }
+  });
+});
+
 describe("astroidNoindexPaths", () => {
-  it("always hides the editor and its API, and adds module surfaces", () => {
-    expect(astroidNoindexPaths(config)).toContain("/api/");
-    expect(astroidNoindexPaths(config)).toContain("/louise");
+  it("covers the disallowed paths, the sign-in page, and module surfaces", () => {
+    expect(astroidNoindexPaths(config)).toEqual(["/api", "/login", "/louise"]);
     expect(astroidNoindexPaths(config)).not.toContain("/account");
 
-    const full = astroidNoindexPaths({
-      ...config,
-      portal: { enabled: true },
-      commerce: { provider: "square" },
-    });
-    expect(full).toContain("/account");
-    expect(full).toContain("/checkout");
-    expect(full).toContain("/cart");
+    expect(astroidNoindexPaths(full)).toEqual([
+      "/account",
+      "/api",
+      "/cart",
+      "/checkout",
+      "/login",
+      "/louise",
+      "/portal",
+      "/register",
+      "/reset-password",
+    ]);
+  });
+
+  it("drops an entry another entry covers", () => {
+    // The portal's default guard covers /portal and /api/portal; /api already
+    // covers the second.
+    expect(astroidNoindexPaths(full)).not.toContain("/api/portal");
   });
 });
 
@@ -207,10 +244,45 @@ describe("astroidRobotsTxt", () => {
     expect(txt).toContain("Disallow: /api/");
   });
 
+  it("blocks each path on a segment boundary, not as a bare prefix", () => {
+    const txt = astroidRobotsTxt(config, { origin: "https://acme.coffee" });
+    expect(txt).toBe(
+      [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api$",
+        "Disallow: /api/",
+        "Disallow: /louise$",
+        "Disallow: /louise/",
+        "",
+        "Sitemap: https://acme.coffee/sitemap.xml",
+        "",
+      ].join("\n"),
+    );
+    // A bare `Disallow: /louise` would also block a page at /louise-story.
+    expect(txt).not.toMatch(/^Disallow: \/louise\r?$/m);
+  });
+
+  it("doesn't disallow the noindex pages", () => {
+    const txt = astroidRobotsTxt(full, { origin: "https://acme.coffee" });
+    for (const page of ["/login", "/account", "/register", "/reset-password", "/cart"]) {
+      expect(txt).not.toContain(`Disallow: ${page}`);
+    }
+  });
+
+  it("passes a pattern of your own through, and drops line breaks", () => {
+    const txt = astroidRobotsTxt(config, {
+      origin: "https://acme.coffee",
+      disallow: ["/*.json$", "/drafts/", "/x\nSitemap: https://attacker.example"],
+    });
+    expect(txt).toContain("Disallow: /*.json$\n");
+    expect(txt).toContain("Disallow: /drafts$\nDisallow: /drafts/\n");
+    expect(txt).not.toContain("\nSitemap: https://attacker.example");
+  });
+
   it("blocks the whole crawl when indexing is disabled", () => {
     const txt = astroidRobotsTxt(config, { origin: "https://acme.coffee", disableIndexing: true });
-    expect(txt).toContain("Disallow: /");
-    expect(txt).not.toContain("Allow: /");
+    expect(txt).toBe("User-agent: *\nDisallow: /\n");
     // Don't advertise a sitemap for a site that shouldn't be crawled.
     expect(txt).not.toContain("Sitemap:");
   });
@@ -229,7 +301,7 @@ describe("astroidSitemapXml", () => {
     ]);
   });
 
-  it("drops paths that robots.txt disallows", () => {
+  it("drops the paths the config keeps out of the index", () => {
     const xml = astroidSitemapXml(
       { ...config, portal: { enabled: true } },
       ["/", "/account/orders", "/api/health", "/louise"],
@@ -239,6 +311,33 @@ describe("astroidSitemapXml", () => {
     expect(xml).not.toContain("/api/");
     expect(xml).not.toContain("/louise");
     expect(xml).toContain("https://acme.coffee/</loc>");
+  });
+
+  it("matches excluded paths on segment boundaries", () => {
+    const xml = astroidSitemapXml(
+      full,
+      ["/account", "/account/orders", "/accounts", "/registration", "/cartography", "/api"],
+      { origin },
+    );
+    const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    // A published page that only starts with a hidden path stays listed.
+    expect(locs).toEqual([
+      "https://acme.coffee/accounts",
+      "https://acme.coffee/cartography",
+      "https://acme.coffee/registration",
+    ]);
+  });
+
+  it("leaves out the noindex pages that robots.txt still lets crawlers fetch", () => {
+    const xml = astroidSitemapXml(full, ["/", "/login", "/checkout", "/portal/orders"], { origin });
+    const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(locs).toEqual(["https://acme.coffee/"]);
+  });
+
+  it("lists nothing while indexing is disabled", () => {
+    const xml = astroidSitemapXml(config, ["/", "/shop"], { origin, disableIndexing: true });
+    expect(xml).not.toContain("<url>");
+    expect(xml).toContain("<urlset");
   });
 
   it("XML-escapes locs — an unescaped & makes the whole document invalid", () => {

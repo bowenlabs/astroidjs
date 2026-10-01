@@ -4,7 +4,7 @@ import { generateAstroidProject, generateAstroidWrangler } from "../src/project/
 import { generateAstroidScaffoldFiles } from "../src/project/scaffold.js";
 import { ASTROID_HEALTH_CRON, astroidCrons } from "../src/queues/messages.js";
 import { astroidRateRules } from "../src/security/rate-rules.js";
-import { astroidNoindexPaths } from "../src/seo/routes.js";
+import { astroidDisallowPaths } from "../src/seo/routes.js";
 import { astroidHasEditor } from "../src/shape.js";
 import { astroidModuleStatus, astroidSecretNames } from "../src/status.js";
 
@@ -152,7 +152,7 @@ describe("the editor-free app shape", () => {
   });
 
   it("keeps /louise out of robots.txt, since there's no editor to hide", () => {
-    expect(astroidNoindexPaths(app)).not.toContain("/louise");
+    expect(astroidDisallowPaths(app)).not.toContain("/louise");
   });
 });
 
