@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -151,26 +151,31 @@ describe("generateAstroidReleaseWorkflow", () => {
         writeFileSync(join(dir, `ci-${i}.json`), JSON.stringify({ check_runs: runs })),
       );
       writeFileSync(join(dir, "all.json"), JSON.stringify({ check_runs: [ownJob, ...otherRuns] }));
-      // gh api <path> --jq <filter>. Each CI read takes the next response, and
-      // the last one repeats.
-      writeFileSync(
-        join(dir, "gh"),
-        [
-          "#!/usr/bin/env bash",
-          'echo "$2" >> "$FAKE/calls"',
-          'if [[ "$2" == *check_name=CI* ]]; then',
-          '  n="$(cat "$FAKE/n" 2>/dev/null || echo 0)"',
-          '  file="$FAKE/ci-$n.json"',
-          '  if [ -f "$FAKE/ci-$((n + 1)).json" ]; then echo "$((n + 1))" > "$FAKE/n"; fi',
-          "else",
-          '  file="$FAKE/all.json"',
-          "fi",
-          'jq -r "$4" "$file"',
-        ].join("\n"),
-      );
-      writeFileSync(join(dir, "sleep"), '#!/usr/bin/env bash\necho "$1" >> "$FAKE/sleeps"\n');
-      chmodSync(join(dir, "gh"), 0o755);
-      chmodSync(join(dir, "sleep"), 0o755);
+      writeFileSync(join(dir, "n"), "0\n");
+      // The fakes are shell functions defined ahead of the script, and use only
+      // builtins after a response's first read. The timeout test polls 90
+      // times, and on macOS a process started per poll, whether a fake gh on
+      // PATH or jq, takes it past vitest's 5 s timeout.
+      // gh api <path> --jq <filter>: each CI read takes the next response, and
+      // the last one repeats. A response is only ever read with one filter, so
+      // jq runs it once and later reads replay what it printed.
+      const fakes = [
+        "gh() {",
+        '  echo "$2" >> "$FAKE/calls"',
+        '  if [[ "$2" == *check_name=CI* ]]; then',
+        '    read -r n < "$FAKE/n"',
+        '    file="$FAKE/ci-$n.json"',
+        '    if [ -f "$FAKE/ci-$((n + 1)).json" ]; then echo "$((n + 1))" > "$FAKE/n"; fi',
+        "  else",
+        '    file="$FAKE/all.json"',
+        "  fi",
+        '  if [ ! -f "$file.out" ]; then',
+        '    jq -r "$4" "$file" > "$file.out" || { rm "$file.out"; return 1; }',
+        "  fi",
+        '  while IFS= read -r line; do echo "$line"; done < "$file.out"',
+        "}",
+        'sleep() { echo "$1" >> "$FAKE/sleeps"; }',
+      ].join("\n");
       const read = (name: string) => {
         try {
           return readFileSync(join(dir, name), "utf8").split("\n").filter(Boolean);
@@ -183,11 +188,17 @@ describe("generateAstroidReleaseWorkflow", () => {
       try {
         output = execFileSync(
           "bash",
-          ["--noprofile", "--norc", "-eo", "pipefail", "-c", script.replace(/^ {10}/gm, "")],
+          [
+            "--noprofile",
+            "--norc",
+            "-eo",
+            "pipefail",
+            "-c",
+            `${fakes}\n${script.replace(/^ {10}/gm, "")}`,
+          ],
           {
             env: {
               ...process.env,
-              PATH: `${dir}:${process.env.PATH}`,
               FAKE: dir,
               SHA: "abc123",
               GITHUB_REPOSITORY: "example-org/site",
