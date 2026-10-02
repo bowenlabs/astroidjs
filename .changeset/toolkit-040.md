@@ -12,5 +12,5 @@ Astroid moves to louise-toolkit 0.40 and @louise-toolkit/astro 0.6.5. Nothing in
 **What to do:**
 
 1. Upgrade `louise-toolkit` to 0.40 and `@louise-toolkit/astro` to 0.6.5 along with this release, in the same install. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
-2. If `astro check` reports "separate declarations of a private property", run `pnpm why louise-toolkit`. More than one version listed means the two ranges disagree. Align them as in step 1.
+2. If `astro check` reports "separate declarations of a private property", run `corepack pnpm why louise-toolkit`. More than one version listed means the two ranges disagree. Align them as in step 1.
 3. Run `astroid generate`, then `astroid doctor`.
