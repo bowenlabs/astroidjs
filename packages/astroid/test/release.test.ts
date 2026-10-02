@@ -151,24 +151,28 @@ describe("generateAstroidReleaseWorkflow", () => {
         writeFileSync(join(dir, `ci-${i}.json`), JSON.stringify({ check_runs: runs })),
       );
       writeFileSync(join(dir, "all.json"), JSON.stringify({ check_runs: [ownJob, ...otherRuns] }));
-      // The fakes are shell functions defined ahead of the step, not scripts on
-      // PATH, so a poll runs one program, the real jq, rather than six. Starting
-      // a program can take tens of milliseconds on a loaded Mac with endpoint
-      // security software, and the 90-poll test ran about 540 of them.
-      //
-      // gh api <path> --jq <filter>. Each CI read takes the next response, and
-      // the last one repeats.
+      writeFileSync(join(dir, "n"), "0\n");
+      // The fakes are shell functions defined ahead of the script, and use only
+      // builtins after a response's first read. The timeout test polls 90
+      // times, and on macOS a process started per poll, whether a fake gh on
+      // PATH or jq, takes it past vitest's 5 s timeout.
+      // gh api <path> --jq <filter>: each CI read takes the next response, and
+      // the last one repeats. A response is only ever read with one filter, so
+      // jq runs it once and later reads replay what it printed.
       const fakes = [
         "gh() {",
         '  echo "$2" >> "$FAKE/calls"',
         '  if [[ "$2" == *check_name=CI* ]]; then',
-        '    n=0; [ -f "$FAKE/n" ] && read -r n < "$FAKE/n"',
+        '    read -r n < "$FAKE/n"',
         '    file="$FAKE/ci-$n.json"',
         '    if [ -f "$FAKE/ci-$((n + 1)).json" ]; then echo "$((n + 1))" > "$FAKE/n"; fi',
         "  else",
         '    file="$FAKE/all.json"',
         "  fi",
-        '  jq -r "$4" "$file"',
+        '  if [ ! -f "$file.out" ]; then',
+        '    jq -r "$4" "$file" > "$file.out" || { rm "$file.out"; return 1; }',
+        "  fi",
+        '  while IFS= read -r line; do echo "$line"; done < "$file.out"',
         "}",
         'sleep() { echo "$1" >> "$FAKE/sleeps"; }',
       ].join("\n");
@@ -252,16 +256,12 @@ describe("generateAstroidReleaseWorkflow", () => {
     expect(failed.output).toContain("ended in failure");
   });
 
-  // The 90 polls run the real jq 90 times. That takes well under a second on
-  // Linux, but up to about 10 seconds on a loaded Mac, where starting a program
-  // is slow. The step's own 20-second limit in ciCheck still stops one that
-  // never ends; this limit only has to sit above it.
   it("gives up after 30 minutes of polling every 20 seconds", () => {
     const { ok, output, polls } = ciCheck([[checkRun("in_progress", null)]]);
     expect(ok).toBe(false);
     expect(polls).toBe(90);
     expect(output).toContain("::error::CI on abc123 didn't finish within 30 minutes");
-  }, 30_000);
+  });
 
   it("refuses a commit with no CI run at once, counting none of its own jobs", () => {
     const { ok, output, polls } = ciCheck([[]]);
