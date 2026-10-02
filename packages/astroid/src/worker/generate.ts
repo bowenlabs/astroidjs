@@ -27,6 +27,7 @@ import {
   astroidQueueNames,
   astroidUsesQueues,
 } from "../queues/messages.js";
+import { ASTROID_AUTH_RATE_LIMIT_CLASS, usesAuthRateLimit } from "../auth-rate-limit/scaffold.js";
 import {
   ASTROID_EDIT_SESSION_CLASS,
   ASTROID_REALTIME_BINDING,
@@ -619,8 +620,24 @@ export function generateAstroidWorker(
     p(`export { ${ASTROID_EDIT_SESSION_CLASS} } from "./edit-session.js";`);
     p();
   }
+  emitAuthRateLimitExport(config, p);
 
   return lines.join("\n");
+}
+
+/**
+ * The auth rate limiter's Durable Object, re-exported from the entry for the
+ * same reason as the realtime one: wrangler resolves a binding's `class_name`
+ * against the worker's exports. Shared by both worker shapes, since an app's
+ * portal signs people in too.
+ */
+function emitAuthRateLimitExport(config: AstroidConfig, p: (line?: string) => void): void {
+  if (!usesAuthRateLimit(config)) return;
+  p("// The Durable Object Better Auth's rate limiter counts in (authRateLimit");
+  p("// module). Re-exported so wrangler can resolve the `class_name` in the");
+  p("// durable_objects binding.");
+  p(`export { ${ASTROID_AUTH_RATE_LIMIT_CLASS} } from "./auth-rate-limiter.js";`);
+  p();
 }
 
 /**
@@ -737,6 +754,7 @@ function generateAppWorker(config: AstroidConfig, dlq: string | null): string {
   }
   p("});");
   p();
+  emitAuthRateLimitExport(config, p);
   return lines.join("\n");
 }
 

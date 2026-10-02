@@ -11,6 +11,7 @@
 // session bug rather than a configuration one.
 
 import type { AstroidConfig } from "../config.js";
+import { astroidAuthRateLimitOption, usesAuthRateLimit } from "../auth-rate-limit/scaffold.js";
 import { astroidPortal } from "./config.js";
 
 /**
@@ -50,6 +51,7 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
     `    basePath: ${JSON.stringify(portal.basePath)},`,
     `    cookiePrefix: ${JSON.stringify(portal.cookiePrefix)},`,
     `    tablePrefix: ${JSON.stringify(portal.tablePrefix)},`,
+    ...(usesAuthRateLimit(config) ? [astroidAuthRateLimitOption(config)] : []),
     "    customers: {",
     "      minPasswordLength: 8,",
     portal.signUp

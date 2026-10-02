@@ -12,6 +12,7 @@ export {
   astroidBusiness,
   astroidSeoLocale,
 } from "./business.js";
+export * from "./auth-rate-limit/index.js";
 export * from "./commerce/index.js";
 export * from "./config.js";
 export * from "./email/index.js";

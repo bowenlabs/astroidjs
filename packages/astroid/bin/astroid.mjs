@@ -186,6 +186,7 @@ async function cmdDoctor(cwd, flags) {
     astroidHasEditor,
     checkWranglerPreviews,
     checkWranglerQueues,
+    checkAuthRateLimit,
     astroidRunsMigrations,
     migrationsOwnershipError,
     generateAstroidReleaseWorkflow,
@@ -304,6 +305,21 @@ async function cmdDoctor(cwd, flags) {
           : "wrangler.jsonc has no `send_email` binding, but the portal emails password resets " +
               'in production (they are only console-logged in dev). Add: "send_email": [{ "name": "EMAIL" }]',
       );
+
+    // The auth rate limiter's Durable Object: a binding, a migration, and the
+    // `rateLimitDo` line in each auth seam, none of which a config change can
+    // write into an existing project.
+    const seamText = (path) =>
+      existsSync(join(cwd, path)) ? readFileSync(join(cwd, path), "utf8") : null;
+    const rateLimit = checkAuthRateLimit(config, w, [
+      ...(editor ? [{ path: "src/auth.ts", text: seamText("src/auth.ts") }] : []),
+      ...(config.portal?.enabled
+        ? [{ path: "src/portal-auth.ts", text: seamText("src/portal-auth.ts") }]
+        : []),
+    ]);
+    for (const m of rateLimit.ok) ok(m);
+    for (const m of rateLimit.warnings) warn(m);
+    for (const m of rateLimit.errors) err(m);
 
     if (hasBinding("DB")) ok("wrangler: D1 `DB` binding present");
     else err("wrangler.jsonc has no D1 `DB` binding.");

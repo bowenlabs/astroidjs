@@ -183,7 +183,21 @@ describe("defineAstroid with editor: false", () => {
     refuses({ inquiries: true }, /`inquiries: true`/);
     refuses({ modules: ["realtime"] }, /`realtime`/);
     refuses({ modules: ["wholesaleInquiry"] }, /`wholesaleInquiry`/);
+    // Its limiter guards sign-in, and without a portal an app signs nobody in.
+    refuses({ modules: ["authRateLimit"] }, /`authRateLimit`/);
     refuses({ deploy: { platform: "cloudflare", mediaBase: "/m" } }, /`deploy\.mediaBase`/);
+  });
+
+  it("keeps the auth rate limiter for an app whose portal signs people in", () => {
+    const limited: AstroidConfig = {
+      ...app,
+      modules: ["authRateLimit"],
+      portal: { enabled: true },
+    };
+    expect(() => defineAstroid(limited)).not.toThrow();
+    expect(trio(limited)["src/worker.ts"]).toContain(
+      'export { AuthRateLimitDO } from "./auth-rate-limiter.js";',
+    );
   });
 
   it("accepts `inquiries: false`, which says what the shape already does", () => {

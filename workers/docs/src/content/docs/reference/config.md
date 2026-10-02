@@ -22,6 +22,8 @@ fail deep inside generation. Throws [`AstroidConfigError`](#errors) on:
   wiring no guard
 - `editor: false` alongside an option that configures the editor, such as
   `sections`, `media`, `settings`, or the `realtime` module
+- `editor: false` with the `authRateLimit` module and no portal, since nothing
+  signs in for the limiter to guard
 - a `credit` with no `name`, an `href` that isn't an absolute `http` or `https` URL, or
   a `logo` that isn't a root-relative path or an `https` URL
 - a `business` fact that `Intl` doesn't accept: a time zone that isn't IANA, a

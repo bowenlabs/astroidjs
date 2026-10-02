@@ -41,6 +41,7 @@ import { astroidPortal } from "../portal/config.js";
 import { astroidHasEditor } from "../shape.js";
 import { generateAstroidPortalAuth, generateAstroidPortalAuthRoute } from "../portal/scaffold.js";
 import { generateAstroidTenancy } from "../tenancy/index.js";
+import { generateAstroidAuthRateLimiter } from "../auth-rate-limit/scaffold.js";
 import { generateAstroidEditSession } from "../realtime/scaffold.js";
 import {
   generatePwaHeaders,
@@ -373,6 +374,12 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
   // because `persist` is the seam a project tunes.
   const editSession = generateAstroidEditSession(config);
   if (editSession) files.push({ path: "src/edit-session.ts", contents: editSession });
+
+  // --- authRateLimit: the Durable Object Better Auth's limiter counts in -----
+  // Scaffold-once for the same reason as the edit session: it must import
+  // `cloudflare:workers`, which only the site can.
+  const authRateLimiter = generateAstroidAuthRateLimiter(config);
+  if (authRateLimiter) files.push({ path: "src/auth-rate-limiter.ts", contents: authRateLimiter });
 
   // --- tenancy: what a subdomain maps to ------------------------------------
   // Astroid owns the wildcard route and the middleware wiring; this file owns
