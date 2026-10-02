@@ -15,9 +15,13 @@ import {
   usesAuthRateLimit,
 } from "./scaffold.js";
 
-interface WranglerDurableObjects {
+interface DurableObjectBindings {
   durable_objects?: { bindings?: { name?: string; class_name?: string }[] };
+}
+
+interface WranglerDurableObjects extends DurableObjectBindings {
   migrations?: { tag?: string; new_classes?: string[]; new_sqlite_classes?: string[] }[];
+  previews?: DurableObjectBindings;
 }
 
 /** An auth seam that calls `getLouiseAuth`, with its text, or null when absent. */
@@ -34,6 +38,10 @@ export interface AstroidAuthSeam {
  *   and the seams read `env.AUTH_RATE_LIMIT`, which is then undefined.
  * - A binding with no migration naming the class: an error, since wrangler
  *   refuses to deploy it.
+ * - A `previews` block without the binding: an error. The previews check only
+ *   asks whether `previews` has a `durable_objects` key, so a site whose block
+ *   already lists the realtime binding would pass it with this one missing,
+ *   and every Preview would read `env.AUTH_RATE_LIMIT` as undefined.
  * - A seam that doesn't pass `rateLimitDo`: a warning. That instance still
  *   limits, but counts in KV or in memory, which undercount under a burst.
  */
@@ -71,6 +79,24 @@ export function checkAuthRateLimit(
     findings.ok.push(
       `wrangler: Durable Object \`${ASTROID_AUTH_RATE_LIMIT_BINDING}\` binding present`,
     );
+  }
+
+  if (parsed.previews) {
+    const preview = (parsed.previews.durable_objects?.bindings ?? []).find(
+      (b) => b.name === ASTROID_AUTH_RATE_LIMIT_BINDING,
+    );
+    if (preview?.class_name === ASTROID_AUTH_RATE_LIMIT_CLASS) {
+      findings.ok.push(
+        `previews: Durable Object \`${ASTROID_AUTH_RATE_LIMIT_BINDING}\` binding present`,
+      );
+    } else {
+      findings.errors.push(
+        `\`previews\` has no Durable Object \`${ASTROID_AUTH_RATE_LIMIT_BINDING}\` binding. A Preview ` +
+          "inherits nothing, so the auth seams read it as undefined there. Copy " +
+          `{ "name": "${ASTROID_AUTH_RATE_LIMIT_BINDING}", "class_name": "${ASTROID_AUTH_RATE_LIMIT_CLASS}" } ` +
+          "into `previews.durable_objects.bindings`; it needs no staging resource.",
+      );
+    }
   }
 
   const migrated = (parsed.migrations ?? []).some((m) =>

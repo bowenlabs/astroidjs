@@ -110,6 +110,31 @@ describe("checkAuthRateLimit (astroid doctor)", () => {
     expect(findings.errors[1]).toContain('"tag": "auth-rate-limit-v1"');
   });
 
+  /** A wrangler.jsonc with the module wired, and the given `previews` bindings. */
+  const withPreviews = (bindings: { name: string; class_name: string }[]) =>
+    JSON.stringify({
+      durable_objects: { bindings: [{ name: "AUTH_RATE_LIMIT", class_name: "AuthRateLimitDO" }] },
+      migrations: [{ tag: "auth-rate-limit-v1", new_sqlite_classes: ["AuthRateLimitDO"] }],
+      previews: { durable_objects: { bindings } },
+    });
+
+  it("fails a previews block that lists only the realtime binding", () => {
+    // The previews check only asks whether `durable_objects` exists in
+    // `previews`, so a realtime site that adds this binding at the top level
+    // alone would pass it, and every Preview would lack AUTH_RATE_LIMIT.
+    const realtimeOnly = withPreviews([{ name: "EDIT_SESSION", class_name: "EditSessionDO" }]);
+    const findings = checkAuthRateLimit(limited, realtimeOnly, seam(calls));
+    expect(findings.errors).toHaveLength(1);
+    expect(findings.errors[0]).toContain("`previews` has no Durable Object `AUTH_RATE_LIMIT`");
+  });
+
+  it("passes a previews block that copies the binding", () => {
+    const copied = withPreviews([{ name: "AUTH_RATE_LIMIT", class_name: "AuthRateLimitDO" }]);
+    const findings = checkAuthRateLimit(limited, copied, seam(calls));
+    expect(findings.errors).toEqual([]);
+    expect(findings.ok).toContain("previews: Durable Object `AUTH_RATE_LIMIT` binding present");
+  });
+
   it("fails a binding pointed at another class", () => {
     const wrangler = wired.replace('"class_name": "AuthRateLimitDO"', '"class_name": "Other"');
     expect(checkAuthRateLimit(limited, wrangler, []).errors[0]).toContain("`Other`");

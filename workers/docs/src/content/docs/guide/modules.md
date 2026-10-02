@@ -320,7 +320,13 @@ nothing else. `astroid doctor` then names what's left:
 4. If `wrangler.jsonc` has a `previews` block, copy the binding into its
    `durable_objects` too. A Preview inherits nothing, but the binding needs no
    staging resource: Cloudflare gives each Preview its own instances of the
-   class.
+   class. `astroid doctor` checks this too: the general previews check only
+   asks whether `previews` has a `durable_objects` key, which a project with the
+   realtime module already passes.
+
+ADR 0024 records the convention every Durable Object module follows: one
+`durable_objects` list, a migration tag named after the module, and entries
+appended, never inserted.
 
 ## Dormant until provisioned
 
