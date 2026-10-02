@@ -205,9 +205,15 @@ describe("generateAstroidReleaseWorkflow", () => {
               GITHUB_RUN_ID: "777",
             },
             encoding: "utf8",
+            // A synchronous call blocks vitest's own timeout, so this is what
+            // stops a step that never ends.
+            timeout: 20_000,
           },
         );
       } catch (e) {
+        if ((e as { code?: string }).code === "ETIMEDOUT") {
+          throw new Error("the CI check was still running after 20 seconds", { cause: e });
+        }
         ok = false;
         output = String((e as { stdout?: string }).stdout);
       }
