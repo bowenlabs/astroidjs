@@ -1053,6 +1053,48 @@ describe("checkoutAttempts", () => {
     }
   });
 
+  describe("a failed write resolves and is logged", () => {
+    const outcome = { status: "paid", result: { paymentId: "P1" } } as const;
+
+    async function expectLoggedWrite(kv: CheckoutAttemptKv) {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const attempts = checkoutAttempts<{ paymentId: string }>({ kv });
+        const key = await attempts.key(attempt);
+        const waitUntil = vi.fn();
+        await expect(attempts.write(key, outcome, waitUntil)).resolves.toBeUndefined();
+        expect(waitUntil).toHaveBeenCalledOnce();
+        await expect(waitUntil.mock.calls[0]?.[0]).resolves.toBeUndefined();
+        expect(error).toHaveBeenCalledWith(
+          "[astroid:commerce] checkout attempt write failed",
+          expect.any(Error),
+        );
+      } finally {
+        error.mockRestore();
+      }
+    }
+
+    it("when put throws before returning a promise", async () => {
+      await expectLoggedWrite({
+        get: async () => null,
+        put: () => {
+          throw new Error("binding misconfigured");
+        },
+      });
+    });
+
+    it("when put rejects", async () => {
+      await expectLoggedWrite({
+        get: async () => null,
+        put: () => Promise.reject(new Error("KV down")),
+      });
+    });
+
+    it("when there's no KV binding", async () => {
+      await expectLoggedWrite(undefined as unknown as CheckoutAttemptKv);
+    });
+  });
+
   it("refuses a TTL below KV's floor", () => {
     expect(() => checkoutAttempts({ kv: memoryKv(), ttlSeconds: 30 })).toThrow(AstroidUsageError);
   });

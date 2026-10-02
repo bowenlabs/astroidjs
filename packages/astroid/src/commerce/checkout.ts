@@ -435,9 +435,10 @@ export interface CheckoutAttempts<Result> {
   /** The outcome kept under `key`, or null. A KV failure reads as null. */
   read(key: string): Promise<CheckoutOutcome<Result> | null>;
   /**
-   * Keep `outcome` under `key`. Never rejects: a failed write is logged. Pass
-   * `waitUntil` so a client that disconnects first, the very case the record
-   * exists for, doesn't cancel the write.
+   * Keep `outcome` under `key`. Never throws or rejects, even with a missing
+   * KV binding: a failed write is logged. Pass `waitUntil` so a client that
+   * disconnects first, the very case the record exists for, doesn't cancel
+   * the write.
    */
   write(
     key: string,
@@ -482,11 +483,14 @@ export function checkoutAttempts<Result>(
       return null;
     },
     write(key, outcome, waitUntil) {
-      const written = kv
-        .put(key, JSON.stringify(outcome), { expirationTtl: ttlSeconds })
-        .catch((error: unknown) => {
-          console.error("[astroid:commerce] checkout attempt write failed", error);
-        });
+      // The executor turns a synchronous throw (a missing binding, a `put`
+      // that throws before it returns) into a rejection. The write runs after
+      // the payment, so a throw here would report a paid checkout as failed.
+      const written = new Promise<void>((resolve) => {
+        resolve(kv.put(key, JSON.stringify(outcome), { expirationTtl: ttlSeconds }));
+      }).catch((error: unknown) => {
+        console.error("[astroid:commerce] checkout attempt write failed", error);
+      });
       waitUntil?.(written);
       return written;
     },
