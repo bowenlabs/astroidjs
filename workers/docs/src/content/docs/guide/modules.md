@@ -31,6 +31,8 @@ Opt-in capabilities, each pulling real infrastructure:
   plus a derived manifest.
 - **`realtime`**—live multi-editor editing on a page: a per-page Durable Object
   holding presence, field sync, and a rich-text soft-lock. See below.
+- **`authRateLimit`**—a Durable Object for Better Auth's sign-in rate limiter
+  to count in, instead of KV or each isolate's memory. See below.
 
 ## What's on by default
 
@@ -278,6 +280,47 @@ binding, and the migration block. That last one is the part nobody gets right
 from memory: a DO class needs a migration tag, it must be `new_sqlite_classes`
 rather than `new_classes`, and the storage backend **cannot be changed after the
 class is first deployed**.
+
+### Auth rate limiting
+
+louise-toolkit turns Better Auth's rate limiter on for every `getLouiseAuth`
+instance whose `baseURL` isn't on `localhost` or `127.0.0.1`. It counts per
+instance, client address, and path, and where it counts decides how well it
+holds. Without help it counts in KV when the instance caches sessions there,
+and otherwise in each isolate's memory. KV can undercount under a burst, and a
+burst spread across isolates gets a budget in each. A Durable Object handles one
+request at a time, so it's the one atomic counter on Workers.
+
+`modules: ["authRateLimit"]` (`--auth-rate-limit` in `create-astroid`) wires
+one:
+
+- **`src/auth-rate-limiter.ts`**, the `AuthRateLimitDO` class, scaffolded once.
+  It delegates to `createRateLimiter` from `louise-toolkit/security` and exists
+  because only the site can import `cloudflare:workers`.
+- **The re-export** from the generated `src/worker.ts`, so wrangler can resolve
+  the binding's `class_name`.
+- **The `AUTH_RATE_LIMIT` binding and its migration** in a new scaffold's
+  `wrangler.jsonc`, tagged `auth-rate-limit-v1` so it never collides with the
+  realtime module's `v1`.
+- **`rateLimitDo: env.AUTH_RATE_LIMIT`** in a new scaffold's auth seams.
+
+**Turning it on in an existing project.** `wrangler.jsonc` and the auth seams
+are scaffold-once, so `astroid generate` writes the class and the re-export and
+nothing else. `astroid doctor` then names what's left:
+
+1. Add the binding to `durable_objects.bindings`:
+   `{ "name": "AUTH_RATE_LIMIT", "class_name": "AuthRateLimitDO" }`.
+2. Append the migration to the **end** of `migrations`:
+   `{ "tag": "auth-rate-limit-v1", "new_sqlite_classes": ["AuthRateLimitDO"] }`.
+   Wrangler applies only the entries after the last tag it has applied, so an
+   entry inserted earlier never runs.
+3. Pass `rateLimitDo: env.AUTH_RATE_LIMIT` to every `getLouiseAuth` call, in
+   `src/auth.ts` and `src/portal-auth.ts`, and type the binding in
+   `src/env.d.ts`.
+4. If `wrangler.jsonc` has a `previews` block, copy the binding into its
+   `durable_objects` too. A Preview inherits nothing, but the binding needs no
+   staging resource: Cloudflare gives each Preview its own instances of the
+   class.
 
 ## Dormant until provisioned
 

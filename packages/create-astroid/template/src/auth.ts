@@ -51,7 +51,7 @@ function getAuth(request: Request): Promise<LouiseAuth> {
     mailFrom: { email: env.MAIL_FROM, name: BRAND },
     renderMagicLinkEmail,
     resolveAdmins,
-    tablePrefix: "louise_",
+    tablePrefix: "louise_",__ASTROID_AUTH_RATE_LIMIT__
   });
 }
 

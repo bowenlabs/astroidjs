@@ -109,7 +109,7 @@ export const ASTROID_ARCHETYPE_SECTIONS: Record<Archetype, SectionKind[]> = {
  * pretending otherwise is what made the flag misleading. Re-add each one in the
  * change that wires it.
  */
-export type ModuleKind = "map" | "pwa" | "realtime" | "wholesaleInquiry";
+export type ModuleKind = "authRateLimit" | "map" | "pwa" | "realtime" | "wholesaleInquiry";
 
 /** Commerce backend—mirrors Louise's provider set (louise-toolkit/commerce). */
 export type CommerceProvider = "stripe" | "square" | "fourthwall";
@@ -1039,6 +1039,14 @@ function assertEditorFree(config: AstroidConfig): void {
   if (config.deploy?.mediaBase !== undefined) {
     throw new AstroidConfigError(
       `${without} and no media library, so \`deploy.mediaBase\` would do nothing. Remove it.`,
+    );
+  }
+  // The limiter guards sign-in, and an app with no editor signs people in only
+  // through its portal.
+  if ((config.modules ?? []).includes("authRateLimit") && !config.portal?.enabled) {
+    throw new AstroidConfigError(
+      `${without} and no portal, so nobody signs in and the \`authRateLimit\` module has ` +
+        "nothing to guard. Remove it, or turn the portal on.",
     );
   }
 }

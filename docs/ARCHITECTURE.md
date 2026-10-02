@@ -59,8 +59,8 @@ config is one brand and one deploy: `key`, `archetype` (`marketing`,
 `storefront`, `wholesale`, or `portfolio`), `theme`, `sections`, `modules`, and
 the optional `portal`, `commerce`, `queues`, and `tenancy` blocks.
 
-- **Modules** are opt-in capabilities: `map`, `pwa`, `realtime`, and
-  `wholesaleInquiry`. A module kind that nothing wires doesn't belong in the
+- **Modules** are opt-in capabilities: `authRateLimit`, `map`, `pwa`,
+  `realtime`, and `wholesaleInquiry`. A module kind that nothing wires doesn't belong in the
   union.
 - **Tenancy** is wildcard host dispatch within one brand. Astroid owns the parts
   every site needs (the wildcard route and the rewrite in the one middleware file

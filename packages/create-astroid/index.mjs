@@ -35,6 +35,8 @@ import {
   generateAstroidPortalLocals,
   generateAstroidProject,
   generateAstroidCheckoutEnv,
+  astroidAuthRateLimitOption,
+  generateAstroidAuthRateLimitEnv,
   generateAstroidRealtimeEnv,
   generateAstroidScaffoldFiles,
   generateAstroidSecretsEnv,
@@ -304,6 +306,8 @@ Options:
                         never caches /api/* or the editor, plus a manifest
   --realtime            Add live multi-editor editing: a per-page Durable Object
                         with presence, field sync, and a rich-text soft-lock
+  --auth-rate-limit     Count Better Auth's sign-in rate limit in a Durable
+                        Object, the one atomic counter on Workers
   --portal              Add a customer/member portal: a second, isolated auth
                         instance plus role-gated routes
   --into <path>         Scaffold one app into an existing repository at <path>
@@ -409,7 +413,10 @@ async function main() {
   // Opt-in: realtime provisions a Durable Object, which is real infrastructure a
   // single-editor site has no use for.
   const realtime = flags.realtime === true || flags.realtime === "true";
+  // Opt-in for the same reason: a Durable Object is infrastructure to provision.
+  const authRateLimit = flags["auth-rate-limit"] === true || flags["auth-rate-limit"] === "true";
   const modules = [
+    ...(authRateLimit ? ["authRateLimit"] : []),
     ...(map ? ["map"] : []),
     ...(pwa ? ["pwa"] : []),
     ...(realtime ? ["realtime"] : []),
@@ -488,6 +495,13 @@ async function main() {
     process.stderr.write("create-astroid: --realtime needs an editor, so it can't go with --app\n");
     process.exit(1);
   }
+  // An app signs people in only through its portal, so the limiter needs one.
+  if (app && authRateLimit && !portal) {
+    process.stderr.write(
+      "create-astroid: --auth-rate-limit guards sign-in, so with --app it needs --portal\n",
+    );
+    process.exit(1);
+  }
 
   if (existsSync(dir) && readdirSync(dir).length > 0) {
     process.stderr.write(`create-astroid: target directory is not empty: ${dir}\n`);
@@ -563,6 +577,8 @@ async function main() {
   // The realtime DO namespace, or nothing—same rule as the queue bindings: a
   // declaration is a promise, so never type a binding wrangler.jsonc won't create.
   const realtimeEnv = generateAstroidRealtimeEnv(config);
+  // The auth rate limiter's DO namespace, or nothing.
+  const authRateLimitEnv = generateAstroidAuthRateLimitEnv(config);
   // The Square Web Payments public vars, or nothing.
   const checkoutEnv = generateAstroidCheckoutEnv(config);
   // An app's portal is the only thing in it that signs anyone in or sends mail,
@@ -579,7 +595,9 @@ async function main() {
           "  MAIL_FROM: string;",
         ].join("\n")
       : "";
-  const envMembers = [appPortalEnv, envBindings, realtimeEnv, checkoutEnv].filter(Boolean);
+  const envMembers = [appPortalEnv, envBindings, realtimeEnv, authRateLimitEnv, checkoutEnv].filter(
+    Boolean,
+  );
   const tokens = {
     KEY: key,
     BRAND_NAME: name,
@@ -593,6 +611,8 @@ async function main() {
     // The portal session on App.Locals, or nothing—a project that types a
     // local it never sets invites a null-check nobody needs.
     ASTROID_PORTAL_LOCALS: portalLocals ? `\n${portalLocals}` : "",
+    // The editor seam's `rateLimitDo` line in src/auth.ts, or nothing.
+    ASTROID_AUTH_RATE_LIMIT: authRateLimit ? `\n${astroidAuthRateLimitOption(config)}` : "",
     // Placeholder-seeded secrets for whichever modules this project enabled, so
     // a fresh clone has a COMPLETE binding set that all reads as unconfigured—every
     // module takes its dormant path deliberately rather than tripping over

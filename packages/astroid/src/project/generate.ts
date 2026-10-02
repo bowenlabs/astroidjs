@@ -39,6 +39,12 @@ import {
   astroidUsesQueues,
 } from "../queues/messages.js";
 import {
+  ASTROID_AUTH_RATE_LIMIT_BINDING,
+  ASTROID_AUTH_RATE_LIMIT_CLASS,
+  ASTROID_AUTH_RATE_LIMIT_MIGRATION_TAG,
+  usesAuthRateLimit,
+} from "../auth-rate-limit/scaffold.js";
+import {
   ASTROID_EDIT_SESSION_CLASS,
   ASTROID_REALTIME_BINDING,
   ASTROID_REALTIME_MIGRATION_TAG,
@@ -235,25 +241,55 @@ export function generateAstroidWrangler(config: AstroidConfig): string {
     p("  // No `hosts` in your config → deploys to <name>.workers.dev. Add a");
     p('  // "routes" block with a custom_domain pattern to serve a real domain.');
   }
-  if (usesRealtime(config)) {
-    // The per-page live editing session (ADR 0002). Two halves, and BOTH are
-    // required—a binding with no migration is a deploy error, and the class
-    // must also be exported from the worker entry (the generated src/worker.ts
-    // re-exports it) or wrangler can't resolve `class_name`.
-    p("  // Durable Object: the per-page live editing session (realtime module).");
+  // Durable Objects. Each needs two halves, and BOTH are required: a binding
+  // with no migration is a deploy error, and the class must also be exported
+  // from the worker entry (the generated src/worker.ts re-exports it) or
+  // wrangler can't resolve `class_name`.
+  const durableObjects = [
+    ...(usesRealtime(config)
+      ? [
+          {
+            what: "the per-page live editing session (realtime module)",
+            binding: ASTROID_REALTIME_BINDING,
+            className: ASTROID_EDIT_SESSION_CLASS,
+            tag: ASTROID_REALTIME_MIGRATION_TAG,
+          },
+        ]
+      : []),
+    ...(usesAuthRateLimit(config)
+      ? [
+          {
+            what: "Better Auth's rate-limit counter (authRateLimit module)",
+            binding: ASTROID_AUTH_RATE_LIMIT_BINDING,
+            className: ASTROID_AUTH_RATE_LIMIT_CLASS,
+            tag: ASTROID_AUTH_RATE_LIMIT_MIGRATION_TAG,
+          },
+        ]
+      : []),
+  ];
+  if (durableObjects.length > 0) {
+    p("  // Durable Objects:");
+    for (const d of durableObjects) p(`  //   ${d.binding}: ${d.what}.`);
     p('  "durable_objects": {');
-    p(
-      `    "bindings": [{ "name": ${JSON.stringify(ASTROID_REALTIME_BINDING)}, "class_name": ${JSON.stringify(ASTROID_EDIT_SESSION_CLASS)} }]`,
-    );
+    p('    "bindings": [');
+    for (const d of durableObjects) {
+      p(
+        `      { "name": ${JSON.stringify(d.binding)}, "class_name": ${JSON.stringify(d.className)} },`,
+      );
+    }
+    p("    ]");
     p("  },");
     p("  // A DO class needs a migration tag. `new_sqlite_classes` (NOT");
-    p("  // `new_classes`) because the session keeps its authoritative state in");
-    p("  // `ctx.storage`, which is the SQLite-backed store—and the storage");
-    p("  // backend cannot be changed after the class is first deployed.");
+    p("  // `new_classes`) because both keep their state in `ctx.storage`, and");
+    p("  // the storage backend can't be changed after a class first deploys.");
+    p("  // Wrangler applies the entries after the last tag it has applied, so");
+    p("  // a module turned on later must append its entry, never insert it.");
     p('  "migrations": [');
-    p(
-      `    { "tag": ${JSON.stringify(ASTROID_REALTIME_MIGRATION_TAG)}, "new_sqlite_classes": [${JSON.stringify(ASTROID_EDIT_SESSION_CLASS)}] }`,
-    );
+    for (const d of durableObjects) {
+      p(
+        `    { "tag": ${JSON.stringify(d.tag)}, "new_sqlite_classes": [${JSON.stringify(d.className)}] },`,
+      );
+    }
     p("  ],");
   }
   // Crons. ONE `scheduled` handler receives all of them and tells them apart by
