@@ -436,7 +436,7 @@ export interface CheckoutAttempts<Result> {
   read(key: string): Promise<CheckoutOutcome<Result> | null>;
   /**
    * Keep `outcome` under `key`. Never throws or rejects, even with a missing
-   * KV binding: a failed write is logged. Pass `waitUntil` so a client that
+   * KV binding: it logs a failed write. Pass `waitUntil` so a client that
    * disconnects first, the very case the record exists for, doesn't cancel
    * the write.
    */
