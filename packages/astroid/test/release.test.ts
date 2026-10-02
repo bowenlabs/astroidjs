@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -151,26 +151,27 @@ describe("generateAstroidReleaseWorkflow", () => {
         writeFileSync(join(dir, `ci-${i}.json`), JSON.stringify({ check_runs: runs })),
       );
       writeFileSync(join(dir, "all.json"), JSON.stringify({ check_runs: [ownJob, ...otherRuns] }));
+      // The fakes are shell functions defined ahead of the step, not scripts on
+      // PATH, so a poll runs one program, the real jq, rather than six. Starting
+      // a program can take tens of milliseconds on a loaded Mac with endpoint
+      // security software, and the 90-poll test ran about 540 of them.
+      //
       // gh api <path> --jq <filter>. Each CI read takes the next response, and
       // the last one repeats.
-      writeFileSync(
-        join(dir, "gh"),
-        [
-          "#!/usr/bin/env bash",
-          'echo "$2" >> "$FAKE/calls"',
-          'if [[ "$2" == *check_name=CI* ]]; then',
-          '  n="$(cat "$FAKE/n" 2>/dev/null || echo 0)"',
-          '  file="$FAKE/ci-$n.json"',
-          '  if [ -f "$FAKE/ci-$((n + 1)).json" ]; then echo "$((n + 1))" > "$FAKE/n"; fi',
-          "else",
-          '  file="$FAKE/all.json"',
-          "fi",
-          'jq -r "$4" "$file"',
-        ].join("\n"),
-      );
-      writeFileSync(join(dir, "sleep"), '#!/usr/bin/env bash\necho "$1" >> "$FAKE/sleeps"\n');
-      chmodSync(join(dir, "gh"), 0o755);
-      chmodSync(join(dir, "sleep"), 0o755);
+      const fakes = [
+        "gh() {",
+        '  echo "$2" >> "$FAKE/calls"',
+        '  if [[ "$2" == *check_name=CI* ]]; then',
+        '    n=0; [ -f "$FAKE/n" ] && read -r n < "$FAKE/n"',
+        '    file="$FAKE/ci-$n.json"',
+        '    if [ -f "$FAKE/ci-$((n + 1)).json" ]; then echo "$((n + 1))" > "$FAKE/n"; fi',
+        "  else",
+        '    file="$FAKE/all.json"',
+        "  fi",
+        '  jq -r "$4" "$file"',
+        "}",
+        'sleep() { echo "$1" >> "$FAKE/sleeps"; }',
+      ].join("\n");
       const read = (name: string) => {
         try {
           return readFileSync(join(dir, name), "utf8").split("\n").filter(Boolean);
@@ -183,20 +184,32 @@ describe("generateAstroidReleaseWorkflow", () => {
       try {
         output = execFileSync(
           "bash",
-          ["--noprofile", "--norc", "-eo", "pipefail", "-c", script.replace(/^ {10}/gm, "")],
+          [
+            "--noprofile",
+            "--norc",
+            "-eo",
+            "pipefail",
+            "-c",
+            `${fakes}\n${script.replace(/^ {10}/gm, "")}`,
+          ],
           {
             env: {
               ...process.env,
-              PATH: `${dir}:${process.env.PATH}`,
               FAKE: dir,
               SHA: "abc123",
               GITHUB_REPOSITORY: "example-org/site",
               GITHUB_RUN_ID: "777",
             },
             encoding: "utf8",
+            // A synchronous call blocks vitest's own timeout, so this is what
+            // stops a step that never ends.
+            timeout: 20_000,
           },
         );
       } catch (e) {
+        if ((e as { code?: string }).code === "ETIMEDOUT") {
+          throw new Error("the CI check was still running after 20 seconds", { cause: e });
+        }
         ok = false;
         output = String((e as { stdout?: string }).stdout);
       }
@@ -239,12 +252,16 @@ describe("generateAstroidReleaseWorkflow", () => {
     expect(failed.output).toContain("ended in failure");
   });
 
+  // The 90 polls run the real jq 90 times. That takes well under a second on
+  // Linux, but up to about 10 seconds on a loaded Mac, where starting a program
+  // is slow. The step's own 20-second limit in ciCheck still stops one that
+  // never ends; this limit only has to sit above it.
   it("gives up after 30 minutes of polling every 20 seconds", () => {
     const { ok, output, polls } = ciCheck([[checkRun("in_progress", null)]]);
     expect(ok).toBe(false);
     expect(polls).toBe(90);
     expect(output).toContain("::error::CI on abc123 didn't finish within 30 minutes");
-  });
+  }, 30_000);
 
   it("refuses a commit with no CI run at once, counting none of its own jobs", () => {
     const { ok, output, polls } = ciCheck([[]]);
