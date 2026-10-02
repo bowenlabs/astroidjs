@@ -6,7 +6,8 @@
 
 - 38b4248: Astroid moves to louise-toolkit 0.40 and @louise-toolkit/astro 0.6.5. Nothing in the generated trio changes; this release lets a site take the toolkit's new calls without installing a second copy of it.
 
-  - The `louise-toolkit` peer range is `^0.40.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.40.0` and `@louise-toolkit/astro` `^0.6.5`.
+  - `astroidjs`: the `louise-toolkit` peer range is `^0.40.0`.
+  - `create-astroid`: new scaffolds get `louise-toolkit` `^0.40.0` and `@louise-toolkit/astro` `^0.6.5`.
   - What 0.40 adds: the Square subscription lifecycle in `louise-toolkit/commerce/square` (`listSubscriptionPlans`, `retrieveSubscription`, `updateSubscription`, `cancelSubscription`, `pauseSubscription`, `resumeSubscription`, order-template `phases` on `createSubscription`, and `state: "DRAFT"` on `createOrder`), and a transactional-mail shell that fits a phone, with a `"logo"` masthead, new theme tokens, and `mailRows`.
 
   **What to do:**
