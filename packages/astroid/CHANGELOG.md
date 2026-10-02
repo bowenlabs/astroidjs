@@ -1,5 +1,97 @@
 # astroidjs
 
+## 0.23.0
+
+### Minor Changes
+
+- 8bec315: A site's time zone, currency, country, and locale now have a place in `astroid.config.ts`: `business: { timeZone, currency, country, locale }`. louise-toolkit takes each as a parameter (`louise-toolkit/dates` needs a time zone, `formatMoney` a currency and a locale, the Square wallet sheet a country and a currency), and with nowhere to state them, each site restated them as literals and the checkout scaffold charged in one hard-coded currency.
+
+  - **`defineAstroid` validates them with `Intl`:** an IANA time zone, an uppercase ISO 4217 currency, an uppercase ISO 3166-1 alpha-2 country, and a BCP 47 locale in canonical form (`de-DE`, not `de-de` or the Open Graph `de_DE`). None has a default, because a default would be a guess about the business.
+  - **`astroidBusiness(config)`** returns the four facts, each `undefined` where the config states none. `astroidBusiness(config, "currency")` returns one as a `string`, or throws an `AstroidConfigError` naming `business.currency` when it's missing.
+  - **`astroidSeoLocale(config)`** returns `seo.locale`, or `business.locale` in Open Graph form when `seo.locale` is unset, so a site states its locale once. A locale with no region gives no `og:locale`.
+  - **The catalog adapters take a `currency` option.** `squareToCatalogItem`, `fourthwallToCatalogItem`, and `catalogNormalizer(provider, { currency })` use it for a price the provider sent without a currency. Without the option, that variant's `currency` is now `null` instead of `"USD"`. A default remains upstream: louise-toolkit's Square and Fourthwall readers still label a price without a currency `"USD"` before it reaches these adapters, so for items read through louise-toolkit the option applies only once louise-toolkit drops that default. `catalogNormalizer` now returns a one-argument function, so it's safe to pass to `Array.map`.
+  - **The generated checkout route charges in `business.currency`**, read from the config at request time, instead of a `"USD"` literal.
+  - **The scaffold's layouts** set `<html lang>` from `business.locale` (English until it's set) and pass `astroidSeoLocale(astroidConfig)` to `<Seo>`.
+  - **`create-astroid` takes `--time-zone`, `--currency`, `--country`, and `--locale`**, and prompts for each in a terminal. A blank answer, and every answer in a non-TTY, leaves the fact out, so a scaffold without them is unchanged. `--commerce` needs `--currency`.
+
+  **Breaking: `commerce` requires `business.currency`.** A config with `commerce` and no currency now fails `defineAstroid`, and so does a currency with other than 2 minor-unit digits (such as `JPY`), because the catalog mirror and the checkout convert prices by a factor of 100. To upgrade a commerce site, add `business: { currency: "<your ISO 4217 code>" }` to `astroid.config.ts`. The config loads at build time and in the Worker, so a missing currency fails the build rather than a live checkout.
+
+  The checkout route and the layouts are scaffold-once, so an existing project applies those parts by hand: in `src/pages/api/checkout.ts`, import `astroidBusiness` from `astroidjs` and replace the currency literal with `astroidBusiness(astroidConfig, "currency")`; in `src/layouts/Site.astro`, or `src/layouts/App.astro` in an app scaffolded with `--app`, pass `astroidSeoLocale(astroidConfig)` to `<Seo locale>` and set `<html lang>` from `astroidBusiness(astroidConfig).locale`. If you call the catalog adapters and depended on the `"USD"` fallback, pass `{ currency }` from `astroidBusiness(astroidConfig)`.
+
+- 680d0b1: `checkoutAttemptKey` and `checkoutAttempts`: a payment idempotency key that leaves prices out, and KV records of settled checkout attempts. `checkoutIdempotencyKey` is deprecated. ADR 0023 records the design.
+
+  `checkoutIdempotencyKey` hashes the verified prices and subtotal. A customer whose paid checkout lost its response, and who retried after a price changed, went out under a new key and was charged a second time. `checkoutAttemptKey(attempt, operation, extra?)` derives the key from the checkout-session ID and the lines as the customer chose them (variant, quantity, add-on IDs), never the prices or a tip. So a retry that differs only there reuses the key, and Square returns the first payment or refuses it. `identity` is still required, and empty is still refused.
+
+  `checkoutAttempts({ kv, ttlSeconds?, prefix? })` keeps each attempt's definite outcome (paid with its result, or declined) in KV, for two hours by default. A KV failure reads as a miss and is logged, never thrown.
+
+  The generated `src/pages/api/checkout.ts` uses both, with records in the `RL` namespace. It takes `checkoutSessionId` in place of `cartId`, replays a settled attempt before re-pricing, returns `declined: true` with a 402 for a definite decline, and returns a 502 with a retry-safe message for any other payment failure instead of throwing.
+
+  An existing project's route is scaffold-once and doesn't change. To adopt this in one:
+
+  1. **Client:** keep one checkout-session ID beside the cart, across reloads, with `checkoutSession` from `louise-toolkit/commerce` (0.38 or later). Send it as `checkoutSessionId`. Start a new one after a paid response and after `declined: true`. After any other failure, retry with the same ID. An ID minted per page load still charges twice.
+  2. **Route, the body:** read `checkoutSessionId`, refuse it unless it's a UUID, and build `const attempt = { identity: checkoutSessionId, lines: body.lines }`.
+  3. **Route, the replay:** before `verifyCheckout` and before any gate that can change between tries, read `const recordKey = await attempts.key(attempt)` from `checkoutAttempts({ kv: env.RL })`. Return a `paid` record's result with `replayed: true`, and a `declined` record as `declined: true`.
+  4. **Route, the key:** replace `checkoutIdempotencyKey(check, "order", cartId)` with `checkoutAttemptKey(attempt, "payment")`. Add `{ locationId }` as the third argument in a multi-location store.
+  5. **Route, the writes:** import `waitUntil` from `cloudflare:workers`. After the payment, `await attempts.write(recordKey, { status: "paid", result }, waitUntil)`. On a `SquareApiError` whose `category` is `PAYMENT_METHOD_ERROR`, write `{ status: "declined" }` the same way and return `declined: true`.
+
+  The key changes, so a retry that spans the deploy goes out under a new key. Deploy when no checkout is in flight.
+
+- 9c22bc6: Astroid owns the **Hide from search engines** switch: one reader, `astroidIndexingDisabled`, behind robots.txt, the sitemap, and every page's `noindex`. `robots.txt` now blocks only what no crawler should fetch, and every path matches on segment boundaries.
+
+  **The switch.** Sites read the `disable_indexing` column of louise-toolkit's `site_settings` table by hand, with raw SQL and a bare `catch`. robots.txt served `Disallow: /`, but a site whose layout didn't read the column printed no `noindex`, so pages already indexed stayed indexed. The bare `catch` also read a failed query, such as one after a column rename, as "switch off", silently.
+
+  The new `astroidjs/seo` subpath reads the database during a request:
+
+  - `astroidIndexingDisabled(config, env)` reads the switch through louise-toolkit's `siteSettings` table. It's `false` with no `DB` binding, no settings row, or no editor (`editor: false`). Any other failure is reported with `reportDegraded` under `seo.indexing`, and returns `false`.
+  - `astroidRobotsRoute(config, env, { disallow? })` is a complete `GET` handler for `src/pages/robots.txt.ts`. When the switch can't be read, it answers `503` with `no-store`, which a crawler treats as "don't crawl for now", rather than caching a guess for an hour.
+
+  `astroidSitemapXml` takes `disableIndexing` and lists nothing while it's set.
+
+  **robots.txt and the sitemap.** `astroidRobotsTxt` used to disallow `astroidNoindexPaths`, which included `/login`, `/account`, `/register`, `/reset-password`, `/cart`, and `/checkout`. Those pages print `noindex`, and a crawler that can't fetch a page never sees its `noindex`, so a blocked page can still be indexed from links to it (louise-toolkit's `robotsTxt` guidance). Now:
+
+  - `astroidDisallowPaths(config)` (new) is what robots.txt blocks by default: `/api`, `/louise` when there's an editor, and the portal's auth mount when the config moves it out of `/api`.
+  - `astroidNoindexPaths(config)` is what the sitemap leaves out: the list above, `/login` whenever there's an editor or a portal, the portal's pages and its guarded routes (`/portal` by default), and `/cart` and `/checkout` with `commerce`. Its entries no longer carry a trailing slash (`/api`, not `/api/`).
+  - Every entry matches on path segments: `/account` covers `/account/orders`, not a published page at `/accounts`. robots.txt writes each plain path as two rules, `Disallow: /louise$` and `Disallow: /louise/`; an entry that already uses `*` or `$` is written as given.
+
+  A new project's robots route is one line, its sitemap honors the switch, and `src/layouts/Site.astro` passes the switch to `<Seo>`.
+
+  **Upgrading.** The robots route, the sitemap, and the layout are scaffold-once, so an existing site changes them by hand:
+
+  1. Replace the body of `src/pages/robots.txt.ts` with `export const GET: APIRoute = astroidRobotsRoute(astroidConfig, env);`, importing `astroidRobotsRoute` from `astroidjs/seo` and `env` from `cloudflare:workers`. Drop any `disallow` built from `astroidNoindexPaths`; pass `{ disallow: [...astroidDisallowPaths(astroidConfig), "/your-path"] }` only for a route no crawler should fetch.
+  2. In `src/pages/sitemap.xml.ts`, pass `disableIndexing: await astroidIndexingDisabled(astroidConfig, env)` to `astroidSitemapXml`.
+  3. In the layout, set `disableIndexing: await astroidIndexingDisabled(astroidConfig, env)` in the settings you pass to `<Seo>`, or OR it into the `noindex` your own SEO component prints. Drop `disable_indexing` from any raw settings query.
+  4. A cart, checkout, or account page you wrote yourself is now crawlable, so it has to print `noindex`: pass `noindex` to the layout.
+
+  A site that calls `astroidRobotsTxt` without `disallow` serves the shorter list after upgrading, with no code change.
+
+- 90ef826: Astroid moves to louise-toolkit 0.39 and @louise-toolkit/astro 0.6.4. Nothing in the generated trio changes; this release lets a site take the toolkit's fixes without installing a second copy of it.
+
+  - The `louise-toolkit` peer range is `^0.39.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.39.0` and `@louise-toolkit/astro` `^0.6.4`.
+  - 0.39 carries the unpublished 0.38 as well. Among what the two add: the rich-text format bubble floats over the selection again and a field edited on the page keeps its element's type (louise-toolkit#761); `checkoutSession` and `cartFingerprint` in `louise-toolkit/commerce`, so a retried payment keeps its idempotency key; `parseWeekday` in `louise-toolkit/dates`; and a Square catalog price keeps the currency Square sends instead of a `"USD"` label, `null` when it sends none.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.39 and `@louise-toolkit/astro` to 0.6.4 along with this release. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Run `astroid generate`, then `astroid doctor`.
+  3. Read louise-toolkit 0.38's and 0.39's upgrade notes. The ones a site is likely to meet: `SquareVariation.currency` is now `string | null`, so a site that passes it on as a `string` gets a type error at each place and fills a missing currency from its settings (`price.currency ?? siteCurrency`), which Astroid's catalog adapters already do through their `currency` option; a site rule on `.louise-prose-surface` for a field edited on the page, or a child rule from `.louise-format-bubble` to the toolbar, stops matching, and the 0.39 changelog names the remedies.
+
+### Patch Changes
+
+- a2f9df3: The generated worker takes the commerce queue's dead-letter queue name from `wrangler.jsonc`, and `astroid doctor` reports a mismatch.
+
+  The worker told a dead-letter batch from an ordinary one by comparing `batch.queue` with `<key>-commerce-dlq`, a name restated from the project key. On a site whose queues predate its `key`, the names differed, so no dead letter was ever recorded, and a site that consumed its dead-letter queue ran each dead letter through the main handler again.
+
+  Now `astroid generate` reads the name from `wrangler.jsonc`: the `dead_letter_queue` of the consumer for the queue the `COMMERCE_QUEUE` producer sends to. When that consumer names no dead-letter queue, the worker sends every batch through `processBatch`. The `<key>-commerce` names stay the defaults that `create-astroid` writes into a new site's `wrangler.jsonc`, so a fresh scaffold is unchanged.
+
+  `astroid doctor` now reports:
+
+  - An error when `src/worker.ts` captures dead letters from a different queue than `wrangler.jsonc` routes them to.
+  - A warning when the dead-letter queue has no consumer, and when the commerce queue names no dead-letter queue.
+
+  After upgrading, run `astroid generate` (or `astroid build`, which runs it) and commit the regenerated `src/worker.ts`. Nothing changes for a site whose queues are named `<key>-commerce` and `<key>-commerce-dlq`. For a site whose names differ, `src/worker.ts` changes, and `astroid doctor` fails until you regenerate it. If `doctor` warns that the dead-letter queue has no consumer, add the consumer it prints to `queues.consumers` in `wrangler.jsonc`.
+
+  `generateAstroidProject` and `generateAstroidWorker` take a new optional second argument, and `astroidWranglerQueues` and `checkWranglerQueues` are new exports.
+
 ## 0.22.0
 
 ### Minor Changes
