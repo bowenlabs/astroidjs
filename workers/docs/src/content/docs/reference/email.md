@@ -9,6 +9,15 @@ sidebar:
 `astroidMailTheme`, and the templates `magicLinkEmail`, `passwordResetEmail`,
 `inquiryNotificationEmail`, `inquiryConfirmationEmail`, `sendInquiryMail`.
 
+`astroidMailTheme(config, overrides?, context?)` derives the theme from
+`theme.colors`. The overrides take any `MailTheme` field: `palette`, `fonts`,
+and `brand` merge key by key, and the rest, such as `masthead`, `logo`,
+`shadow`, and `buttonAlign`, pass through. A `logo.src` that's a path, such as
+`/brand/logo-mail.png`, resolves against `context.siteUrl`, so pass
+`{ siteUrl: env.SITE_URL }` when you build the theme for a send. Without a
+`siteUrl`, the masthead draws the wordmark. `sendInquiryMail` reads
+`env.SITE_URL` itself.
+
 Always build options with **`resolveMailer(env)`** rather than by hand—it's the
 only thing that applies the placeholder-sentinel check, so a hand-built options
 object can call the Email API with an envelope sender of literally

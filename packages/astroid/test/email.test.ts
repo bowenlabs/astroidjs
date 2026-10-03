@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
+import { sendInquiryMail } from "../src/email/inquiry.js";
 import { sendTransactional } from "../src/email/send.js";
 import {
   inquiryConfirmationEmail,
@@ -89,6 +90,86 @@ describe("astroidMailTheme", () => {
     expect(custom.brand.footerLead).toBe("Acme Coffee · Chicago");
     expect(custom.brand.name).toBe("Acme Coffee");
     expect(custom.buttonShape).toBe("rounded");
+  });
+
+  it("passes every other shell field through", () => {
+    const shell = {
+      masthead: "logo",
+      mastheadBg: "#1a1a1a",
+      shadow: "0 6px 24px rgba(26,26,26,0.07)",
+      headlineSize: 26,
+      headlineWeight: 600,
+      contentPadding: 32,
+      buttonAlign: "center",
+      brandSize: 20,
+    } as const;
+    expect(astroidMailTheme(config, shell)).toMatchObject(shell);
+  });
+
+  it("adds no shell field a site didn't set, so a default theme renders as before", () => {
+    expect(Object.keys(theme).sort()).toEqual(
+      ["band", "bandHeight", "brand", "buttonShape", "fonts", "palette", "radius"].sort(),
+    );
+  });
+
+  const logo = { src: "/brand/logo-mail.png", width: 240, height: 65 };
+
+  it("points a logo path at the site's origin", () => {
+    const at = (siteUrl: string) => astroidMailTheme(config, { logo }, { siteUrl }).logo;
+    expect(at("https://acme.coffee")).toEqual({
+      ...logo,
+      src: "https://acme.coffee/brand/logo-mail.png",
+    });
+    // A trailing slash on SITE_URL doesn't double up.
+    expect(at("https://main.staging.acme.coffee/")?.src).toBe(
+      "https://main.staging.acme.coffee/brand/logo-mail.png",
+    );
+  });
+
+  it("keeps an absolute logo URL as given", () => {
+    const cdn = { ...logo, src: "https://cdn.acme.coffee/logo.png", alt: "Acme" };
+    expect(astroidMailTheme(config, { logo: cdn }).logo).toEqual(cdn);
+    expect(
+      astroidMailTheme(config, { logo: cdn }, { siteUrl: "https://acme.coffee" }).logo,
+    ).toEqual(cdn);
+  });
+
+  it("drops a logo path it can't resolve, so the masthead draws the wordmark", () => {
+    expect(astroidMailTheme(config, { logo }).logo).toBeUndefined();
+    expect(astroidMailTheme(config, { logo }, { siteUrl: " " }).logo).toBeUndefined();
+    expect(astroidMailTheme(config, { logo }, { siteUrl: "not a url" }).logo).toBeUndefined();
+    expect("logo" in astroidMailTheme(config, { logo })).toBe(false);
+  });
+
+  it("renders the resolved logo in the masthead", () => {
+    const logoTheme = astroidMailTheme(
+      config,
+      { masthead: "logo", logo },
+      { siteUrl: "https://acme.coffee" },
+    );
+    const mail = magicLinkEmail(logoTheme, { url: "https://acme.coffee/x", toEmail: "a@b.c" });
+    expect(mail.html).toContain('src="https://acme.coffee/brand/logo-mail.png"');
+  });
+});
+
+describe("sendInquiryMail", () => {
+  it("resolves the theme's logo against SITE_URL", async () => {
+    const send = vi.fn(async (_message: { html?: string }) => ({ messageId: "m" }));
+    await sendInquiryMail(
+      config,
+      {
+        EMAIL: { send },
+        MAIL_FROM: "hello@acme.coffee",
+        OWNER_EMAIL: "owner@acme.coffee",
+        SITE_URL: "https://acme.coffee",
+      },
+      { firstName: "Ada", email: "ada@example.com", message: "Hi" },
+      { masthead: "logo", logo: { src: "/brand/logo-mail.png", width: 240, height: 65 } },
+    );
+    expect(send).toHaveBeenCalledTimes(2);
+    for (const [message] of send.mock.calls) {
+      expect(message.html).toContain('src="https://acme.coffee/brand/logo-mail.png"');
+    }
   });
 });
 

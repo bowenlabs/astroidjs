@@ -180,7 +180,28 @@ the accent and the five-cell masthead band, built as a ramp so it reads as
 designed whether you configured one brand colour or three. The accent is
 **contrast-corrected**—a brand yellow used verbatim as 11px uppercase text on a
 near-white card is unreadable, and mail clients have no dark-mode escape hatch.
-Pass overrides for any slot you want to own.
+Pass overrides for any slot you want to own: `palette`, `fonts`, and `brand`
+merge key by key, and every other field of the toolkit's `MailTheme` (the
+`"logo"` masthead, `shadow`, `headlineSize`, `buttonAlign`, and the rest) passes
+through as given.
+
+A logo whose `src` is a path, such as `/brand/logo-mail.png`, resolves against
+the `siteUrl` you pass at send time, because `SITE_URL` differs per environment.
+With no `siteUrl`, or on an `http:` origin that a mail client won't load an
+image from, the masthead draws the wordmark instead. `sendInquiryMail` passes
+`env.SITE_URL` for you.
+
+```ts
+const theme = astroidMailTheme(
+  astroidConfig,
+  {
+    masthead: "logo",
+    logo: { src: "/brand/logo-mail.png", width: 240, height: 65 },
+    buttonAlign: "center",
+  },
+  { siteUrl: env.SITE_URL },
+);
+```
 
 Delivery is best-effort and never throws. Mail here is always the notification of
 something already durable—the inquiry row is inserted, the account exists—so

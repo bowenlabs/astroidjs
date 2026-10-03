@@ -31,6 +31,9 @@ export interface AstroidMailEnv {
   MAIL_FROM?: SecretSource;
   /** Where owner notifications go. Also the first editor's address. */
   OWNER_EMAIL?: string;
+  /** The deployment's origin. A theme logo whose `src` is a path resolves
+   *  against it; see `MailThemeContext`. */
+  SITE_URL?: string;
 }
 
 /** Trimmed string, or undefined for anything else. */
@@ -58,7 +61,7 @@ export async function sendInquiryMail(
   values: Record<string, unknown>,
   overrides?: MailThemeOverrides,
 ): Promise<DeliveryResult[]> {
-  const theme = astroidMailTheme(config, overrides);
+  const theme = astroidMailTheme(config, overrides, { siteUrl: env.SITE_URL });
   const details = {
     name: [str(values.firstName), str(values.lastName)].filter(Boolean).join(" "),
     email: str(values.email) ?? "",
