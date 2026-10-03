@@ -24,3 +24,31 @@ is a job that silently never runs. Both derive from this function for that reaso
 
 `handleWebhook` verifies the HMAC over the **raw body before anything parses it**—parse first and an unauthenticated caller reaches the JSON parser and everything
 downstream. It then enqueues and returns, so the response doesn't wait on the work.
+
+### Refreshes that ride the catalog refresh
+
+`astroidQueueHandler` takes `alsoRefresh`, a record of named refreshes that run
+wherever `refreshCatalog` runs: on the periodic refresh, and on a
+catalog-affecting webhook from `catalogProvider`. They run after
+`refreshCatalog` returns, in order, and before `onMessage`.
+
+```ts
+astroidQueueHandler({
+  refreshCatalog: () => refreshCatalogCache(env),
+  alsoRefresh: {
+    subscriptions: async () => {
+      const config = await squareConfig(env);
+      if (config) await plans(env).refresh(config);
+    },
+    feed: () => refreshSocialFeed(env),
+  },
+});
+```
+
+Each failure is logged as `[<name>] refresh failed: <message>` and never thrown,
+so an outage in a side snapshot can't send a good catalog refresh into retry.
+When `refreshCatalog` throws, the side refreshes don't run and the message
+retries. The scaffold's consumer doesn't set it, because not every store sells
+subscriptions. See
+[Subscription plans snapshot](/reference/commerce/#subscription-plans-snapshot)
+for the snapshot it usually refreshes.

@@ -13,6 +13,7 @@
 // update—but they still arrive, in volume. A consumer that treats every event as
 // actionable turns a busy sales day into a catalog-refresh storm.
 
+import { upstreamLogLine } from "louise-toolkit/security";
 import { affectsCatalog, type AstroidQueueMessage } from "./messages.js";
 
 export interface QueueHandlerOptions {
@@ -45,6 +46,25 @@ export interface QueueHandlerOptions {
    */
   catalogProvider?: string;
   /**
+   * Refreshes that ride the catalog refresh, by name: a snapshot of
+   * subscription plans, a social feed mirror. They run wherever
+   * `refreshCatalog` would (a periodic refresh, and a catalog-affecting webhook
+   * from `catalogProvider`), after it returns, in order. A failure is logged as
+   * `[<name>] refresh failed: <message>` and never thrown, so a side
+   * snapshot's outage can't send a good catalog refresh into retry. When
+   * `refreshCatalog` throws, they don't run and the message retries.
+   *
+   * ```ts
+   * alsoRefresh: {
+   *   subscriptions: async () => {
+   *     const config = await squareConfig(env);
+   *     if (config) await plans(env).refresh(config);
+   *   },
+   * },
+   * ```
+   */
+  alsoRefresh?: Record<string, (message: AstroidQueueMessage) => unknown>;
+  /**
    * Anything else this project queues. Runs for every message, after the
    * catalog dispatch above, so a project can add its own kinds without
    * reimplementing the refresh logic.
@@ -66,15 +86,27 @@ export interface QueueHandlerOptions {
 export function astroidQueueHandler(options: QueueHandlerOptions = {}) {
   const owns = (provider: string) =>
     options.catalogProvider === undefined || provider === options.catalogProvider;
+  const refresh = async (message: AstroidQueueMessage): Promise<void> => {
+    // A throw here propagates before the side refreshes start: the catalog is
+    // what the site sells from, so its failure is the one worth a retry.
+    await options.refreshCatalog?.(message);
+    for (const [name, run] of Object.entries(options.alsoRefresh ?? {})) {
+      try {
+        await run(message);
+      } catch (error) {
+        console.error(`[${name}] refresh failed: ${upstreamLogLine(error)}`);
+      }
+    }
+  };
   return async (message: AstroidQueueMessage): Promise<void> => {
     if (message.kind === "catalog_refresh") {
-      await options.refreshCatalog?.(message);
+      await refresh(message);
     } else if (
       message.kind === "webhook" &&
       owns(message.provider) &&
       affectsCatalog(message.provider, message.type)
     ) {
-      await options.refreshCatalog?.(message);
+      await refresh(message);
     }
     await options.onMessage?.(message);
   };
