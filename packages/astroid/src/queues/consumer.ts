@@ -13,8 +13,14 @@
 // update—but they still arrive, in volume. A consumer that treats every event as
 // actionable turns a busy sales day into a catalog-refresh storm.
 
-import { upstreamLogLine } from "louise-toolkit/security";
+import { reportDegraded } from "louise-toolkit/errors";
 import { affectsCatalog, type AstroidQueueMessage } from "./messages.js";
+
+/**
+ * The `reportDegraded` name prefix for a failed `alsoRefresh` entry: a failure
+ * of `subscriptions` reports as `queues.alsoRefresh.subscriptions`.
+ */
+export const ASTROID_ALSO_REFRESH_DEGRADED = "queues.alsoRefresh";
 
 export interface QueueHandlerOptions {
   /**
@@ -49,10 +55,12 @@ export interface QueueHandlerOptions {
    * Refreshes that ride the catalog refresh, by name: a snapshot of
    * subscription plans, a social feed mirror. They run wherever
    * `refreshCatalog` would (a periodic refresh, and a catalog-affecting webhook
-   * from `catalogProvider`), after it returns, in order. A failure is logged as
-   * `[<name>] refresh failed: <message>` and never thrown, so a side
-   * snapshot's outage can't send a good catalog refresh into retry. When
-   * `refreshCatalog` throws, they don't run and the message retries.
+   * from `catalogProvider`, or from any provider when it's unset), after it
+   * returns, in order. A failure is
+   * reported with `reportDegraded` as `queues.alsoRefresh.<name>` and never
+   * thrown, so a side snapshot's outage can't send a good catalog refresh
+   * into retry. When `refreshCatalog` throws, they don't run and the message
+   * retries.
    *
    * ```ts
    * alsoRefresh: {
@@ -94,7 +102,7 @@ export function astroidQueueHandler(options: QueueHandlerOptions = {}) {
       try {
         await run(message);
       } catch (error) {
-        console.error(`[${name}] refresh failed: ${upstreamLogLine(error)}`);
+        reportDegraded(`${ASTROID_ALSO_REFRESH_DEGRADED}.${name}`, error);
       }
     }
   };

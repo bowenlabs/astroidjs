@@ -29,7 +29,8 @@ downstream. It then enqueues and returns, so the response doesn't wait on the wo
 
 `astroidQueueHandler` takes `alsoRefresh`, a record of named refreshes that run
 wherever `refreshCatalog` runs: on the periodic refresh, and on a
-catalog-affecting webhook from `catalogProvider`. They run after
+catalog-affecting webhook from `catalogProvider`, or from any provider when
+`catalogProvider` is unset. They run after
 `refreshCatalog` returns, in order, and before `onMessage`.
 
 ```ts
@@ -45,8 +46,12 @@ astroidQueueHandler({
 });
 ```
 
-Each failure is logged as `[<name>] refresh failed: <message>` and never thrown,
-so an outage in a side snapshot can't send a good catalog refresh into retry.
+Each failure is reported with `reportDegraded` from `louise-toolkit/errors` as
+`queues.alsoRefresh.<name>` (`ASTROID_ALSO_REFRESH_DEGRADED` is the prefix) and
+never thrown, so an outage in a side snapshot can't send a good catalog refresh
+into retry. `reportDegraded` logs one line,
+`[louise] degraded queues.alsoRefresh.<name>: <cause>`, and incident capture
+counts it, so a refresh that fails every hour still leaves a record.
 When `refreshCatalog` throws, the side refreshes don't run and the message
 retries. The scaffold's consumer doesn't set it, because not every store sells
 subscriptions. See

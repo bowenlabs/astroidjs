@@ -15,18 +15,28 @@
 // namespace. Both build the key with `subscriptionPlansSnapshotKey`, so a
 // change to the stored shape moves the writer and every reader to a new key in
 // one release.
+//
+// ADR 0024 records the contract: the key, its version, the TTL, and who writes.
 
 import {
   listSubscriptionPlans,
   type SquareConfig,
   type SquareSubscriptionPlan,
 } from "louise-toolkit/commerce/square";
-import { upstreamLogLine } from "louise-toolkit/security";
+import { reportDegraded } from "louise-toolkit/errors";
 import { AstroidUsageError } from "../errors.js";
 
 /** The versioned prefix of the snapshot's key. Bump the version when the
  *  stored shape changes, so no reader parses an older writer's value. */
 const SNAPSHOT_NAME = "square:subscription-plans:v1";
+
+/**
+ * The `reportDegraded` name prefix for the snapshot's fallbacks:
+ * `commerce.subscriptionPlans.read` (a failed or garbled read, served as a
+ * miss), `.write` (a failed write, the plans returned anyway), and `.refresh`
+ * (a Square failure in `get`, served as no plans).
+ */
+export const ASTROID_SUBSCRIPTION_PLANS_DEGRADED = "commerce.subscriptionPlans";
 
 /** Two hourly cron runs, so one failed refresh doesn't empty the snapshot. */
 const DEFAULT_TTL_SECONDS = 2 * 60 * 60;
@@ -67,14 +77,16 @@ export interface SubscriptionPlansSnapshot {
   read(): Promise<SquareSubscriptionPlan[] | null>;
   /**
    * Fetch the plans from Square and write them to the snapshot. The write is
-   * best-effort: a failed one is logged, and the plans are still returned.
+   * best-effort: a failed one is reported with `reportDegraded`, and the plans
+   * are still returned.
    * Throws when Square fails.
    */
   refresh(config: SquareConfig): Promise<SquareSubscriptionPlan[]>;
   /**
    * The snapshot, or a live refresh on a miss. With a null `config`, returns
    * `fallback` (`[]` by default), so a site without Square can show seed
-   * plans. A failed refresh is logged and returns `[]`, so a product page
+   * plans. A failed refresh is reported with `reportDegraded` and returns
+   * `[]`, so a product page
    * still renders, as an item a customer buys once.
    */
   get(
@@ -120,11 +132,12 @@ export function subscriptionPlansSnapshot(
       const raw = await kv.get(key);
       if (raw === null) return null;
       const plans: unknown = JSON.parse(raw);
-      if (Array.isArray(plans)) return plans as SquareSubscriptionPlan[];
+      if (!Array.isArray(plans)) throw new TypeError("The snapshot isn't a JSON array.");
+      return plans as SquareSubscriptionPlan[];
     } catch (error) {
-      console.error("[astroid:commerce] subscription plans read failed", error);
+      reportDegraded(`${ASTROID_SUBSCRIPTION_PLANS_DEGRADED}.read`, error, { key });
+      return null;
     }
-    return null;
   }
 
   async function refresh(config: SquareConfig): Promise<SquareSubscriptionPlan[]> {
@@ -134,7 +147,7 @@ export function subscriptionPlansSnapshot(
     await new Promise<void>((resolve) => {
       resolve(kv.put(key, JSON.stringify(plans), { expirationTtl: ttlSeconds }));
     }).catch((error: unknown) => {
-      console.error("[astroid:commerce] subscription plans write failed", error);
+      reportDegraded(`${ASTROID_SUBSCRIPTION_PLANS_DEGRADED}.write`, error, { key });
     });
     return plans;
   }
@@ -150,10 +163,7 @@ export function subscriptionPlansSnapshot(
       try {
         return await refresh(config);
       } catch (error) {
-        console.error(
-          "[astroid:commerce] subscription plans refresh failed:",
-          upstreamLogLine(error),
-        );
+        reportDegraded(`${ASTROID_SUBSCRIPTION_PLANS_DEGRADED}.refresh`, error, { key });
         return [];
       }
     },
