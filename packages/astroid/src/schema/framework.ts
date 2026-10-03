@@ -19,12 +19,27 @@ export function capturesInquiries(config: AstroidConfig): boolean {
   // (a custom `contactForm`, say) can't be detected from the built-in
   // vocabulary, so it says so directly.
   if (typeof config.inquiries === "boolean") return config.inquiries;
+  // The object form turns inquiries on and configures them.
+  if (typeof config.inquiries === "object" && config.inquiries !== null) return true;
   const wantsWholesale = (mods?: readonly string[]) => (mods ?? []).includes("wholesaleInquiry");
   return (
     (config.sections ?? []).includes("contact") ||
     wantsWholesale(config.modules) ||
     wantsWholesale(config.portal?.features)
   );
+}
+
+/**
+ * True when the generated worker mounts the public contact form route, `POST
+ * /api/louise/forms/inquiries`: the site captures inquiries, and the config
+ * doesn't set `inquiries: { publicForm: false }`. A site with its own contact
+ * endpoint turns it off, so the generated route, which has no captcha and no
+ * field limits of its own, isn't left reachable beside it.
+ */
+export function servesInquiryForm(config: AstroidConfig): boolean {
+  if (!capturesInquiries(config)) return false;
+  const inquiries = config.inquiries;
+  return typeof inquiries !== "object" || inquiries === null || inquiries.publicForm !== false;
 }
 
 /**

@@ -209,28 +209,34 @@ ${i.regarding?.trim() ? row("Regarding", escapeHtml(i.regarding.trim())) : ""}
   };
 }
 
-/** Confirmation back to whoever submitted the contact form. */
+/** A given name the confirmation greets by: letters, marks, apostrophes, and hyphens. */
+const GIVEN_NAME = /^[\p{L}\p{M}'’-]{1,40}$/u;
+
+/**
+ * Confirmation back to whoever submitted the contact form.
+ *
+ * It quotes nothing the sender wrote, neither `message` nor `regarding`, only
+ * a greeting by given name. The recipient address is the one the form
+ * submitted, so a confirmation that echoed the message would let anyone send
+ * text of their choosing from the site's own address to any inbox. The
+ * owner's notification carries the full submission instead.
+ */
 export function inquiryConfirmationEmail(theme: MailTheme, i: InquiryDetails): MailContent {
   const brand = theme.brand.name;
   // Only the given name—"Hi Jane Smith" reads like a form letter, which is
-  // precisely what this is trying not to.
-  const first = i.name.trim().split(/\s+/)[0] || "there";
+  // precisely what this is trying not to. And only one that reads as a name:
+  // letters, apostrophes, and hyphens, at most 40 of them. Anything else, such
+  // as a link or an address typed into the name field, gets "there", so the
+  // greeting can't carry the sender's text either.
+  const given = i.name.trim().split(/\s+/)[0] ?? "";
+  const first = GIVEN_NAME.test(given) ? given : "there";
 
   const bodyHtml = [
     p(
       theme,
       `Hi ${escapeHtml(first)} &mdash; thanks for reaching out. Your message has landed, and we answer personally, usually within a business day or two.`,
     ),
-    i.regarding?.trim()
-      ? p(
-          theme,
-          `Regarding: <strong style="color:${theme.palette.ink};font-weight:600;">${escapeHtml(i.regarding.trim())}</strong>`,
-          { muted: true, margin: "0 0 24px" },
-        )
-      : "",
-    label(theme, "Your message"),
-    quote(theme, i.message),
-    p(theme, "No need to reply &mdash; this is just a confirmation that yours came through.", {
+    p(theme, "No need to reply. This is just a confirmation that yours came through.", {
       muted: true,
       margin: "24px 0 0",
     }),
@@ -250,10 +256,8 @@ export function inquiryConfirmationEmail(theme: MailTheme, i: InquiryDetails): M
       `Hi ${first} — thanks for reaching out.`,
       "",
       "Your message has landed, and we answer personally, usually within a business day or two.",
-      ...(i.regarding?.trim() ? ["", `Regarding: ${i.regarding.trim()}`] : []),
       "",
-      "Your message:",
-      i.message,
+      "No need to reply. This is just a confirmation that yours came through.",
     ].join("\n"),
   };
 }

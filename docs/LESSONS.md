@@ -69,6 +69,17 @@ deletes, and deleting is the acknowledgement, so `COUNT(*)` is the number still
 waiting, and it does fall. Read a module's header comment before you reason from
 its column names.
 
+### A generated public route stays mounted beside the one that replaces it
+
+A site with its own contact endpoint, with a captcha and field limits, still
+turned inquiries on for the table and the Inquiries tab. That also mounted the
+generated public form route, which had neither, and whose confirmation email
+quoted the submitted message back to the submitted address: an open relay from
+the site's own sender. The fix stopped the confirmation quoting the message or
+`regarding`, and added `inquiries: { publicForm: false }`, which keeps the
+table and the Inquiries tab without the public route. Before turning a module
+on for its table or editor tab, check which public routes it also mounts.
+
 ### Assert every scripted text replacement
 
 A scripted `str.replace` that doesn't match changes nothing and reports nothing.

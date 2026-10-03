@@ -220,6 +220,10 @@ formRoute({
 });
 ```
 
+The confirmation goes to whatever address the form submitted, so it quotes
+nothing the sender wrote, only a greeting by given name. The owner's
+notification carries the full message.
+
 ## SEO
 
 A settings-driven head, structured data, and the two crawler files—first-party,
@@ -344,6 +348,11 @@ spam defence is the honeypot, the minimum time-to-submit, and the rate limit.
 `FormSpamConfig.turnstile` exists in the toolkit if you want to add it, but
 `formRoute` is generated without `turnstileSecret`, so switching the flag on
 alone would not enforce anything.
+
+A site with its own contact endpoint that writes the `inquiries` table sets
+`inquiries: { publicForm: false }`. The table, the editor's Inquiries tab, and
+the inbox count stay, and the generated worker doesn't mount `formRoute`, so the
+generated route isn't left reachable beside the site's own.
 
 ## CLI
 
