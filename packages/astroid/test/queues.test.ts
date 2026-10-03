@@ -1,10 +1,11 @@
+import { onDegraded } from "louise-toolkit/errors";
 import { describe, expect, it, vi } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { defineAstroid } from "../src/config.js";
 import { AstroidConfigError } from "../src/errors.js";
 import { generateAstroidProject, generateAstroidWrangler } from "../src/project/generate.js";
 import { astroidWranglerQueues, checkWranglerQueues } from "../src/project/queues.js";
-import { astroidQueueHandler } from "../src/queues/consumer.js";
+import { ASTROID_ALSO_REFRESH_DEGRADED, astroidQueueHandler } from "../src/queues/consumer.js";
 import {
   affectsCatalog,
   type AstroidQueueMessage,
@@ -226,8 +227,10 @@ describe("astroidQueueHandler", () => {
       expect(plans).toHaveBeenCalledTimes(1);
     });
 
-    it("logs a failure under its name, never throws, and runs the rest", async () => {
+    it("reports a failure under its name, never throws, and runs the rest", async () => {
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const degrades: string[] = [];
+      const stop = onDegraded(({ name, message }) => degrades.push(`${name}: ${message}`));
       try {
         const feed = vi.fn();
         const handle = astroidQueueHandler({
@@ -242,11 +245,16 @@ describe("astroidQueueHandler", () => {
         });
         await expect(handle({ kind: "catalog_refresh" })).resolves.toBeUndefined();
         expect(feed).toHaveBeenCalledOnce();
+        expect(degrades).toEqual([
+          `${ASTROID_ALSO_REFRESH_DEGRADED}.plans: Error: upstream down`,
+          "queues.alsoRefresh.sync: Error: binding missing",
+        ]);
         expect(error.mock.calls.map(([line]) => line)).toEqual([
-          "[plans] refresh failed: Error: upstream down",
-          "[sync] refresh failed: Error: binding missing",
+          "[louise] degraded queues.alsoRefresh.plans: Error: upstream down",
+          "[louise] degraded queues.alsoRefresh.sync: Error: binding missing",
         ]);
       } finally {
+        stop();
         error.mockRestore();
       }
     });

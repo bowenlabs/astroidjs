@@ -21,6 +21,7 @@ both indexes before claiming one.
 | ---------------------------------------------- | --------------------------------------------------------------------------- |
 | [0003](0003-astroid-component-primitive-dx.md) | Component-primitive DX: typed `.astro` props                                |
 | [0023](0023-checkout-attempts.md)              | Checkout attempts: a payment key without prices, and settled outcomes in KV |
+| [0024](0024-subscription-plans-snapshot.md)    | Subscription plans snapshot: one KV key, one writer, many readers           |
 
 ## What stayed in louise-toolkit
 

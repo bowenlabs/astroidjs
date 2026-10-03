@@ -158,9 +158,10 @@ periodic refresh re-syncs, a webhook re-syncs _only_ if it touched the catalog,
 and everything else acks as a no-op. That last part matters—order and payment
 events arrive in volume and have nothing local to update, so treating them as
 actionable turns a busy sales day into a refresh storm.
+
 A side snapshot, such as `subscriptionPlansSnapshot`'s KV snapshot of Square
 subscription plans, rides the same refresh through `alsoRefresh`, where a
-failure is logged and never retried.
+failure is reported with `reportDegraded` and never retried.
 
 The cron **enqueues** rather than running inline, so the safety-net re-sync takes
 the same retry and DLQ path as everything else. Retries and DLQ routing live in

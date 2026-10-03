@@ -1,6 +1,8 @@
 import type { SquareConfig, SquareSubscriptionPlan } from "louise-toolkit/commerce/square";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type DegradedEvent, onDegraded } from "louise-toolkit/errors";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  ASTROID_SUBSCRIPTION_PLANS_DEGRADED,
   type SubscriptionPlansSnapshotKv,
   subscriptionPlansSnapshot,
   subscriptionPlansSnapshotKey,
@@ -48,10 +50,17 @@ function memoryKv(): SubscriptionPlansSnapshotKv & {
   };
 }
 
+// Every fallback reports through `reportDegraded`, which logs one line and
+// tells incident capture; the listener is how a test sees what it reported.
+const degrades: Pick<DegradedEvent, "name" | "message" | "details">[] = [];
+const stop = onDegraded(({ name, message, details }) => degrades.push({ name, message, details }));
+afterAll(stop);
+
 let error: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   listSubscriptionPlans.mockReset();
   listSubscriptionPlans.mockResolvedValue([plan]);
+  degrades.length = 0;
   error = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -116,6 +125,8 @@ describe("subscriptionPlansSnapshot", () => {
     expect(await plans.get(config)).toEqual([plan]);
     expect(listSubscriptionPlans).toHaveBeenCalledWith(config);
     expect(JSON.parse(kv.data.get(plans.key) ?? "null")).toEqual([plan]);
+    // A miss is the snapshot working, not a degrade.
+    expect(degrades).toEqual([]);
   });
 
   it("returns an empty snapshot as it is, without calling Square", async () => {
@@ -135,6 +146,11 @@ describe("subscriptionPlansSnapshot", () => {
     });
     expect(await plans.read()).toBeNull();
     expect(await plans.get(config)).toEqual([plan]);
+    expect(degrades[0]).toEqual({
+      name: "commerce.subscriptionPlans.read",
+      message: "Error: KV down",
+      details: { key: plans.key },
+    });
   });
 
   it("refreshes when the snapshot isn't a JSON array", async () => {
@@ -146,6 +162,9 @@ describe("subscriptionPlansSnapshot", () => {
       expect(await plans.get(config)).toEqual([plan]);
     }
     expect(listSubscriptionPlans).toHaveBeenCalledTimes(3);
+    expect(new Set(degrades.map((d) => d.name))).toEqual(
+      new Set([`${ASTROID_SUBSCRIPTION_PLANS_DEGRADED}.read`]),
+    );
   });
 
   it("returns the plans when the KV write fails, rejecting or throwing", async () => {
@@ -163,10 +182,10 @@ describe("subscriptionPlansSnapshot", () => {
       },
     });
     expect(await throwing.get(config)).toEqual([plan]);
-    expect(error).toHaveBeenCalledWith(
-      "[astroid:commerce] subscription plans write failed",
-      expect.any(Error),
-    );
+    expect(degrades.map(({ name, message }) => ({ name, message }))).toEqual([
+      { name: "commerce.subscriptionPlans.write", message: "Error: KV down" },
+      { name: "commerce.subscriptionPlans.write", message: "Error: binding missing" },
+    ]);
   });
 
   it("returns the fallback, or [], without Square configured", async () => {
@@ -176,13 +195,21 @@ describe("subscriptionPlansSnapshot", () => {
     expect(listSubscriptionPlans).not.toHaveBeenCalled();
   });
 
-  it("returns [] and logs when the refresh fails, so a product page still renders", async () => {
+  it("returns [] and reports when the refresh fails, so a product page still renders", async () => {
     listSubscriptionPlans.mockRejectedValue(new Error("Square down"));
     const plans = subscriptionPlansSnapshot({ kv: memoryKv() });
     expect(await plans.get(config)).toEqual([]);
-    expect(error).toHaveBeenCalledWith(
-      "[astroid:commerce] subscription plans refresh failed:",
-      "Error: Square down",
+    expect(degrades).toEqual([
+      {
+        name: "commerce.subscriptionPlans.refresh",
+        message: "Error: Square down",
+        details: { key: plans.key },
+      },
+    ]);
+    // reportDegraded's own line is the only log: no second console line.
+    expect(error).toHaveBeenCalledOnce();
+    expect(error.mock.calls[0]?.[0]).toMatch(
+      /^\[louise\] degraded commerce\.subscriptionPlans\.refresh: Error: Square down/,
     );
   });
 
@@ -191,6 +218,8 @@ describe("subscriptionPlansSnapshot", () => {
     const kv = memoryKv();
     await expect(subscriptionPlansSnapshot({ kv }).refresh(config)).rejects.toThrow("Square down");
     expect(kv.puts).toEqual([]);
+    // The caller owns this failure, so nothing is reported here.
+    expect(degrades).toEqual([]);
   });
 
   it("refuses a TTL under KV's floor or one that isn't whole", () => {

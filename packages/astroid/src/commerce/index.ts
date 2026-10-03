@@ -70,6 +70,7 @@ export {
   type ResolvedCommerceRoles,
 } from "./roles.js";
 export {
+  ASTROID_SUBSCRIPTION_PLANS_DEGRADED,
   type SubscriptionPlansSnapshot,
   type SubscriptionPlansSnapshotKv,
   type SubscriptionPlansSnapshotOptions,

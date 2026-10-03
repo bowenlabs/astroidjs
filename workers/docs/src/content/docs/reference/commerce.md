@@ -357,12 +357,20 @@ snapshot instead of searching Square's catalog on every request.
 - **`read()`** returns the snapshot, or null on a miss, a KV failure, or a value
   that isn't a JSON array. It never calls Square.
 - **`refresh(config)`** fetches the plans and writes them. The write is
-  best-effort: a failed write is logged and the plans are still returned. A
+  best-effort: a failed write is reported and the plans are still returned. A
   Square failure throws.
 - **`get(config, options?)`** returns `read()`, or `refresh(config)` on a miss.
   With a null `config` it returns `fallback`, or `[]`, so a site without Square
-  can show seed plans. A failed refresh is logged and returns `[]`, so a product
+  can show seed plans. A failed refresh is reported and returns `[]`, so a product
   page still renders without the subscribe option.
+
+Each fallback is reported with `reportDegraded` from `louise-toolkit/errors`,
+under `commerce.subscriptionPlans.read`, `.write`, or `.refresh`
+(`ASTROID_SUBSCRIPTION_PLANS_DEGRADED` is the prefix), with the snapshot's key
+as a detail. It logs one line and incident capture counts it, so a Square or KV
+outage is visible even though no request fails. A miss isn't reported.
+[ADR 0024](https://github.com/bowenlabs/astroidjs/blob/main/docs/adr/0024-subscription-plans-snapshot.md)
+records the key and the one-writer, many-readers contract.
 
 ### One app writes, another reads
 
@@ -393,7 +401,7 @@ await astroidQueueHandler({
 
 The hourly cron and a plan edit in Square both reach the refresh, since a plan
 is a catalog object and its webhook is catalog-affecting. A failed plans refresh
-is logged and never sends the catalog refresh into retry.
+is reported and never sends the catalog refresh into retry.
 
 The order app sets `commerce: { provider: "square", pipeline: false }`, so it
 runs no queue and no cron. It builds the same snapshot over the same binding and
