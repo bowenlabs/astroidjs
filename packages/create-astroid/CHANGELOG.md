@@ -1,5 +1,25 @@
 # create-astroid
 
+## 0.14.2
+
+### Patch Changes
+
+- 8fb34dc: Astroid moves to louise-toolkit 0.42 and @louise-toolkit/astro 0.8.0. Nothing in Astroid's own behavior changes; the toolkit release only adds exports.
+
+  - The `louise-toolkit` peer range is `^0.42.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.42.0` and `@louise-toolkit/astro` `^0.8.0`.
+  - The adapter is a minor again, 0.8.0, so a `^0.7` range doesn't float into it and install a second toolkit.
+  - What 0.42 adds: `louise-toolkit/commerce/square` turns subscription plans into the offers an item gets (`subscriptionOffersFor`, `findSubscriptionOffer`, `templatePhases`, `cadenceLabel`), which pair with Astroid's `subscriptionPlansSnapshot`; and the new `louise-toolkit/client/sign-in` subpath has `SignInLinkForm`, the sign-in-by-link form, and `requestSignInLink`, the same request for a sign-in screen with its own markup. The form ships compiled for the browser, so mount it with `client:only="solid-js"`, not `client:load`.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.42, `@louise-toolkit/astro` to 0.8.0, and `astroidjs` in the same install. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Check `pnpm-lock.yaml`: it should have one `louise-toolkit@0.42.0` entry and one `@louise-toolkit/astro@0.8.0` entry. More than one version of either means the ranges disagree; align them as in step 1. Read the lockfile rather than `node_modules/.pnpm`, which can keep directories from earlier installs.
+
+- Updated dependencies [2a80197]
+- Updated dependencies [8945994]
+- Updated dependencies [8fb34dc]
+  - astroidjs@0.27.0
+
 ## 0.14.1
 
 ### Patch Changes
