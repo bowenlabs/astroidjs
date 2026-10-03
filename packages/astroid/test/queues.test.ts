@@ -181,6 +181,88 @@ describe("astroidQueueHandler", () => {
     await handle(msg({ provider: "fourthwall", type: "product.updated" } as never));
     expect(refreshCatalog).toHaveBeenCalledTimes(2);
   });
+
+  describe("alsoRefresh", () => {
+    it("runs each side refresh after the catalog, in order, before onMessage", async () => {
+      const order: string[] = [];
+      const seen: AstroidQueueMessage[] = [];
+      const handle = astroidQueueHandler({
+        refreshCatalog: async () => {
+          order.push("catalog");
+        },
+        alsoRefresh: {
+          plans: async (message) => {
+            seen.push(message);
+            order.push("plans");
+          },
+          feed: () => {
+            order.push("feed");
+          },
+        },
+        onMessage: () => {
+          order.push("onMessage");
+        },
+      });
+      await handle({ kind: "catalog_refresh" });
+      expect(order).toEqual(["catalog", "plans", "feed", "onMessage"]);
+      expect(seen).toEqual([{ kind: "catalog_refresh" }]);
+    });
+
+    it("runs only where the catalog refresh runs", async () => {
+      const plans = vi.fn();
+      const handle = astroidQueueHandler({
+        refreshCatalog: vi.fn(),
+        catalogProvider: "square",
+        alsoRefresh: { plans },
+      });
+
+      await handle(msg());
+      expect(plans).toHaveBeenCalledTimes(1);
+
+      // An order event has nothing local to update, and another provider's
+      // catalog event isn't this catalog's.
+      await handle(msg({ type: "payment.created" } as Partial<AstroidQueueMessage>));
+      await handle(msg({ provider: "fourthwall", type: "product.updated" } as never));
+      expect(plans).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs a failure under its name, never throws, and runs the rest", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const feed = vi.fn();
+        const handle = astroidQueueHandler({
+          refreshCatalog: vi.fn(),
+          alsoRefresh: {
+            plans: () => Promise.reject(new Error("upstream down")),
+            sync: () => {
+              throw new Error("binding missing");
+            },
+            feed,
+          },
+        });
+        await expect(handle({ kind: "catalog_refresh" })).resolves.toBeUndefined();
+        expect(feed).toHaveBeenCalledOnce();
+        expect(error.mock.calls.map(([line]) => line)).toEqual([
+          "[plans] refresh failed: Error: upstream down",
+          "[sync] refresh failed: Error: binding missing",
+        ]);
+      } finally {
+        error.mockRestore();
+      }
+    });
+
+    it("skips the side refreshes when the catalog refresh throws, so the message retries", async () => {
+      const plans = vi.fn();
+      const handle = astroidQueueHandler({
+        refreshCatalog: () => {
+          throw new Error("catalog down");
+        },
+        alsoRefresh: { plans },
+      });
+      await expect(handle({ kind: "catalog_refresh" })).rejects.toThrow("catalog down");
+      expect(plans).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("handleWebhook", () => {

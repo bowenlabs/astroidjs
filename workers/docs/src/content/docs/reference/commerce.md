@@ -6,7 +6,12 @@ sidebar:
 ---
 
 ```ts
-import { verifyCheckout, checkoutAttemptKey, checkoutAttempts } from "astroidjs";
+import {
+  verifyCheckout,
+  checkoutAttemptKey,
+  checkoutAttempts,
+  subscriptionPlansSnapshot,
+} from "astroidjs";
 ```
 
 ## `verifyCheckout(lines, lookup, options?)`
@@ -310,6 +315,99 @@ catalog table still follows `catalog.mode`, so a project that reads a mirror
 another project fills keeps its schema. `defineAstroid` refuses a `queues.cron`
 alongside `pipeline: false`, because that cron schedules the re-sync the option
 turns off. A queue the project runs for its own `crons` is still allowed.
+
+## Subscription plans snapshot
+
+```ts
+function subscriptionPlansSnapshot(options: {
+  kv: SubscriptionPlansSnapshotKv;
+  environment?: string; // "sandbox"
+  locationId?: string | null; // "none"
+  ttlSeconds?: number; // 7200
+}): {
+  key: string;
+  read(): Promise<SquareSubscriptionPlan[] | null>;
+  refresh(config: SquareConfig): Promise<SquareSubscriptionPlan[]>;
+  get(
+    config: SquareConfig | null,
+    options?: { fallback?: SquareSubscriptionPlan[] },
+  ): Promise<SquareSubscriptionPlan[]>;
+};
+
+function subscriptionPlansSnapshotKey(scope: {
+  environment?: string;
+  locationId?: string | null;
+}): string;
+```
+
+A KV snapshot of the Square subscription plans that `listSubscriptionPlans` in
+`louise-toolkit/commerce/square` returns: which items a customer can subscribe
+to, and each plan variation's cadence and price. A product page reads the
+snapshot instead of searching Square's catalog on every request.
+
+- **Key:** `square:subscription-plans:v1:<environment>:<location>`, built by
+  `subscriptionPlansSnapshotKey`. An empty environment keys as `sandbox` and an
+  empty location as `none`. Every app that writes or reads the snapshot builds
+  the key with this function, so a change to the stored shape moves all of them
+  to a new key in the same release. Pass the environment your `SquareConfig`
+  uses, so a switch from sandbox to production starts from an empty snapshot.
+- **Expiry:** two hours by default, which is two runs of the hourly cron, so one
+  failed refresh doesn't empty it. KV's floor is 60 seconds, and a `ttlSeconds`
+  under it, or one that isn't a whole number, throws `AstroidUsageError`.
+- **`read()`** returns the snapshot, or null on a miss, a KV failure, or a value
+  that isn't a JSON array. It never calls Square.
+- **`refresh(config)`** fetches the plans and writes them. The write is
+  best-effort: a failed write is logged and the plans are still returned. A
+  Square failure throws.
+- **`get(config, options?)`** returns `read()`, or `refresh(config)` on a miss.
+  With a null `config` it returns `fallback`, or `[]`, so a site without Square
+  can show seed plans. A failed refresh is logged and returns `[]`, so a product
+  page still renders without the subscribe option.
+
+### One app writes, another reads
+
+A coffee shop runs its site and its order app as two Workers that share one KV
+namespace. The site runs the commerce pipeline, so its queue consumer refreshes
+the snapshot beside the catalog, through `alsoRefresh` on
+[`astroidQueueHandler`](/reference/queues/):
+
+```ts
+// The site's Worker. Its config has `commerce: { provider: "square" }`.
+const plans = (env: Env) =>
+  subscriptionPlansSnapshot({
+    kv: env.KV,
+    environment: env.SQUARE_ENVIRONMENT,
+    locationId: env.SQUARE_LOCATION_ID,
+  });
+
+await astroidQueueHandler({
+  refreshCatalog: () => refreshCatalogCache(env),
+  alsoRefresh: {
+    subscriptions: async () => {
+      const config = await squareConfig(env);
+      if (config) await plans(env).refresh(config);
+    },
+  },
+})(message);
+```
+
+The hourly cron and a plan edit in Square both reach the refresh, since a plan
+is a catalog object and its webhook is catalog-affecting. A failed plans refresh
+is logged and never sends the catalog refresh into retry.
+
+The order app sets `commerce: { provider: "square", pipeline: false }`, so it
+runs no queue and no cron. It builds the same snapshot over the same binding and
+only reads:
+
+```ts
+// The order app's Worker.
+const config = await squareConfig(env);
+const subscriptionPlans = await plans(env).get(config, { fallback: seedPlans });
+```
+
+On a cold miss, before the site's first refresh, `get` fetches the plans itself
+and writes them, so the order app never shows an empty list for longer than
+one Square call.
 
 ## Roles
 

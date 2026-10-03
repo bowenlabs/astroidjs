@@ -70,6 +70,14 @@ export {
   type ResolvedCommerceRoles,
 } from "./roles.js";
 export {
+  type SubscriptionPlansSnapshot,
+  type SubscriptionPlansSnapshotKv,
+  type SubscriptionPlansSnapshotOptions,
+  type SubscriptionPlansSnapshotScope,
+  subscriptionPlansSnapshot,
+  subscriptionPlansSnapshotKey,
+} from "./subscription-plans.js";
+export {
   astroidCatalogSync,
   astroidCatalogUpsert,
   type CatalogItem,
