@@ -15,8 +15,11 @@
 // layout, and chooses whether a signed-out visitor sees a page or a redirect.
 
 import { reportDegraded } from "louise-toolkit/errors";
+// The toolkit's check, not the portal's lenient one in ./session.ts: this is a
+// cookie-backed write, and a request with neither `Origin` nor `Referer` doesn't
+// pass (louise-toolkit ADR 0012 §2).
+import { isSameOrigin } from "louise-toolkit/security";
 import type { PortalUser } from "./guard.js";
-import { isSameOrigin } from "./session.js";
 
 /** The `reportDegraded` name a failed sign-out reports under. */
 export const ASTROID_PORTAL_SIGN_OUT_DEGRADED = "portal.sign-out";
@@ -26,18 +29,19 @@ export const ASTROID_PORTAL_SIGN_OUT_DEGRADED = "portal.sign-out";
  *
  * - `signed-out`: the session is gone, or there was none.
  * - `confirm`: still signed in; ask with a form that POSTs back. A GET (an old
- *   link, a bookmark) lands here, and so does a POST from another origin.
+ *   link, a bookmark) lands here, and so does a POST that fails the
+ *   same-origin check.
  * - `failed`: the sign-out itself failed; the session is still there.
  */
 export type PortalSignOutState = "signed-out" | "confirm" | "failed";
 
 export interface PortalSignOutResult {
   state: PortalSignOutState;
-  /** 200, 403 for a refused cross-origin POST, or 503 for a failed sign-out. */
+  /** 200, 403 for a POST that fails the same-origin check, or 503 for a failed sign-out. */
   status: 200 | 403 | 503;
   /**
    * Every `Set-Cookie` the sign-out expired, one header each. Empty unless
-   * this request ended a session. Pass it to `redirectWithCookies`
+   * this request signed out. Pass it to `redirectWithCookies`
    * (`louise-toolkit/auth`), or append each `cookies.getSetCookie()` entry to
    * the page's response.
    */
@@ -69,21 +73,28 @@ export interface PortalSignOutOptions {
  * if (result.state === "signed-out") return redirectWithCookies(result.cookies, "/");
  * Astro.response.status = result.status;
  * ---
- * <form method="post" action="/logout"><button>Log out</button></form>
+ * <form method="post" action="/logout"><button>Sign out</button></form>
  * ```
  *
- * Every Log out control must be a form that POSTs, not a link: a link is a
+ * Every Sign out control must be a form that POSTs, not a link: a link is a
  * GET, which only ever gets the `confirm` state. A failure, a non-OK answer or
  * a throw, is reported with `reportDegraded` and leaves the session alone.
+ *
+ * A same-origin POST signs out even when `user` is null. A session lookup that
+ * failed reads as signed out, and skipping the sign-out then would send the
+ * visitor away still carrying a live cookie. Better Auth's sign-out expires the
+ * cookies whether or not it finds a session.
  */
 export async function portalSignOut(
   request: Request,
   options: PortalSignOutOptions,
 ): Promise<PortalSignOutResult> {
   const none = new Headers();
-  if (!options.user) return { state: "signed-out", status: 200, cookies: none };
-  if (request.method !== "POST") return { state: "confirm", status: 200, cookies: none };
-  if (!isSameOrigin(request)) return { state: "confirm", status: 403, cookies: none };
+  const post = request.method === "POST";
+  if (!(post && isSameOrigin(request))) {
+    if (!options.user) return { state: "signed-out", status: 200, cookies: none };
+    return { state: "confirm", status: post ? 403 : 200, cookies: none };
+  }
 
   try {
     const response = await options.signOut(request);

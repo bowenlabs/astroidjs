@@ -360,9 +360,38 @@ describe("portalSignOut", () => {
     vi.restoreAllMocks();
   });
 
-  it("is already signed out with no session, and never calls signOut", async () => {
+  it("is already signed out on a GET with no session, and never calls signOut", async () => {
     const signOut = vi.fn(async () => expired());
+    const result = await portalSignOut(new Request(url), { user: null, signOut });
+    expect(result).toMatchObject({ state: "signed-out", status: 200 });
+    expect(result.cookies.getSetCookie()).toEqual([]);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("still signs out a same-origin POST when the session lookup came back empty", async () => {
+    // A lookup that failed reads as signed out. Skipping the sign-out would
+    // send the visitor away still carrying a live cookie.
+    const signOut = vi.fn(async (_request: Request) => expired());
     const result = await portalSignOut(post({ origin: "https://acme.test" }), {
+      user: null,
+      signOut,
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ state: "signed-out", status: 200 });
+    expect(result.cookies.getSetCookie()).toHaveLength(3);
+  });
+
+  it("refuses a POST with neither Origin nor Referer (the toolkit's strict check)", async () => {
+    // louise-toolkit ADR 0012 §2: a cookie-backed write must pass the check.
+    const signOut = vi.fn(async () => expired());
+    const result = await portalSignOut(post(), { user, signOut });
+    expect(result).toMatchObject({ state: "confirm", status: 403 });
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for a cross-origin POST with no session", async () => {
+    const signOut = vi.fn(async () => expired());
+    const result = await portalSignOut(post({ origin: "https://evil.test" }), {
       user: null,
       signOut,
     });
@@ -435,6 +464,9 @@ describe("portal sign-out scaffold", () => {
     expect(page).toContain("signOut: signOutPortal");
     expect(page).toContain('redirectWithCookies(result.cookies, "/")');
     expect(page).toContain('<form method="post" action="/logout">');
+    // House style (Google's word list): "sign out", never "log out".
+    expect(page).toContain("Sign out?");
+    expect(page).not.toMatch(/log (out|in)|logged/i);
     expect(page).toContain('import Site from "../layouts/Site.astro";');
     const app = generateAstroidPortalLogoutPage({
       ...base,

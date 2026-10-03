@@ -38,17 +38,23 @@ const result = await portalSignOut(Astro.request, {
 if (result.state === "signed-out") return redirectWithCookies(result.cookies, "/");
 Astro.response.status = result.status;
 ---
-<form method="post" action="/logout"><button>Log out</button></form>
+<form method="post" action="/logout"><button>Sign out</button></form>
 ```
 
 | Request                                 | `state`                      | `status` |
 | --------------------------------------- | ---------------------------- | -------- |
-| No session                              | `signed-out`                 | 200      |
-| A GET while signed in                   | `confirm`                    | 200      |
-| A POST from another origin              | `confirm`                    | 403      |
 | A same-origin POST                      | `signed-out`, with `cookies` | 200      |
 | A same-origin POST whose sign-out fails | `failed`                     | 503      |
+| A GET, with no session                  | `signed-out`                 | 200      |
+| A GET while signed in                   | `confirm`                    | 200      |
+| Any other POST while signed in          | `confirm`                    | 403      |
 
+- **Same-origin** is louise-toolkit's `isSameOrigin`, the strict one: a POST
+  with neither `Origin` nor `Referer` doesn't pass. The portal's own
+  `isSameOrigin`, which `requireCustomer` uses, lets that request through.
+- **A same-origin POST always signs out,** even with no session resolved. A
+  session lookup that failed reads as signed out, and Better Auth's sign-out
+  expires the cookies whether or not it finds a session.
 - `cookies` holds every `Set-Cookie` the sign-out expired, one header each.
   Pass it to `redirectWithCookies`, or append each `cookies.getSetCookie()`
   entry to the page's response.
@@ -59,6 +65,8 @@ Astro.response.status = result.status;
   calls `auth.api.signOut` (louise-toolkit 0.41).
 
 A project with a portal gets `src/pages/logout.astro` scaffolded once, in its
-own layout, for you to restyle. Make every Log out control a
+own layout, for you to restyle. Make every Sign out control a
 `<form method="post" action="/logout">`. A link only ever reaches the
-`confirm` state.
+`confirm` state. The page imports `signOutPortal(request: Request): Promise<Response>`
+from `src/portal-auth.ts`, so a project with its own `portal-auth.ts` adds
+that export before it runs `astroid generate`.

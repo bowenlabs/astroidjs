@@ -123,7 +123,7 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
  *
  * Scaffolded once, in the project's own layout (`Site.astro`, or `App.astro`
  * for an app with no editor), for the site to restyle. What the site keeps is
- * the rule the page enforces: every Log out control is a form that POSTs here,
+ * the rule the page enforces: every Sign out control is a form that POSTs here,
  * never a link.
  *
  * Returns null when the project has no portal.
@@ -134,12 +134,12 @@ export function generateAstroidPortalLogoutPage(config: AstroidConfig): string |
 
   return [
     "---",
-    "// Log out of the portal. Scaffolded once; yours to restyle.",
+    "// Sign out of the portal. Scaffolded once; yours to restyle.",
     "//",
     "// `portalSignOut` signs out only on a same-origin POST, so another website",
     "// can't sign your users out with a link. A GET (an old link, a bookmark) or",
     "// a refused POST gets this page, which asks with a form; a failed sign-out",
-    "// keeps the session and offers to try again. Every Log out control on the",
+    "// keeps the session and offers to try again. Every Sign out control on the",
     '// site must be a `<form method="post" action="/logout">`, never a link.',
     'import { portalSignOut } from "astroidjs";',
     'import { redirectWithCookies } from "louise-toolkit/auth";',
@@ -157,12 +157,12 @@ export function generateAstroidPortalLogoutPage(config: AstroidConfig): string |
     'const failed = result.state === "failed";',
     "---",
     "",
-    `<${layout} title={failed ? "Couldn't log out" : "Log out"} noindex>`,
+    `<${layout} title={failed ? "Couldn't sign out" : "Sign out"} noindex>`,
     "  <main>",
     '    <form method="post" action="/logout">',
-    '      <h1>{failed ? "Couldn\'t log you out" : "Log out?"}</h1>',
-    "      {failed && <p>You're still logged in on this device. Try again in a moment.</p>}",
-    '      <button type="submit">{failed ? "Try again" : "Log out"}</button>',
+    '      <h1>{failed ? "Couldn\'t sign you out" : "Sign out?"}</h1>',
+    "      {failed && <p>You're still signed in on this device. Try again in a moment.</p>}",
+    '      <button type="submit">{failed ? "Try again" : "Sign out"}</button>',
     '      <a href="/">Cancel</a>',
     "    </form>",
     "  </main>",
