@@ -12,6 +12,7 @@
 // never-published page, and a renamed page's old path, which the middleware's
 // `redirectFor` then answers with a 301 to the new one.
 import Editable from "astroidjs/components/Editable.astro";
+import { sanitizeAstroidRichHtml } from "astroidjs/components/rich-html";
 import Sections from "astroidjs/components/Sections.astro";
 import { env } from "cloudflare:workers";
 import Site from "../layouts/Site.astro";
@@ -57,7 +58,7 @@ if (!page) Astro.response.status = 404;
             {page.title}
           </Editable>
           <Editable as="div" collection="pages" key={page.row.id} field="body" type="richtext" class="prose mt-6 max-w-none">
-            <Fragment set:html={page.body} />
+            <Fragment set:html={sanitizeAstroidRichHtml(page.body, { mediaBase: env.MEDIA_URL })} />
           </Editable>
         </div>
       </main>

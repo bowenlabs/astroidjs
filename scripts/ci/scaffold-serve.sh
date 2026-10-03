@@ -17,6 +17,10 @@
 #   - The built CSS carries the section library's utility classes. Tailwind v4
 #     doesn't scan node_modules, so without the template's `@source` line every
 #     section renders unstyled, and nothing but the built CSS shows it.
+#   - Rich text stored around the write hook renders sanitized, in the page body
+#     and in section fields (ADR 0026). Only a real render through the scaffold's
+#     page route and the section components shows that every one of them calls
+#     the sanitizer.
 set -euo pipefail
 
 PROJECT="${1:?usage: scaffold-serve.sh <project-dir>}"
@@ -65,6 +69,35 @@ wrangler d1 execute DB --local -c "$CONFIG" --file seed/home.seed.sql >/dev/null
 wrangler d1 execute DB --local -c "$CONFIG" --command \
   "INSERT OR IGNORE INTO louise_user (id, name, email, emailVerified, createdAt, updatedAt, role) VALUES ('smoke-editor', 'owner', '$EMAIL', 1, '2026-01-01', '2026-01-01', 'admin');" \
   >/dev/null
+# A published page whose rich text was written straight to D1, around the write
+# hook, in shapes the sanitizer before louise-toolkit 0.43 let through. Built
+# with node so the HTML's quotes survive both JSON and SQL.
+STORED_SQL="$(mktemp)"
+node -e '
+  const q = (s) => "'"'"'" + s.replaceAll("'"'"'", "'"'"''"'"'") + "'"'"'";
+  const body =
+    "<p>Body kept.</p><p>a<scr<link/x>ipt>alert(1)</scr<link/x>ipt>b</p>" +
+    "<meta http-equiv=\"refresh\" content=\"0;url=https://example.com/\">" +
+    "<p><a href=\"https://example.com/\" title=\"a\"onmouseover=\"alert(2)\">link</a></p>";
+  const sections = [
+    {
+      _type: "splitImage",
+      heading: "Stored",
+      body: "<p>Split kept.</p><p><img src=\"/media/a.jpg\" alt='"'"'x\"><script>alert(3)</script>'"'"'></p>",
+    },
+    {
+      _type: "faq",
+      heading: "Questions",
+      items: [{ question: "Why?", answer: "<p>Answer kept.</p><img src=x onerror=alert(4)>" }],
+    },
+  ];
+  console.log(
+    "INSERT OR IGNORE INTO pages (slug, title, body, sections, status, sort_order, created_at, updated_at) VALUES (" +
+      ["stored-html", "Stored HTML", body, JSON.stringify(sections), "published"].map(q).join(", ") +
+      ", 1, 0, 0);",
+  );
+' >"$STORED_SQL"
+wrangler d1 execute DB --local -c "$CONFIG" --file "$STORED_SQL" >/dev/null
 
 echo "==> wrangler dev on :$PORT"
 wrangler dev -c "$CONFIG" --port "$PORT" --inspector-port "$((PORT + 1))" >"$LOG" 2>&1 &
@@ -181,4 +214,17 @@ for class in divide-base-300 lg:grid-cols-4 marker:content-none size-10 gap-x-6;
   echo "    ok: .$escaped"
 done
 
-echo "==> OK: served scaffold refuses invalid sections, follows Hide from search engines, and ships the section CSS"
+echo "==> rich text stored around the write hook renders sanitized"
+STORED="$(page /stored-html)"
+for kept in "Body kept." "Split kept." "Answer kept."; do
+  grep -qF -- "$kept" <<<"$STORED" || fail "/stored-html doesn't render \`$kept\`"
+done
+echo "    ok: the body, a section body, and an FAQ answer all render"
+# `alert(3)` stays, escaped, inside the `alt` it was written in, so look for the
+# tag that would run it rather than the call.
+for shape in 'alert(1)' 'alert(2)' 'alert(4)' '<script>alert' 'http-equiv="refresh"' 'onmouseover' 'onerror'; do
+  if grep -qF -- "$shape" <<<"$STORED"; then fail "/stored-html renders \`$shape\` unsanitized"; fi
+  echo "    ok: no $shape"
+done
+
+echo "==> OK: served scaffold refuses invalid sections, follows Hide from search engines, ships the section CSS, and sanitizes stored rich text"

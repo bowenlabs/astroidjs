@@ -64,6 +64,10 @@
       "types": "./src/components/media-meta.ts",
       "default": "./src/components/media-meta.ts"
     },
+    "./components/rich-html": {
+      "types": "./src/components/rich-html.ts",
+      "default": "./src/components/rich-html.ts"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -81,7 +85,7 @@
     "@vitest/coverage-v8": "4.1.11",
     "astro": "^7.2.9",
     "drizzle-orm": "^0.45.2",
-    "louise-toolkit": "^0.42.0",
+    "louise-toolkit": "^0.43.0",
     "solid-js": "^1.9.15",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
@@ -89,7 +93,7 @@
   "peerDependencies": {
     "astro": "^7.0.9",
     "drizzle-orm": "^0.45.0",
-    "louise-toolkit": "^0.42.0",
+    "louise-toolkit": "^0.43.0",
     "solid-js": "^1.9.0"
   },
   "peerDependenciesMeta": {

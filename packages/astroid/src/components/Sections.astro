@@ -21,8 +21,10 @@ interface Props {
   items: unknown;
   /** D1, for the media alt/caption lookup. Omit to skip it entirely. */
   db?: MediaMetaDatabase;
-  /** Public media base, for turning a stored URL back into a registry key.
-   *  Matches the site's `MEDIA_URL`. */
+  /** Public media base, for turning a stored URL back into a registry key,
+   *  and for sanitizing each section's rich text as it renders. Matches the
+   *  site's `MEDIA_URL`. Without it, the media lookup assumes `/media` and the
+   *  rich text keeps any safe image `src`. */
   mediaBase?: string;
   /** Override the catalog—a site that extends Astroid's set passes its own. */
   catalog?: SectionCatalog;
@@ -35,11 +37,16 @@ interface Props {
 const {
   items,
   db,
-  mediaBase = "/media",
+  mediaBase,
   catalog = astroidSectionCatalog,
   edit,
   mediaMeta: providedMeta,
 } = Astro.props;
+
+// The media lookup falls back to `/media`, which at worst costs an image its alt
+// text. Rich text gets the prop as given: sanitizing against a guessed base
+// would drop every image a site serves from another one.
+const lookupBase = mediaBase ?? "/media";
 
 // A page with no sections column yet, or a malformed one, is a normal state
 // (nothing seeded)—not an error worth failing the render over.
@@ -48,7 +55,7 @@ const list: SectionItem[] = Array.isArray(items) ? (items as SectionItem[]) : []
 // One lookup for the page. Skipped when the caller already did it (a layout that
 // renders sections in two places) or when there's no DB to ask.
 const mediaMeta =
-  providedMeta ?? (await resolveSectionMedia(db, collectSectionMediaUrls(list, catalog), mediaBase));
+  providedMeta ?? (await resolveSectionMedia(db, collectSectionMediaUrls(list, catalog), lookupBase));
 ---
 
 {/*
@@ -60,5 +67,13 @@ const mediaMeta =
   toolbars against a real box.
 */}
 <div data-louise-sections-host>
-  {list.map((item, i) => <Section item={item} base={String(i)} edit={edit} mediaMeta={mediaMeta} />)}
+  {list.map((item, i) => (
+    <Section
+      item={item}
+      base={String(i)}
+      edit={edit}
+      mediaMeta={mediaMeta}
+      mediaBase={mediaBase}
+    />
+  ))}
 </div>

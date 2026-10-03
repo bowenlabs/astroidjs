@@ -17,12 +17,13 @@ both indexes before claiming one.
 
 ## Records
 
-|                                                |                                                                                      |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------ |
-| [0003](0003-astroid-component-primitive-dx.md) | Component-primitive DX: typed `.astro` props                                         |
-| [0023](0023-checkout-attempts.md)              | Checkout attempts: a payment key without prices, and settled outcomes in KV          |
-| [0024](0024-subscription-plans-snapshot.md)    | Subscription plans snapshot: one KV key, one writer, many readers                    |
-| [0025](0025-release-workflow-action-pins.md)   | Release workflow action pins: commits, and a newer release of the same major version |
+|                                                  |                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| [0003](0003-astroid-component-primitive-dx.md)   | Component-primitive DX: typed `.astro` props                                         |
+| [0023](0023-checkout-attempts.md)                | Checkout attempts: a payment key without prices, and settled outcomes in KV          |
+| [0024](0024-subscription-plans-snapshot.md)      | Subscription plans snapshot: one KV key, one writer, many readers                    |
+| [0025](0025-release-workflow-action-pins.md)     | Release workflow action pins: commits, and a newer release of the same major version |
+| [0026](0026-render-time-rich-text-sanitizing.md) | Stored rich text is sanitized when it renders, too                                   |
 
 ## What stayed in louise-toolkit
 

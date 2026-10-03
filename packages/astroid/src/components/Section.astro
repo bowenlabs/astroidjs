@@ -46,6 +46,9 @@ interface Props {
   edit?: boolean;
   /** Page-wide media alt/caption, resolved once by `<Sections>`. */
   mediaMeta?: MediaMeta;
+  /** The site's media base, `env.MEDIA_URL`, for sanitizing rich text as it
+   *  renders. Passed down by `<Sections>`. */
+  mediaBase?: string;
 }
 
 /**
@@ -72,7 +75,7 @@ const COMPONENTS: Record<string, ((props: SectionRenderProps) => unknown) | unde
   locationHours: LocationHours,
 };
 
-const { item, base, edit, mediaMeta } = Astro.props;
+const { item, base, edit, mediaMeta, mediaBase } = Astro.props;
 
 const editing = edit ?? (Astro.locals as { editMode?: boolean }).editMode ?? false;
 const type = String(item._type);
@@ -92,7 +95,7 @@ const blocks = Array.isArray(item.blocks) ? item.blocks : [];
 // every section's spacing for the sake of an attribute.
 const boundary = editing ? { "data-louise-node": base } : {};
 
-const shared = { item, base, edit: editing, mediaMeta };
+const shared = { item, base, edit: editing, mediaMeta, mediaBase };
 
 // Resolved in the frontmatter so the template is one dynamic tag rather than a
 // ladder of comparisons. The map itself is the dispatch check—an unknown
@@ -108,7 +111,13 @@ const Component = COMPONENTS[type];
       <Component {...shared} />
 
       {blocks.map((block, j) => (
-        <Astro.self item={block} base={`${base}.blocks.${j}`} edit={editing} mediaMeta={mediaMeta} />
+        <Astro.self
+          item={block}
+          base={`${base}.blocks.${j}`}
+          edit={editing}
+          mediaMeta={mediaMeta}
+          mediaBase={mediaBase}
+        />
       ))}
     </div>
   )

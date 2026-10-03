@@ -27,6 +27,35 @@ Imported from `astroidjs/components/*.astro`:
 `<MediaSlot>`, `<JustifiedGallery>`, `<PortalShell>`, `<StageBar>`,
 `<RegisterSW>`, plus the 15 section components under `components/sections/`.
 
+## Stored rich text
+
+```ts
+import { sanitizeAstroidRichHtml } from "astroidjs/components/rich-html";
+```
+
+`sanitizeAstroidRichHtml(html, { mediaBase })` returns stored rich text that's
+safe to render with `set:html`. The pages collection sanitizes `body` and each
+section's rich-text fields when they're saved, and Astroid sanitizes them again
+when it renders them, so HTML stored before a sanitizer fix, or written around
+the write hook, is covered without re-saving the page.
+
+```astro
+<Fragment set:html={sanitizeAstroidRichHtml(field(item, "body"), { mediaBase })} />
+```
+
+- **Use it for every render of stored rich text,** including in your own
+  section components. Astroid's section components and the scaffold's page
+  routes already do. JSON-LD isn't rich text and has its own escaping.
+- **Pass the site's media base,** `env.MEDIA_URL`. An `<img>` that the media
+  library doesn't serve is dropped, as it is on save. `<Sections>` passes its
+  `mediaBase` prop down to each section as `mediaBase` in
+  `SectionRenderProps`. Without a base, any safe image `src` stays.
+- **Content saved by the editor renders byte for byte.** It's already the
+  sanitizer's output, and sanitizing that again changes nothing.
+- **A repeat render costs a lookup, not a parse.** Results are memoized per
+  isolate, up to 256 fields, keyed by the HTML and the media base. A value that
+  isn't a string renders as an empty string.
+
 ## `<MediaSlot>`
 
 The responsive image. Wraps [`cfImageSrcset`](https://docs.louisetoolkit.org/reference/media/) so a site never

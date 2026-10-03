@@ -5,6 +5,7 @@
 // Louise client turns into inline editors; saves stage a draft (versionedPageId),
 // and Publish promotes it. Seed the row once with `seed/home.seed.sql`.
 import Editable from "astroidjs/components/Editable.astro";
+import { sanitizeAstroidRichHtml } from "astroidjs/components/rich-html";
 import Sections from "astroidjs/components/Sections.astro";
 import { env } from "cloudflare:workers";
 import Hero from "../components/Hero.astro";
@@ -69,7 +70,7 @@ const sections = page?.sections ?? [];
           {title}
         </Editable>
         <Editable as="div" collection="pages" key={page.row.id} field="body" type="richtext" class="prose mt-6 max-w-none">
-          <Fragment set:html={page.body} />
+          <Fragment set:html={sanitizeAstroidRichHtml(page.body, { mediaBase: env.MEDIA_URL })} />
         </Editable>
         </div>
       </main>
