@@ -21,6 +21,7 @@ export {
   generateAstroidPortalAuth,
   generateAstroidPortalAuthRoute,
   generateAstroidPortalLocals,
+  generateAstroidPortalLogoutPage,
 } from "./scaffold.js";
 export {
   type CustomerGuardResult,
@@ -30,3 +31,10 @@ export {
   requireCustomer,
   resolvePortalSession,
 } from "./session.js";
+export {
+  ASTROID_PORTAL_SIGN_OUT_DEGRADED,
+  type PortalSignOutOptions,
+  type PortalSignOutResult,
+  type PortalSignOutState,
+  portalSignOut,
+} from "./sign-out.js";
