@@ -15,6 +15,7 @@
   1. Upgrade `louise-toolkit` to 0.42, `@louise-toolkit/astro` to 0.8.0, and `astroidjs` in the same install. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
   2. Check `pnpm-lock.yaml`: it should have one `louise-toolkit@0.42.0` entry and one `@louise-toolkit/astro@0.8.0` entry. More than one version of either means the ranges disagree; align them as in step 1. Read the lockfile rather than `node_modules/.pnpm`, which can keep directories from earlier installs.
 
+- A new scaffold with a portal also gets `src/pages/logout.astro`, a sign-out page that only accepts a same-origin POST, and `signOutPortal` in `src/portal-auth.ts`. astroidjs 0.27.0's entry for `portalSignOut` has the details, and what an existing project adds before its next `astroid generate`.
 - Updated dependencies [2a80197]
 - Updated dependencies [8945994]
 - Updated dependencies [8fb34dc]

@@ -14,7 +14,7 @@
 
   The scaffold gains two files for a project with a portal:
 
-  - `src/portal-auth.ts` exports `signOutPortal(request)`, which calls louise-toolkit 0.41's `auth.api.signOut`.
+  - `src/portal-auth.ts` exports `signOutPortal(request)`, which calls louise-toolkit's `auth.api.signOut` (added in 0.41).
   - `src/pages/logout.astro`, a POST-only sign-out page in the project's layout, for you to restyle.
 
   **What to do:** a project with no portal sees no change. A project with a portal gets `src/pages/logout.astro` on its next `astroid generate`, unless it already has one, because scaffold-once files are written only when missing. Check two things before you run it:
