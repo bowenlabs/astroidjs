@@ -1,5 +1,17 @@
 # astroidjs
 
+## 0.28.0
+
+### Minor Changes
+
+- 2c8bc8a: **Security: the inquiry confirmation no longer quotes the sender, and `inquiries: { publicForm: false }` turns off the generated public contact form route.** Together, the two closed an open relay. The generated `POST /api/louise/forms/inquiries` route has no captcha and no field limits, and `sendInquiryMail` sent a confirmation to whatever address the form submitted, quoting the whole `message` and `regarding`. So anyone could send text of their choosing, from the site's own `MAIL_FROM`, to any inbox, limited only by the route's 5 requests a minute per IP. A site with its own contact endpoint still got the generated route mounted beside it whenever it turned inquiries on.
+
+  - **`inquiryConfirmationEmail` quotes nothing the sender wrote.** It drops `message` and `regarding` from the HTML and the plaintext, and greets by given name only when that name is letters, apostrophes, and hyphens, at most 40 of them; anything else, such as a link typed into the name field, gets "Hi there". `inquiryNotificationEmail`, the owner's copy, keeps the full submission.
+  - **`inquiries` also takes an object, `{ publicForm?: boolean }`.** An object turns inquiries on, like `true`. With `publicForm: false`, the `inquiries` table, the editor's Inquiries tab, and the Home inbox count stay, and the generated worker leaves out `formRoute`, the `contactForm` definition, and the `inquiriesForm`, `defineForm`, and `sendInquiryMail` imports only it used. `publicForm` defaults to `true`, so `inquiries: {}` is the same as `inquiries: true`. `servesInquiryForm(config)` reports whether the route is mounted.
+  - **`defineAstroid` validates the option.** It refuses an `inquiries` that isn't a boolean or an object, an `inquiries.publicForm` that isn't a boolean, and an `inquiries` object with `editor: false`, as it already refused `inquiries: true`.
+
+  **What to do:** raise your `astroidjs` range to `^0.28.0` to get the fix. Before 1.0, a caret range stays inside one minor version, so reinstalling on `^0.27.0` or earlier keeps the confirmation that quotes the sender. Moving up from an older range also crosses every minor release in between, so read each one's notes. Once on 0.28, every project that sends inquiry mail gets the shorter confirmation, with nothing else to change. If your site has its own contact endpoint that writes the `inquiries` table, set `inquiries: { publicForm: false }` in `astroid.config.ts` and run `astroid generate`, so `src/worker.ts` stops mounting the generated route; `astroid doctor` reports the drift until you do. The scaffolded `src/pages/contact.astro` posts to that route, so point its form at your endpoint, or remove the page. A site whose contact form is the generated route needs no change. `AstroidConfig.inquiries` is now `boolean | InquiriesConfig`, so code that reads `config.inquiries` as a boolean may stop type-checking: call `capturesInquiries(config)` or `servesInquiryForm(config)` instead.
+
 ## 0.27.0
 
 ### Minor Changes
