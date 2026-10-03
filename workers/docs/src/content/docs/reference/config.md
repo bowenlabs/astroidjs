@@ -21,7 +21,10 @@ fail deep inside generation. Throws [`AstroidConfigError`](#errors) on:
 - `portal.gated`, which is **not implemented** and refused rather than silently
   wiring no guard
 - `editor: false` alongside an option that configures the editor, such as
-  `sections`, `media`, `settings`, or the `realtime` module
+  `sections`, `media`, `settings`, `inquiries: true` or an `inquiries` object,
+  or the `realtime` module
+- an `inquiries` that isn't a boolean or an object, or an
+  `inquiries.publicForm` that isn't a boolean
 - `editor: false` with the `authRateLimit` module and no portal, since nothing
   signs in for the limiter to guard
 - a `credit` with no `name`, an `href` that isn't an absolute `http` or `https` URL, or
@@ -35,7 +38,7 @@ fail deep inside generation. Throws [`AstroidConfigError`](#errors) on:
 
 Key types: `AstroidConfig`, `Archetype` (`marketing | storefront | wholesale |
 portfolio`), `ModuleKind` (`map | pwa | wholesaleInquiry`), `SectionKind`,
-`Theme`, `Portal`, `CommerceConfig`, `BusinessConfig`, `CreditConfig`, `SeoConfig`, `SecurityConfig`, `PwaConfig`.
+`Theme`, `Portal`, `CommerceConfig`, `BusinessConfig`, `CreditConfig`, `InquiriesConfig`, `SeoConfig`, `SecurityConfig`, `PwaConfig`.
 
 `ASTROID_ARCHETYPE_SECTIONS` maps each archetype to its default home sections.
 
@@ -54,6 +57,27 @@ The facts louise-toolkit takes as parameters: `louise-toolkit/dates` needs the
 time zone, `formatMoney` the currency and locale, and the Square wallet sheet
 the country and currency. None has a default. `commerce` requires `currency`,
 and the others stay unset until the site states them.
+
+## `inquiries`
+
+```ts
+inquiries?: boolean | InquiriesConfig;
+
+interface InquiriesConfig {
+  publicForm?: boolean; // default true
+}
+```
+
+Omitted, inquiries are on for a site with a `contact` section or the
+`wholesaleInquiry` module. `true` and `false` force them on or off. An object
+turns them on, and `publicForm: false` keeps the `inquiries` table, the
+Inquiries tab, and the inbox count while leaving out the public form route,
+`POST /api/louise/forms/inquiries`, and the imports only it uses. Set it when
+the site's own endpoint writes the `inquiries` table. See
+[Inquiries](/guide/configuration/#inquiries).
+
+`capturesInquiries(config)` reports whether the project has inquiries, and
+`servesInquiryForm(config)` whether its worker mounts the public form route.
 
 ## `astroidBusiness(config, fact?)`
 

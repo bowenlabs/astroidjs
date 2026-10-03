@@ -9,6 +9,14 @@ sidebar:
 `astroidMailTheme`, and the templates `magicLinkEmail`, `passwordResetEmail`,
 `inquiryNotificationEmail`, `inquiryConfirmationEmail`, `sendInquiryMail`.
 
+`inquiryNotificationEmail` gives the owner the whole submission.
+`inquiryConfirmationEmail` goes to the address the form submitted, so it quotes
+nothing the sender wrote: no `message` and no `regarding`. It greets the sender
+by given name only when that name is letters, apostrophes, and hyphens, at most
+40 of them, and otherwise greets them as "there". A confirmation that echoed the
+message would let anyone send their own text from the site's address to any
+inbox.
+
 `astroidMailTheme(config, overrides?, context?)` derives the theme from
 `theme.colors`. The overrides take any `MailTheme` field: `palette`, `fonts`,
 and `brand` merge key by key, and the rest, such as `masthead`, `logo`,

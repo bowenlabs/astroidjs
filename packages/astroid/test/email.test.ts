@@ -228,21 +228,79 @@ describe("templates", () => {
     ).toContain("Hi there —");
   });
 
-  it("omits the regarding line when the form doesn't collect one", () => {
-    const without = inquiryConfirmationEmail(theme, {
-      name: "Jane",
-      email: "j@x.c",
-      message: "hi",
+  it("quotes none of the sender's text back to the sender", () => {
+    // The recipient is whatever address the form submitted, so a confirmation
+    // that echoed the message would send anyone's text, from the site's own
+    // address, to any inbox.
+    const message = "Claim your refund at https://phish.example/refund now";
+    const regarding = "Urgent account notice";
+    const mail = inquiryConfirmationEmail(theme, {
+      name: "Jane Smith",
+      email: "victim@example.com",
+      regarding,
+      message,
     });
-    expect(without.html).not.toContain("Regarding:");
-    const with_ = inquiryConfirmationEmail(theme, {
+    for (const body of [mail.subject, mail.html, mail.text]) {
+      expect(body).not.toContain(message);
+      expect(body).not.toContain("phish.example");
+      expect(body).not.toContain(regarding);
+      expect(body).not.toContain("Regarding");
+    }
+    expect(mail.text).toContain("Hi Jane —");
+  });
+
+  it('greets anything but a name-shaped given name as "there"', () => {
+    for (const name of [
+      "https://phish.example/refund",
+      "victim@example.com",
+      "<b>Jane</b>",
+      "J".repeat(41),
+    ]) {
+      const mail = inquiryConfirmationEmail(theme, { name, email: "j@x.c", message: "hi" });
+      expect(mail.text).toContain("Hi there —");
+      expect(mail.html).not.toContain("phish.example");
+      expect(mail.html).not.toContain("victim@example.com");
+    }
+    for (const name of ["Zoë", "O'Brien", "Anne-Marie", "José"]) {
+      const mail = inquiryConfirmationEmail(theme, { name, email: "j@x.c", message: "hi" });
+      expect(mail.text).toContain(`Hi ${name} —`);
+    }
+  });
+
+  it("keeps the full submission in the owner's notification", () => {
+    const mail = inquiryNotificationEmail(theme, {
       name: "Jane",
       email: "j@x.c",
       regarding: "Wholesale",
-      message: "hi",
+      message: "Do you ship to Lisbon?",
     });
-    expect(with_.html).toContain("Regarding:");
-    expect(with_.text).toContain("Regarding: Wholesale");
+    expect(mail.html).toContain("Do you ship to Lisbon?");
+    expect(mail.text).toContain("Do you ship to Lisbon?");
+    expect(mail.text).toContain("Regarding: Wholesale");
+  });
+});
+
+describe("sendInquiryMail confirmation", () => {
+  it("sends the sender a confirmation with none of the submitted message", async () => {
+    const send = vi.fn(
+      async (_message: { to: string | string[]; html?: string; text?: string }) => ({
+        messageId: "m",
+      }),
+    );
+    const message = "Visit https://phish.example to verify your account";
+    await sendInquiryMail(
+      config,
+      { EMAIL: { send }, MAIL_FROM: "hello@acme.coffee", OWNER_EMAIL: "owner@acme.coffee" },
+      { firstName: "Ada", email: "ada@example.com", regarding: "Account notice", message },
+    );
+    const sent = send.mock.calls.map(([m]) => m);
+    const toSender = sent.find((m) => m.to === "ada@example.com");
+    const toOwner = sent.find((m) => m.to === "owner@acme.coffee");
+    expect(toSender?.html).not.toContain(message);
+    expect(toSender?.text).not.toContain(message);
+    expect(toSender?.html).not.toContain("Account notice");
+    expect(toSender?.text).not.toContain("Account notice");
+    expect(toOwner?.text).toContain(message);
   });
 });
 

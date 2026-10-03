@@ -45,6 +45,32 @@ The editable home page is an ordered list of section types. Astroid ships 15:
 The vocabulary is **derived from the catalog**, so a section name that has no
 component is a compile error rather than a page that silently fails to render.
 
+### Inquiries
+
+A site with a `contact` section or the `wholesaleInquiry` module captures
+inquiries. It gets an `inquiries` table, an Inquiries tab in the editor, an
+inbox count on the Home dashboard, and a public contact form route,
+`POST /api/louise/forms/inquiries`. That route stores a submission, emails the
+owner the full message, and sends the sender a short confirmation that quotes
+nothing they wrote.
+
+`inquiries` overrides the detection:
+
+```ts
+inquiries: true, // on, for a bespoke section Astroid can't see
+inquiries: false, // off, even with a contact section
+inquiries: { publicForm: false }, // on, without the public form route
+```
+
+Use `{ publicForm: false }` when the site has its own contact endpoint that
+writes the `inquiries` table. The table, the Inquiries tab, and the inbox count
+stay, and the generated worker doesn't mount the public form route. Without
+it, the generated route stays reachable beside your endpoint, with none of
+your endpoint's captcha, field limits, or mail rules. The scaffolded
+`src/pages/contact.astro` posts to the generated route, so point its form at
+your endpoint or remove the page. `publicForm` defaults to `true`, so
+`inquiries: {}` is the same as `inquiries: true`.
+
 ### An app with no editor
 
 Every project is a Louise-edited site unless it says otherwise. An app with no
@@ -88,8 +114,9 @@ What stays: the rate limiter, the CSP, the security headers, the public status
 route, and the `portal`, `pwa`, `commerce`, `map`, and `tenancy` modules.
 `defineAstroid` refuses every option that configures the editor alongside
 `editor: false` (`sections`, `sectionCatalog`, `blockCatalog`, `media`,
-`pages`, `settings`, `inquiries: true`, `deploy.mediaBase`, and the `realtime`
-and `wholesaleInquiry` modules), rather than accept a setting nothing reads.
+`pages`, `settings`, `inquiries: true` or an `inquiries` object,
+`deploy.mediaBase`, and the `realtime` and `wholesaleInquiry` modules), rather
+than accept a setting nothing reads.
 
 The app is API-first. Its web client is the first client of a versioned JSON
 API under `/api/v1`, which a native client can later call as well. The

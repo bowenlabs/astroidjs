@@ -181,6 +181,7 @@ describe("defineAstroid with editor: false", () => {
     refuses({ pages: { hooks: true } }, /`pages`/);
     refuses({ settings: { customKeys: ["hours"] } }, /`settings`/);
     refuses({ inquiries: true }, /`inquiries: true`/);
+    refuses({ inquiries: { publicForm: false } }, /an `inquiries` object/);
     refuses({ modules: ["realtime"] }, /`realtime`/);
     refuses({ modules: ["wholesaleInquiry"] }, /`wholesaleInquiry`/);
     // Its limiter guards sign-in, and without a portal an app signs nobody in.

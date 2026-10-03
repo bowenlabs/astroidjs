@@ -8,7 +8,7 @@
 
 import type { AstroidConfig } from "../config.js";
 import { usesRealtime } from "../realtime/scaffold.js";
-import { capturesInquiries } from "../schema/framework.js";
+import { capturesInquiries, servesInquiryForm } from "../schema/framework.js";
 
 export type AstroidEditorRouteName =
   | "ai"
@@ -42,7 +42,8 @@ export interface AstroidEditorRoute {
  * The ordered editor route plan for a project. Order is load-bearing: the two
  * routes with `/pages/:id/...` sub-paths (`versions`, `search`) come first, so
  * `pages`' catch-all `/:id` matcher can't swallow them. Inquiry routes are
- * included only when a brand captures inquiries; `seed` is always last.
+ * included only when a brand captures inquiries, and the public form route
+ * only when the config doesn't turn it off; `seed` is always last.
  */
 export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRoute[] {
   const routes: AstroidEditorRoute[] = [
@@ -134,19 +135,21 @@ export function astroidEditorRoutePlan(config: AstroidConfig): AstroidEditorRout
     note: "Editor AI assists—rewrite a selection (tighten, rephrase, simplify, or fix), suggest SEO for a page. Owns /api/louise/ai/*, so it collides with nothing. POST-only and editor-gated, since each call spends AI budget.",
   });
 
+  // `inquiries: { publicForm: false }` keeps the review route and drops the
+  // public one, for a site whose own endpoint writes the inquiries table.
+  if (servesInquiryForm(config)) {
+    routes.push({
+      name: "form",
+      factory: "formRoute",
+      note: "Public inquiry capture (the contact form) + silent spam heuristics.",
+    });
+  }
   if (capturesInquiries(config)) {
-    routes.push(
-      {
-        name: "form",
-        factory: "formRoute",
-        note: "Public inquiry capture (the contact form) + silent spam heuristics.",
-      },
-      {
-        name: "inquiries",
-        factory: "inquiriesRoute",
-        note: "Editor-gated inquiry review, over the same inquiries table.",
-      },
-    );
+    routes.push({
+      name: "inquiries",
+      factory: "inquiriesRoute",
+      note: "Editor-gated inquiry review, over the same inquiries table.",
+    });
   }
 
   routes.push({

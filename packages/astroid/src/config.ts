@@ -642,6 +642,26 @@ export interface DeployConfig {
 }
 
 /**
+ * The object form of `inquiries`. Setting it turns inquiries on, like
+ * `inquiries: true`: the `inquiries` table, the editor's Inquiries tab, and the
+ * Home inbox count.
+ */
+export interface InquiriesConfig {
+  /**
+   * Mount the generated public contact form route, `POST
+   * /api/louise/forms/inquiries`, which stores a submission and sends the
+   * owner notification and the sender confirmation. Defaults to `true`.
+   *
+   * Set `false` when the site has its own contact endpoint that writes the
+   * `inquiries` table. Otherwise the generated route stays reachable beside
+   * yours, with none of your endpoint's captcha, field limits, or mail rules.
+   * The scaffolded `src/pages/contact.astro` posts to the generated route, so
+   * point its form at your endpoint, or remove the page.
+   */
+  publicForm?: boolean;
+}
+
+/**
  * A small "Site by …" line the footer renders for the agency that built the
  * site. A site fact, so it has no default: omit it and nothing renders.
  */
@@ -765,8 +785,14 @@ export interface AstroidConfig {
    * when a bespoke section captures inquiries under a name Astroid can't see
    * (for example, a custom `contactForm` section); set `false` to suppress it
    * entirely.
+   *
+   * An object turns inquiries on, like `true`, and configures them. Set
+   * `{ publicForm: false }` when the site's own endpoint writes the
+   * `inquiries` table: the editor's Inquiries tab and the inbox count stay,
+   * and the generated public form route isn't mounted. See
+   * {@link InquiriesConfig}.
    */
-  inquiries?: boolean;
+  inquiries?: boolean | InquiriesConfig;
   /** Installable-app settings. Only read when `modules` includes `"pwa"`. */
   pwa?: PwaConfig;
   /** The agency credit `<Credit>` renders in the footer. Omit for none. */
@@ -1022,9 +1048,10 @@ function assertEditorFree(config: AstroidConfig): void {
       );
     }
   }
-  if (config.inquiries === true) {
+  if (config.inquiries === true || isInquiriesObject(config.inquiries)) {
+    const given = config.inquiries === true ? "`inquiries: true`" : "an `inquiries` object";
     throw new AstroidConfigError(
-      `${without} to review inquiries in, so \`inquiries: true\` would collect messages ` +
+      `${without} to review inquiries in, so ${given} would collect messages ` +
         "nobody reads. Remove it, or drop `editor: false`.",
     );
   }
@@ -1047,6 +1074,31 @@ function assertEditorFree(config: AstroidConfig): void {
     throw new AstroidConfigError(
       `${without} and no portal, so nobody signs in and the \`authRateLimit\` module has ` +
         "nothing to guard. Remove it, or turn the portal on.",
+    );
+  }
+}
+
+/** True for the object form of `inquiries`, which turns inquiries on. */
+function isInquiriesObject(value: unknown): value is InquiriesConfig {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * `inquiries` is a boolean or an object whose `publicForm` is a boolean. A
+ * config loaded without type-checking can carry anything, and a truthy value
+ * of the wrong shape, such as `{ publicForm: "no" }`, would otherwise keep the
+ * public form route mounted on a site that meant to turn it off.
+ */
+function assertInquiries(value: AstroidConfig["inquiries"]): void {
+  if (value === undefined || typeof value === "boolean") return;
+  if (!isInquiriesObject(value)) {
+    throw new AstroidConfigError(
+      `\`inquiries\` must be a boolean or an object, such as \`{ publicForm: false }\`, but it's ${JSON.stringify(value)}`,
+    );
+  }
+  if (value.publicForm !== undefined && typeof value.publicForm !== "boolean") {
+    throw new AstroidConfigError(
+      `\`inquiries.publicForm\` must be a boolean, but it's ${JSON.stringify(value.publicForm)}`,
     );
   }
 }
@@ -1097,6 +1149,7 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   assertCrons(config);
   assertTenancy(config);
   assertAllowSlugs(config);
+  assertInquiries(config.inquiries);
   assertEditorFree(config);
   assertCredit(config.credit);
 

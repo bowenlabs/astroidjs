@@ -11,7 +11,8 @@
 // asserting.
 
 import { describe, expect, it } from "vitest";
-import type { AstroidConfig } from "../src/config.js";
+import { type AstroidConfig, defineAstroid } from "../src/config.js";
+import { generateAstroidSchema } from "../src/schema/generate.js";
 import { ASTROID_HEALTH_CRON, astroidCrons } from "../src/queues/messages.js";
 import { generateAstroidWrangler } from "../src/project/generate.js";
 import { astroidVitalsDataset } from "../src/analytics/index.js";
@@ -787,6 +788,71 @@ describe("inquiry-capture override", () => {
       inquiries: false,
     });
     expect(plan.map((r) => r.name)).not.toContain("inquiries");
+  });
+});
+
+describe("the public inquiry form", () => {
+  const contact: AstroidConfig = { ...base, sections: ["hero", "contact"] };
+  const noForm: AstroidConfig = { ...contact, inquiries: { publicForm: false } };
+
+  it("is mounted by default, with the contact form and the inquiry mail", () => {
+    const configs: AstroidConfig[] = [
+      contact,
+      { ...base, inquiries: true },
+      { ...base, inquiries: { publicForm: true } },
+      { ...base, inquiries: {} },
+    ];
+    for (const config of configs) {
+      const worker = generateAstroidWorker(config);
+      expect(routeLine(worker, "formRoute")).toContain("form: contactForm");
+      expect(worker).toContain("const contactForm = defineForm(");
+      expect(worker).toContain('import { db, inquiriesForm } from "louise-toolkit/db";');
+      expect(worker).toContain('import { defineForm } from "louise-toolkit/forms";');
+      expect(worker).toMatch(/import \{[^}]*\bsendInquiryMail\b[^}]*\} from "astroidjs";/);
+      expect(astroidEditorRoutePlan(config).map((r) => r.name)).toContain("form");
+    }
+  });
+
+  it("`publicForm: false` drops the route and everything only it uses", () => {
+    // A site whose own endpoint writes the inquiries table, with its own captcha
+    // and limits, mustn't keep a second, weaker way in beside it. And nothing
+    // the route used may stay imported, or the generated file fails lint.
+    const worker = generateAstroidWorker(noForm);
+    expect(worker).not.toContain("formRoute");
+    expect(worker).not.toContain("contactForm");
+    expect(worker).not.toContain("defineForm");
+    expect(worker).not.toContain("inquiriesForm");
+    expect(worker).not.toContain("sendInquiryMail");
+    expect(worker).not.toContain("louise-toolkit/forms");
+    expect(worker).toContain('import { db } from "louise-toolkit/db";');
+    expect(astroidEditorRoutePlan(noForm).map((r) => r.name)).not.toContain("form");
+  });
+
+  it("`publicForm: false` keeps the table, the review route, and the inbox count", () => {
+    const worker = generateAstroidWorker(noForm);
+    expect(routeLine(worker, "inquiriesRoute")).toContain("table: inquiries");
+    expect(routeLine(worker, "overviewRoute")).toContain("inbox: overviewInbox");
+    expect(worker).toContain("SELECT COUNT(*) AS n FROM inquiries");
+    expect(worker).toMatch(/import \{[^}]*\binquiries\b[^}]*\} from "\.\/schema\.js";/);
+    expect(generateAstroidSchema(noForm)).toContain("inquiries");
+    expect(astroidEditorRoutePlan(noForm).map((r) => r.name)).toContain("inquiries");
+  });
+
+  it("turns inquiries on in the object form, even with no contact section", () => {
+    const worker = generateAstroidWorker({ ...base, inquiries: { publicForm: false } });
+    expect(worker).toContain("inquiriesRoute({");
+    expect(worker).not.toContain("formRoute");
+  });
+
+  it("is refused in a shape that isn't a boolean or `{ publicForm?: boolean }`", () => {
+    const bad = (inquiries: unknown) => () =>
+      defineAstroid({ ...contact, inquiries } as unknown as AstroidConfig);
+    expect(bad({ publicForm: "no" })).toThrow(/`inquiries\.publicForm` must be a boolean/);
+    expect(bad("off")).toThrow(/`inquiries` must be a boolean or an object/);
+    expect(bad(["publicForm"])).toThrow(/`inquiries` must be a boolean or an object/);
+    expect(bad(null)).toThrow(/`inquiries` must be a boolean or an object/);
+    expect(() => defineAstroid(noForm)).not.toThrow();
+    expect(() => defineAstroid({ ...contact, inquiries: {} })).not.toThrow();
   });
 });
 

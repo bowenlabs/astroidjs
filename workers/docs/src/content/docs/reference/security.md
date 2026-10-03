@@ -26,6 +26,10 @@ session, such as a webhook receiver, mark it with `publicRoute(…)` in the
 worker, or list its path in the middleware's `apiGate: { isPublic }`.
 Otherwise it returns 401.
 
+A site with its own contact endpoint sets `inquiries: { publicForm: false }`, so
+the generated contact form route isn't left public beside it. See
+[Inquiries](/guide/configuration/#inquiries).
+
 New projects also set the `global_fetch_strictly_public` compatibility flag,
 so a fetch to the site's own zone goes through Cloudflare's WAF like any other
 request. `wrangler.jsonc` is scaffold-once, so an existing project adds the flag

@@ -33,7 +33,7 @@ import {
   ASTROID_REALTIME_BINDING,
   usesRealtime,
 } from "../realtime/scaffold.js";
-import { capturesInquiries } from "../schema/framework.js";
+import { capturesInquiries, servesInquiryForm } from "../schema/framework.js";
 import { astroidCspStyleSrc } from "../security/csp-origins.js";
 import { astroidHasEditor } from "../shape.js";
 import { ASTROID_REWRITE_EXCLUDE, ASTROID_TENANT_PREFIX } from "../tenancy/index.js";
@@ -80,7 +80,8 @@ export interface GenerateAstroidWorkerOptions {
  * Generate the Worker entrypoint (`worker.ts`) from an Astroid config: the editor
  * routes in collision-free order, an R2 media-asset route, and the `composeWorker`
  * default export over Astro's SSR handler. Inquiry routes + the contact form are
- * emitted only when a brand captures inquiries.
+ * emitted only when a brand captures inquiries, and the contact form only when
+ * the config doesn't set `inquiries: { publicForm: false }`.
  */
 export function generateAstroidWorker(
   config: AstroidConfig,
@@ -89,6 +90,9 @@ export function generateAstroidWorker(
   const dlq = deadLetterQueueFor(config, options);
   if (!astroidHasEditor(config)) return generateAppWorker(config, dlq);
   const inquiries = capturesInquiries(config);
+  // The public contact form, and the imports only it uses. Off for a site whose
+  // own endpoint writes the inquiries table.
+  const publicForm = servesInquiryForm(config);
   const queues = astroidUsesQueues(config);
   const cron = astroidCron(config);
   const mediaBase = config.deploy?.mediaBase ?? "/media";
@@ -234,7 +238,7 @@ export function generateAstroidWorker(
   p('import type { EditorSession } from "louise-toolkit/auth";');
   p('import { reindexDoc } from "louise-toolkit/content";');
   p(
-    inquiries
+    publicForm
       ? 'import { db, inquiriesForm } from "louise-toolkit/db";'
       : 'import { db } from "louise-toolkit/db";',
   );
@@ -245,7 +249,7 @@ export function generateAstroidWorker(
   p(
     'import { cwvSqlQuery, parseCwvRows, summarizeCwv, vitalsRoute } from "louise-toolkit/analytics";',
   );
-  if (inquiries) p('import { defineForm } from "louise-toolkit/forms";');
+  if (publicForm) p('import { defineForm } from "louise-toolkit/forms";');
   p(incidentsImport(dlq !== null));
   if (queues) p('import { processBatch } from "louise-toolkit/queues";');
   // Only when a route actually takes a runner—a project with no AI assists
@@ -270,7 +274,7 @@ export function generateAstroidWorker(
     "astroidPagesWriteHooks",
     "readModuleSecret",
     "setAstroidMediaBase",
-    ...(inquiries ? ["sendInquiryMail"] : []),
+    ...(publicForm ? ["sendInquiryMail"] : []),
     ...(queues ? ["type AstroidQueueMessage"] : []),
     ...(config.incidents?.sentry ? ["sentryIncidents", "type SecretSource"] : []),
   ].sort();
@@ -477,7 +481,7 @@ export function generateAstroidWorker(
   p("      : {}),");
   p("  };");
   p("};");
-  if (inquiries) {
+  if (publicForm) {
     p();
     p("// Public contact form: the built-in inquiries fields + silent spam");
     p("// heuristics (a honeypot + a minimum time-since-render).");
