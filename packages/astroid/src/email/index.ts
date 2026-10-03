@@ -1,6 +1,6 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 
-export { astroidMailTheme, type MailThemeOverrides } from "./theme.js";
+export { astroidMailTheme, type MailThemeContext, type MailThemeOverrides } from "./theme.js";
 export { type AstroidMailEnv, sendInquiryMail } from "./inquiry.js";
 export {
   createMailer,

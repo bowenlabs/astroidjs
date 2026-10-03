@@ -19,7 +19,7 @@
 //      than hope nobody picks yellow, the accent is darkened until it clears
 //      WCAG AA against the card background.
 
-import type { MailPalette, MailTheme } from "louise-toolkit/email";
+import type { MailLogo, MailPalette, MailTheme } from "louise-toolkit/email";
 import type { AstroidConfig } from "../config.js";
 
 type Rgb = [number, number, number];
@@ -124,15 +124,50 @@ function buildFonts(font?: string) {
   };
 }
 
-/** Deep-mergeable overrides for the parts a site wants to own. */
-export interface MailThemeOverrides {
+/**
+ * Overrides for the parts a site wants to own. `palette`, `fonts`, and `brand`
+ * merge into the derived values one key at a time; every other `MailTheme`
+ * field the toolkit's shell reads, such as `masthead`, `shadow`, or
+ * `buttonAlign`, passes through as given. The type follows `MailTheme`, so a
+ * shell field a later toolkit adds is accepted here without a change.
+ */
+export interface MailThemeOverrides extends Partial<
+  Omit<MailTheme, "palette" | "fonts" | "brand" | "logo">
+> {
   palette?: Partial<MailPalette>;
-  band?: string[];
   fonts?: Partial<MailTheme["fonts"]>;
   brand?: Partial<MailTheme["brand"]>;
-  radius?: number;
-  bandHeight?: number;
-  buttonShape?: MailTheme["buttonShape"];
+  /**
+   * The `"logo"` masthead's image. `src` is an absolute `https:` URL, or a path
+   * on the site, such as `/brand/logo-mail.png`, which resolves against the
+   * `siteUrl` passed at send time. A path with no `siteUrl` drops the logo, and
+   * the masthead draws the wordmark.
+   */
+  logo?: MailLogo;
+}
+
+/** What only the send knows, as opposed to the brand values in the overrides. */
+export interface MailThemeContext {
+  /**
+   * The deployment's origin, such as `env.SITE_URL`. A logo `src` that's a path
+   * resolves against it. Pass it at send time rather than import time, because
+   * it differs per environment. Mail clients load only `https:` images, so on a
+   * `http://localhost` origin the masthead draws the wordmark.
+   */
+  siteUrl?: string;
+}
+
+/** A logo with a path for its `src`, pointed at `siteUrl`; or `undefined` when
+ *  there's no origin to point it at, so the shell draws the wordmark. */
+function resolveLogo(logo: MailLogo | undefined, siteUrl: string | undefined) {
+  if (!logo || !logo.src.startsWith("/") || logo.src.startsWith("//")) return logo;
+  if (!siteUrl?.trim()) return undefined;
+  try {
+    return { ...logo, src: new URL(logo.src, siteUrl.trim()).href };
+  } catch {
+    // A malformed SITE_URL costs the logo, not the mail.
+    return undefined;
+  }
 }
 
 /**
@@ -143,12 +178,23 @@ export interface MailThemeOverrides {
  * const mail = magicLinkEmail(theme, { url, toEmail });
  * ```
  *
+ * A site on the `"logo"` masthead builds it at send time, with its own origin:
+ *
+ * ```ts
+ * const theme = astroidMailTheme(
+ *   config,
+ *   { masthead: "logo", logo: { src: "/brand/logo-mail.png", width: 240, height: 65 } },
+ *   { siteUrl: env.SITE_URL },
+ * );
+ * ```
+ *
  * An invalid or missing brand colour falls back to the ink neutral rather than
  * throwing—a malformed hex in settings should not take out password reset.
  */
 export function astroidMailTheme(
   config: AstroidConfig,
   overrides: MailThemeOverrides = {},
+  context: MailThemeContext = {},
 ): MailTheme {
   const cardBg = hexToRgb(NEUTRALS.bg) ?? WHITE;
   const brandColors = [
@@ -159,22 +205,26 @@ export function astroidMailTheme(
     .map((c) => (c ? hexToRgb(c) : null))
     .filter((c): c is Rgb => c !== null);
   const base = brandColors[0] ?? (hexToRgb(NEUTRALS.ink) as Rgb);
+  const { palette, fonts, brand, logo, ...shell } = overrides;
+  const resolvedLogo = resolveLogo(logo, context.siteUrl);
 
   return {
+    ...shell,
     palette: {
       ...NEUTRALS,
       accent: rgbToHex(readableOn(base, cardBg)),
-      ...overrides.palette,
+      ...palette,
     },
-    band: overrides.band ?? buildBand(brandColors.length ? brandColors : [base]),
-    fonts: { ...buildFonts(config.theme.font), ...overrides.fonts },
+    band: shell.band ?? buildBand(brandColors.length ? brandColors : [base]),
+    fonts: { ...buildFonts(config.theme.font), ...fonts },
     brand: {
       name: config.theme.name,
       footerLead: config.theme.name,
-      ...overrides.brand,
+      ...brand,
     },
-    radius: overrides.radius ?? 8,
-    bandHeight: overrides.bandHeight ?? 110,
-    buttonShape: overrides.buttonShape ?? "pill",
+    ...(resolvedLogo ? { logo: resolvedLogo } : {}),
+    radius: shell.radius ?? 8,
+    bandHeight: shell.bandHeight ?? 110,
+    buttonShape: shell.buttonShape ?? "pill",
   };
 }
