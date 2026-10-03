@@ -1,5 +1,43 @@
 # astroidjs
 
+## 0.29.0
+
+### Minor Changes
+
+- b6ec7c1: **Security: the generated release workflow pins each action to a commit, not a tag.** `.github/workflows/release.yml` mints a GitHub App token that can move `deploy/production`, and it ran `actions/create-github-app-token@v2` and `actions/checkout@v4`. A tag runs whatever commit it points at when the job starts, so whoever controlled either tag controlled code that ran with that token. The workflow now writes `actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2` and `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0`.
+
+  - **`astroid doctor` accepts a newer release of the same major version.** Renovate updates a pinned action by changing the SHA and the version comment together. When `release.yml` pins a newer release of the same major version, by a full 40-character SHA with `# v<major>.<minor>.<patch>` after it, `astroid doctor` passes and notes the newer release, and `astroid generate` keeps that pin rather than move it back. Anything else is still drift: the same release at a different commit, which is what a moved tag looks like, an older release, another major version, a tag, or any other edit. ADR 0025 has the reasoning.
+  - **`generateAstroidReleaseWorkflow(existing?)`** takes the current file's contents and keeps a newer pin from it. `astroidReleaseWorkflowPins(existing?)` returns the pin each action gets, and `ASTROID_RELEASE_ACTIONS` lists astroid's own.
+  - **The Releases guide adds two rulesets.** The workflow releases a `v*` tag on `main` or on any `release/` branch, so anyone who can push could otherwise put unreviewed code on a new `release/` branch, tag it, and have it deployed. The guide's one-time setup now guards `release/**` branches and `v*` tags as well as `deploy/production`, with repository admins as the only bypass actor.
+  - **`create-astroid`:** a new scaffold's `.github/workflows/ci.yml` pins `actions/checkout` and `actions/setup-node` by commit too.
+
+  **What to do:** after you upgrade, run `astroid generate` and commit the new `.github/workflows/release.yml`. Until you do, `astroid doctor` reports it as stale and fails CI. Renovate then opens pull requests that move these pins to newer releases; merge the ones within a major version, and close one that moves an action to a new major version, since `astroid doctor` refuses it. An existing project's `ci.yml` is yours, so pin its actions the same way if you want them pinned. Add the `release/**` branch and `v*` tag rulesets from the Releases guide; after that, only a repository admin can tag a release or push to a `release/` branch.
+
+- 170f9f1: Astroid sanitizes stored rich text when it renders it, as well as when it's saved, so HTML stored before a sanitizer fix, or written around the pages collection's write hook, is covered without re-saving the page (ADR 0026).
+
+  - **New export:** `sanitizeAstroidRichHtml(html, { mediaBase })` from `astroidjs/components/rich-html`. It runs louise-toolkit's `sanitizeRichHtml` with the site's media base and memoizes the result per isolate, so a repeat render costs a lookup rather than a parse. Content the editor saved renders byte for byte.
+  - **Section components:** `splitImage`, `aboutIntro`, and `faq` render their rich text through it. `<Sections>` passes its `mediaBase` prop down to each section, and `SectionRenderProps` has a new optional `mediaBase`. A rich-text body that sanitizes to nothing no longer renders its wrapper, the same as an empty body.
+  - **`create-astroid`:** the scaffold's `src/pages/index.astro` and `src/pages/[...slug].astro` render `page.body` through it.
+
+  **What to do:** your page routes are your own once scaffolded, so make the same change there. In `src/pages/index.astro` and `src/pages/[...slug].astro`, replace `set:html={page.body}` with `set:html={sanitizeAstroidRichHtml(page.body, { mediaBase: env.MEDIA_URL })}`, imported from `astroidjs/components/rich-html`. Do the same for every `set:html` of stored rich text in your own components, such as a custom section's body, passing the `mediaBase` prop `<Sections>` gives each section. Pass `mediaBase={env.MEDIA_URL}` to `<Sections>` if you don't already.
+
+- 170f9f1: Astroid moves to louise-toolkit 0.43 and @louise-toolkit/astro 0.9.0, which are security hardening releases.
+
+  - The `louise-toolkit` peer range is `^0.43.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.43.0` and `@louise-toolkit/astro` `^0.9.0`.
+  - The adapter is a minor again, 0.9.0, so a `^0.8` range doesn't float into it and install a second toolkit.
+  - What 0.43 changes for an Astroid site:
+    - **Rate rules match every spelling of a path.** Astroid's default rules (such as the ones for `/api/checkout` and the sign-in endpoints) and a site's own `security.rateRules` now also count a slashed or doubled-slash spelling, such as `POST /api/checkout/`, against the rule for the canonical path. Two upgrade edges follow. A request that had no limit can now get a 429. And because a site's `security.rateRules` come before the defaults and the first match wins, an earlier rule for the canonical path can now claim a spelling that a later rule was written for.
+    - **The rich-text sanitizer parses with parse5 and escapes everything it writes.** The pages collection's write hook sanitizes on every save, so editor content saves as before, and hand-written or pasted HTML can change on its next save. Because Astroid now also sanitizes when it renders, stored HTML changes the same way on the first render after the upgrade: character references decode, comments drop, and malformed markup is repaired the way a browser repairs it. The toolkit's 0.43.0 changelog lists every difference.
+    - **A customer (portal) auth instance no longer serves `<basePath>/admin/*`.** Astroid's portal never calls those endpoints, so nothing changes for a generated portal. A site that used them sets `customers: { adminEndpoints: true }`.
+    - **`resolveCaptcha`** lets a control fail closed when its Turnstile secret can't be read. The studio's sign-in still fails open.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.43, `@louise-toolkit/astro` to 0.9.0, and `astroidjs` in the same install. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Check that `pnpm-lock.yaml` holds one `louise-toolkit` version.
+  3. If `security.rateRules` has a rule for each spelling of one endpoint, keep only the rule for the canonical path, with no trailing slash.
+  4. You don't need to re-save any page: Astroid now sanitizes stored rich text when it renders it, so HTML stored before this upgrade is covered by the new sanitizer. Your own page routes and section components that render stored rich text need the new `sanitizeAstroidRichHtml` export from `astroidjs/components/rich-html`; the entry on render-time sanitizing in this release says where.
+
 ## 0.28.0
 
 ### Minor Changes
