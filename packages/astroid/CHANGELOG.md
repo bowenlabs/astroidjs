@@ -1,5 +1,55 @@
 # astroidjs
 
+## 0.27.0
+
+### Minor Changes
+
+- 2a80197: **`portalSignOut`, a portal sign-out that only a same-origin POST can trigger.** The portal's session cookie is `SameSite=Lax`, which a browser sends with a top-level GET from any site, so a `/logout` page that signs out on a GET lets any other website sign your users out with a link. Both sites built on the portal shipped one.
+
+  `portalSignOut(request, { user, signOut })` in `astroidjs` (and `astroidjs/portal`) decides a sign-out request and signs out only on a same-origin POST, by louise-toolkit's strict `isSameOrigin` (a POST with neither `Origin` nor `Referer` doesn't pass). A same-origin POST signs out even when no session resolved, so a failed session lookup can't leave a live cookie behind. It returns `{ state, status, cookies }`:
+
+  - `signed-out` (200) after a same-origin POST, with every expiring cookie in `cookies`, one header each, ready for `redirectWithCookies`, or on a GET with no session;
+  - `confirm` (200) on a GET while signed in, or (403) on any other POST, so the page asks with a form;
+  - `failed` (503) when the sign-out answers non-OK or throws. The session stays, and it reports `portal.sign-out` through `reportDegraded`.
+
+  The scaffold gains two files for a project with a portal:
+
+  - `src/portal-auth.ts` exports `signOutPortal(request)`, which calls louise-toolkit's `auth.api.signOut` (added in 0.41).
+  - `src/pages/logout.astro`, a POST-only sign-out page in the project's layout, for you to restyle.
+
+  **What to do:** a project with no portal sees no change. A project with a portal gets `src/pages/logout.astro` on its next `astroid generate`, unless it already has one, because scaffold-once files are written only when missing. Check two things before you run it:
+
+  - **The page imports `signOutPortal` from `src/portal-auth.ts`.** A new project's `portal-auth.ts` has it. An existing one isn't rewritten, so add `export async function signOutPortal(request: Request): Promise<Response>` that builds your auth instance for the request's origin and returns `auth.api.signOut({ headers: request.headers, asResponse: true })`. Without it, `astro check` and the build fail on the import.
+  - **The page answers `/logout`.** If another file already serves that route, such as a `src/pages/logout.ts` endpoint, or your sign-out page lives elsewhere, keep the scaffolded file and have it redirect to your page, or move your logic into it. Deleting it doesn't stick: the next `astroid generate` writes it back.
+
+  To adopt the helper in a page of your own, call `portalSignOut` from it and make every Sign out control a `<form method="post" action="/logout">`, not a link.
+
+- 8fb34dc: Astroid moves to louise-toolkit 0.42 and @louise-toolkit/astro 0.8.0. Nothing in Astroid's own behavior changes; the toolkit release only adds exports.
+
+  - The `louise-toolkit` peer range is `^0.42.0`. `create-astroid`: new scaffolds get `louise-toolkit` `^0.42.0` and `@louise-toolkit/astro` `^0.8.0`.
+  - The adapter is a minor again, 0.8.0, so a `^0.7` range doesn't float into it and install a second toolkit.
+  - What 0.42 adds: `louise-toolkit/commerce/square` turns subscription plans into the offers an item gets (`subscriptionOffersFor`, `findSubscriptionOffer`, `templatePhases`, `cadenceLabel`), which pair with Astroid's `subscriptionPlansSnapshot`; and the new `louise-toolkit/client/sign-in` subpath has `SignInLinkForm`, the sign-in-by-link form, and `requestSignInLink`, the same request for a sign-in screen with its own markup. The form ships compiled for the browser, so mount it with `client:only="solid-js"`, not `client:load`.
+
+  **What to do:**
+
+  1. Upgrade `louise-toolkit` to 0.42, `@louise-toolkit/astro` to 0.8.0, and `astroidjs` in the same install. Before 1.0, a caret range stays within one minor version, so a site that bumps only one side installs two copies of the toolkit.
+  2. Check `pnpm-lock.yaml`: it should have one `louise-toolkit@0.42.0` entry and one `@louise-toolkit/astro@0.8.0` entry. More than one version of either means the ranges disagree; align them as in step 1. Read the lockfile rather than `node_modules/.pnpm`, which can keep directories from earlier installs.
+
+### Patch Changes
+
+- 8945994: `subscriptionPlansSnapshot` and `alsoRefresh` on `astroidQueueHandler` report their fallbacks through `reportDegraded` from `louise-toolkit/errors`, so incident capture counts them. In 0.26.0 they logged with a bare `console.error`, which only reached Workers Logs, and a plans refresh that failed every hour left no record.
+
+  | Fallback                                       | Name                                 | Served              |
+  | ---------------------------------------------- | ------------------------------------ | ------------------- |
+  | KV read fails, or the value isn't a JSON array | `commerce.subscriptionPlans.read`    | a miss              |
+  | KV write fails                                 | `commerce.subscriptionPlans.write`   | the fetched plans   |
+  | Square fails inside `get`                      | `commerce.subscriptionPlans.refresh` | `[]`                |
+  | An `alsoRefresh` entry fails                   | `queues.alsoRefresh.<name>`          | the next entry runs |
+
+  The log line changes. `[<name>] refresh failed: <message>` and `[astroid:commerce] subscription plans … failed` become `[louise] degraded <name>: <cause>`, and an `UpstreamError` cause still carries Square's operation, status, and detail. `ASTROID_SUBSCRIPTION_PLANS_DEGRADED` and `ASTROID_ALSO_REFRESH_DEGRADED` export the name prefixes.
+
+  If a log search or alert matches the old lines, match `degraded commerce.subscriptionPlans.` and `degraded queues.alsoRefresh.` instead, or listen with `onDegraded`. Nothing else changes. ADR 0024 records the snapshot's key and its one-writer, many-readers contract.
+
 ## 0.26.0
 
 ### Minor Changes
