@@ -135,9 +135,12 @@ async function cmdGenerate(cwd, flags, { quiet = false } = {}) {
   // because GitHub reads workflows only from there. Regenerated like the trio.
   const root = gitRoot(cwd);
   if (root) {
+    // A newer release of an action, of the same major version and pinned by
+    // commit, is kept rather than moved back: that's how Renovate updates it.
     const abs = join(root, ASTROID_RELEASE_WORKFLOW_PATH);
+    const existing = existsSync(abs) ? readFileSync(abs, "utf8") : undefined;
     mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, generateAstroidReleaseWorkflow());
+    writeFileSync(abs, generateAstroidReleaseWorkflow(existing));
     if (!quiet) out(`  ✓ ${ASTROID_RELEASE_WORKFLOW_PATH} (repository root)`);
   }
 
@@ -190,6 +193,8 @@ async function cmdDoctor(cwd, flags) {
     astroidRunsMigrations,
     migrationsOwnershipError,
     generateAstroidReleaseWorkflow,
+    astroidReleaseWorkflowPins,
+    ASTROID_RELEASE_ACTIONS,
     ASTROID_RELEASE_WORKFLOW_PATH,
   } = await import(GENERATORS_URL);
   const { config, path: configPath } = await loadConfig(cwd, flags.config);
@@ -381,16 +386,32 @@ async function cmdDoctor(cwd, flags) {
   // 1c. The release workflow at the repository root: a tag on `main` moves
   //     `deploy/production`, which Workers Builds deploys. Stale is an error for
   //     the same reason the trio's is: it decides which commits reach production.
+  //     The one difference it allows is an action pinned, by commit, to a newer
+  //     release of the same major version, as a Renovate update writes it.
   const root = gitRoot(cwd);
   if (!root) {
     warn(`not in a git checkout, so ${ASTROID_RELEASE_WORKFLOW_PATH} can't be checked.`);
   } else {
     const abs = join(root, ASTROID_RELEASE_WORKFLOW_PATH);
-    if (!existsSync(abs))
+    const existing = existsSync(abs) ? readFileSync(abs, "utf8") : undefined;
+    if (existing === undefined)
       err(`${ASTROID_RELEASE_WORKFLOW_PATH} is missing — run \`astroid generate\`.`);
-    else if (readFileSync(abs, "utf8") !== generateAstroidReleaseWorkflow())
-      err(`${ASTROID_RELEASE_WORKFLOW_PATH} is stale — run \`astroid generate\`.`);
-    else ok(`${ASTROID_RELEASE_WORKFLOW_PATH} is up to date`);
+    else if (existing !== generateAstroidReleaseWorkflow(existing))
+      err(
+        `${ASTROID_RELEASE_WORKFLOW_PATH} is stale — run \`astroid generate\`. ` +
+          "An action may only move to a newer release of the same major version, pinned to its commit SHA.",
+      );
+    else {
+      ok(`${ASTROID_RELEASE_WORKFLOW_PATH} is up to date`);
+      const pins = astroidReleaseWorkflowPins(existing);
+      for (const [key, pin] of Object.entries(pins)) {
+        const ours = ASTROID_RELEASE_ACTIONS[key];
+        if (pin.version !== ours.version)
+          notes.push(
+            `${ASTROID_RELEASE_WORKFLOW_PATH} runs ${pin.action} ${pin.version}, newer than astroid's ${ours.version}`,
+          );
+      }
+    }
   }
 
   // 2b. Staging: the `previews` block (louise-toolkit ADR 0017). A Preview

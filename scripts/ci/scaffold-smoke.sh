@@ -160,6 +160,45 @@ grep -q '^doctor: ' <<<"$DOCTOR_OUT" || {
   exit 1
 }
 
+# The release workflow lives at the repository root, so doctor checks it only in
+# a git checkout, which the clean room isn't. Make it one for this check, then
+# undo that. Doctor accepts an action moved, by commit, to a newer release of
+# the same major version, which is how Renovate updates it, and generate keeps
+# that pin. The same release at another commit is what a moved tag looks like,
+# so doctor refuses it.
+echo "==> doctor accepts a newer action pin in release.yml, and refuses a moved tag"
+RELEASE_YML=.github/workflows/release.yml
+git init -q .
+corepack pnpm exec astroid generate >/dev/null
+corepack pnpm exec astroid doctor >/dev/null || {
+  echo "astroid doctor fails on the release workflow astroid generate wrote" >&2
+  exit 1
+}
+repin() {
+  sed -E "s|(uses: actions/checkout@)[0-9a-f]{40} # v[0-9.]+|\1$1|" "$RELEASE_YML" >"$RELEASE_YML.new"
+  mv "$RELEASE_YML.new" "$RELEASE_YML"
+}
+NEWER_PIN="0123456789abcdef0123456789abcdef01234567 # v4.99.0"
+repin "$NEWER_PIN"
+corepack pnpm exec astroid doctor >/dev/null || {
+  echo "astroid doctor refuses actions/checkout pinned to a newer v4 release" >&2
+  exit 1
+}
+corepack pnpm exec astroid generate >/dev/null
+grep -qF "uses: actions/checkout@$NEWER_PIN" "$RELEASE_YML" || {
+  echo "astroid generate moved a newer actions/checkout pin back" >&2
+  exit 1
+}
+rm "$RELEASE_YML"
+corepack pnpm exec astroid generate >/dev/null
+ASTROID_PIN="$(sed -nE 's|.*uses: actions/checkout@([0-9a-f]{40} # v[0-9.]+)$|\1|p' "$RELEASE_YML")"
+repin "0123456789abcdef0123456789abcdef01234567 # ${ASTROID_PIN##* }"
+if corepack pnpm exec astroid doctor >/dev/null; then
+  echo "astroid doctor accepts astroid's actions/checkout release at a different commit" >&2
+  exit 1
+fi
+rm -rf .git "$RELEASE_YML"
+
 corepack pnpm exec astro check
 
 # `astro check` diagnoses only files inside the project, so the section library

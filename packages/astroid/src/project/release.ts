@@ -25,6 +25,15 @@
 // A regenerated file, like the worker trio: `astroid generate` rewrites it and
 // `astroid doctor` fails when it drifts, so a hand edit can't quietly change
 // which commits reach production.
+//
+// Each action is pinned to a commit, with its release in a trailing comment.
+// The job holds a token that moves `deploy/production`, so an action pinned by
+// tag would run whatever commit its owner, or anyone who took over the tag,
+// pointed the tag at next. One exception keeps Renovate useful: a site's file
+// may carry a newer release of the same major version than astroid's, pinned
+// the same way, and `astroid generate` keeps it rather than move it back. A
+// different commit for the same release is never accepted, since that's what a
+// moved tag looks like. ADR 0025 has the reasoning.
 
 /** The branch Workers Builds deploys to production from. */
 export const ASTROID_DEPLOY_BRANCH = "deploy/production";
@@ -44,11 +53,97 @@ const CI_CHECK = "CI";
 /** How long the release waits for an unfinished `CI` run, polled every 20 seconds. */
 const CI_WAIT_MINUTES = 30;
 
+/** An action the release workflow runs, pinned to the commit of one release. */
+export interface AstroidActionPin {
+  /** The action's repository, such as `actions/checkout`. */
+  readonly action: string;
+  /** The release's full commit SHA: 40 lowercase hex digits. */
+  readonly sha: string;
+  /** The release's tag, `v<major>.<minor>.<patch>`. */
+  readonly version: string;
+}
+
+/**
+ * The actions the release workflow runs, at the releases astroid pins: the
+ * latest release of each major version that astroid has checked. Renovate keeps
+ * them current in this repository, through a custom manager that reads this
+ * list, so keep each entry's three fields together and in this order.
+ */
+export const ASTROID_RELEASE_ACTIONS = {
+  createGithubAppToken: {
+    action: "actions/create-github-app-token",
+    sha: "fee1f7d63c2ff003460e3d139729b119787bc349",
+    version: "v2.2.2",
+  },
+  checkout: {
+    action: "actions/checkout",
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    version: "v4.4.0",
+  },
+} as const satisfies Record<string, AstroidActionPin>;
+
+/** The pin for each action in `ASTROID_RELEASE_ACTIONS`. */
+export type AstroidReleaseActionPins = Record<
+  keyof typeof ASTROID_RELEASE_ACTIONS,
+  AstroidActionPin
+>;
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const parseVersion = (version: string) => {
+  const m = /^v(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : undefined;
+};
+
+/**
+ * Whether `found` is a later release of the same major version as `pinned`.
+ * A different major version is an upgrade for astroid to vet, and the same
+ * release with a different commit is a moved tag, so neither counts.
+ */
+function isNewerSameMajor(found: AstroidActionPin, pinned: AstroidActionPin): boolean {
+  const a = parseVersion(found.version);
+  const b = parseVersion(pinned.version);
+  if (!a || !b || a[0] !== b[0]) return false;
+  return a[1] > b[1] || (a[1] === b[1] && a[2] > b[2]);
+}
+
+/**
+ * The pin for each action that the release workflow uses. Without `existing`,
+ * these are astroid's own. With the contents of a site's current file, an
+ * action whose `uses:` line pins a newer release of the same major version,
+ * by full commit SHA with the release in a trailing comment, keeps that pin.
+ * This is the shape a Renovate digest update writes.
+ */
+export function astroidReleaseWorkflowPins(existing?: string): AstroidReleaseActionPins {
+  const pins: AstroidReleaseActionPins = { ...ASTROID_RELEASE_ACTIONS };
+  if (existing === undefined) return pins;
+  for (const key of Object.keys(pins) as (keyof AstroidReleaseActionPins)[]) {
+    const pinned = pins[key];
+    const line = new RegExp(
+      `^ +(?:- )?uses: ${escapeRegExp(pinned.action)}@([0-9a-f]{40}) # (v\\d+\\.\\d+\\.\\d+)$`,
+      "m",
+    ).exec(existing);
+    const [, sha, version] = line ?? [];
+    if (!sha || !version) continue;
+    const found = { action: pinned.action, sha, version };
+    if (isNewerSameMajor(found, pinned)) pins[key] = found;
+  }
+  return pins;
+}
+
+const uses = (pin: AstroidActionPin) => `${pin.action}@${pin.sha} # ${pin.version}`;
+
 /** Where the one-time release setup is written down. */
 export const ASTROID_RELEASE_SETUP_URL = "https://docs.astroidjs.org/guide/releases/";
 
-/** The release workflow's contents. Pure, and the same for every site. */
-export function generateAstroidReleaseWorkflow(): string {
+/**
+ * The release workflow's contents. Pure, and the same for every site, apart
+ * from an action pin that `existing`, the site's current file, has moved to a
+ * newer release of the same major version (see `astroidReleaseWorkflowPins`).
+ * `astroid generate` writes this, and `astroid doctor` accepts only this.
+ */
+export function generateAstroidReleaseWorkflow(existing?: string): string {
+  const pins = astroidReleaseWorkflowPins(existing);
   const appId = ASTROID_RELEASE_APP_ID_VAR;
   const appKey = ASTROID_RELEASE_APP_KEY_SECRET;
   const polls = (CI_WAIT_MINUTES * 60) / 20;
@@ -71,6 +166,11 @@ export function generateAstroidReleaseWorkflow(): string {
 # GitHub rejects the GitHub Actions app as a ruleset bypass actor, so the
 # ruleset blocks it too. One-time setup, the app and the ruleset:
 # ${ASTROID_RELEASE_SETUP_URL}
+#
+# Each action is pinned to a release's commit, since this job holds a token
+# that can move ${ASTROID_DEPLOY_BRANCH}. \`astroid doctor\` also accepts a newer
+# release of the same major version, pinned the same way, which is how Renovate
+# updates it, and \`astroid generate\` keeps that pin.
 name: Release
 
 on:
@@ -103,12 +203,12 @@ jobs:
 
       - name: Mint the release app's token
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: ${uses(pins.createGithubAppToken)}
         with:
           app-id: \${{ vars.${appId} }}
           private-key: \${{ secrets.${appKey} }}
 
-      - uses: actions/checkout@v4
+      - uses: ${uses(pins.checkout)}
         with:
           fetch-depth: 0
           # The push below uses the credentials checkout leaves in place.

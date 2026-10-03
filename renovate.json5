@@ -25,6 +25,24 @@
     "packages/create-astroid/template/**",
   ],
 
+  customManagers: [
+    {
+      // The actions the generated release workflow runs, which every site gets
+      // from `astroid generate`. They're pinned by commit in a TypeScript list,
+      // where the github-actions manager can't see them, so this reads each
+      // entry's action, SHA, and release and updates the SHA with the release.
+      // A site's own Renovate can move its copy to a newer release of the same
+      // major version, and `astroid doctor` accepts that; this keeps astroid's
+      // floor current so a new site starts there.
+      customType: "regex",
+      managerFilePatterns: ["/^packages/astroid/src/project/release\\.ts$/"],
+      matchStrings: [
+        'action: "(?<depName>[^"]+)",\\s*sha: "(?<currentDigest>[0-9a-f]{40})",\\s*version: "(?<currentValue>v[0-9.]+)"',
+      ],
+      datasourceTemplate: "github-tags",
+    },
+  ],
+
   packageRules: [
     {
       // A bump to a published peer dependency is an API change for every

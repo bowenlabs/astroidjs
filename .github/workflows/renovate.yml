@@ -5,9 +5,14 @@ name: Renovate
 # PRs land as `bowenlabs-renovate[bot]`, and it is scoped per-run to the calling
 # repository — one App, many repos, each run touching only its own.
 #
-# `secrets: inherit` passes the ORG-level RENOVATE_APP_ID and
-# RENOVATE_APP_PRIVATE_KEY through. Two things have to be true for this to do
-# anything, and neither is in this file:
+# The call passes only the two secrets that workflow declares, the ORG-level
+# RENOVATE_APP_ID and RENOVATE_APP_PRIVATE_KEY, rather than `secrets: inherit`,
+# which would hand it every secret this repository can read. It's pinned to a
+# commit of louise-toolkit's main, not to main itself, so a change to the called
+# workflow reaches this repository only through a reviewed change to the pin.
+#
+# Two things have to be true for this to do anything, and neither is in this
+# file:
 #
 #   1. The BowenLabs Renovate App is installed on THIS repository.
 #   2. The org secrets are scoped to include it.
@@ -37,8 +42,10 @@ on:
 
 jobs:
   renovate:
-    uses: bowenlabs/louise-toolkit/.github/workflows/renovate.yml@main
-    secrets: inherit
+    uses: bowenlabs/louise-toolkit/.github/workflows/renovate.yml@51e8366bd1ef55fa30ab6b0a1c2794c6974b5654 # main
+    secrets:
+      RENOVATE_APP_ID: ${{ secrets.RENOVATE_APP_ID }}
+      RENOVATE_APP_PRIVATE_KEY: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
     with:
       logLevel: ${{ inputs.logLevel || 'info' }}
       dryRun: ${{ inputs.dryRun || false }}
