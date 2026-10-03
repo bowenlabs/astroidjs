@@ -235,7 +235,7 @@ describe("templates", () => {
     const message = "Claim your refund at https://phish.example/refund now";
     const regarding = "Urgent account notice";
     const mail = inquiryConfirmationEmail(theme, {
-      name: "Jane Smith",
+      name: "Alex Rivera",
       email: "victim@example.com",
       regarding,
       message,
@@ -246,31 +246,39 @@ describe("templates", () => {
       expect(body).not.toContain(regarding);
       expect(body).not.toContain("Regarding");
     }
-    expect(mail.text).toContain("Hi Jane —");
+    expect(mail.text).toContain("Hi Alex —");
   });
 
   it('greets anything but a name-shaped given name as "there"', () => {
     for (const name of [
       "https://phish.example/refund",
       "victim@example.com",
-      "<b>Jane</b>",
+      "<b>Alex</b>",
       "J".repeat(41),
     ]) {
-      const mail = inquiryConfirmationEmail(theme, { name, email: "j@x.c", message: "hi" });
+      const mail = inquiryConfirmationEmail(theme, {
+        name,
+        email: "alex@example.com",
+        message: "hi",
+      });
       expect(mail.text).toContain("Hi there —");
       expect(mail.html).not.toContain("phish.example");
       expect(mail.html).not.toContain("victim@example.com");
     }
     for (const name of ["Zoë", "O'Brien", "Anne-Marie", "José"]) {
-      const mail = inquiryConfirmationEmail(theme, { name, email: "j@x.c", message: "hi" });
+      const mail = inquiryConfirmationEmail(theme, {
+        name,
+        email: "alex@example.com",
+        message: "hi",
+      });
       expect(mail.text).toContain(`Hi ${name} —`);
     }
   });
 
   it("keeps the full submission in the owner's notification", () => {
     const mail = inquiryNotificationEmail(theme, {
-      name: "Jane",
-      email: "j@x.c",
+      name: "Alex",
+      email: "alex@example.com",
       regarding: "Wholesale",
       message: "Do you ship to Lisbon?",
     });
@@ -290,12 +298,12 @@ describe("sendInquiryMail confirmation", () => {
     const message = "Visit https://phish.example to verify your account";
     await sendInquiryMail(
       config,
-      { EMAIL: { send }, MAIL_FROM: "hello@acme.coffee", OWNER_EMAIL: "owner@acme.coffee" },
-      { firstName: "Ada", email: "ada@example.com", regarding: "Account notice", message },
+      { EMAIL: { send }, MAIL_FROM: "hello@example.com", OWNER_EMAIL: "owner@example.com" },
+      { firstName: "Kai", email: "kai@example.com", regarding: "Account notice", message },
     );
     const sent = send.mock.calls.map(([m]) => m);
-    const toSender = sent.find((m) => m.to === "ada@example.com");
-    const toOwner = sent.find((m) => m.to === "owner@acme.coffee");
+    const toSender = sent.find((m) => m.to === "kai@example.com");
+    const toOwner = sent.find((m) => m.to === "owner@example.com");
     expect(toSender?.html).not.toContain(message);
     expect(toSender?.text).not.toContain(message);
     expect(toSender?.html).not.toContain("Account notice");

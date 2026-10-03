@@ -236,7 +236,7 @@ export function inquiryConfirmationEmail(theme: MailTheme, i: InquiryDetails): M
       theme,
       `Hi ${escapeHtml(first)} &mdash; thanks for reaching out. Your message has landed, and we answer personally, usually within a business day or two.`,
     ),
-    p(theme, "No need to reply &mdash; this is just a confirmation that yours came through.", {
+    p(theme, "No need to reply. This is just a confirmation that yours came through.", {
       muted: true,
       margin: "24px 0 0",
     }),

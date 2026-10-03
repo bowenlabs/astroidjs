@@ -75,10 +75,10 @@ A site with its own contact endpoint, with a captcha and field limits, still
 turned inquiries on for the table and the Inquiries tab. That also mounted the
 generated public form route, which had neither, and whose confirmation email
 quoted the submitted message back to the submitted address: an open relay from
-the site's own sender. Two rules came out of it. A mail sent to an address a
-visitor typed quotes nothing they wrote. And every generated public route can
-be turned off without losing the editor surfaces beside it, as
-`inquiries: { publicForm: false }` does for this one.
+the site's own sender. The fix stopped the confirmation quoting the message or
+`regarding`, and added `inquiries: { publicForm: false }`, which keeps the
+table and the Inquiries tab without the public route. Before turning a module
+on for its table or editor tab, check which public routes it also mounts.
 
 ### Assert every scripted text replacement
 
