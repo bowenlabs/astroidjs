@@ -78,6 +78,11 @@ through `src/lib/pages.ts`:
   the editor an older page.
 - The head uses the page's own SEO title, description, share image, and
   `noindex`, and the edge cache follows the home page's rule.
+- The body and each section's rich text are sanitized as they render, as well
+  as when they're saved, with `sanitizeAstroidRichHtml` from
+  `astroidjs/components/rich-html`. A page route or section component of your
+  own that renders stored rich text calls it too. See
+  [Stored rich text](/reference/sections/#stored-rich-text).
 
 A file route always wins over the catch-all, so `/contact` and `/login` stay
 theirs, and the Pages route refuses those slugs with a 422, along with `work` on

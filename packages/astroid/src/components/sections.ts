@@ -129,6 +129,9 @@ export interface SectionRenderProps {
   /** Alt/caption resolved from the media registry, keyed by public URL—*
     looked up once for the whole page by `<Sections>`. */
   mediaMeta?: MediaMeta;
+  /** The site's media base, `env.MEDIA_URL`, that rich-text fields are
+   *  sanitized against when they render. Passed down by `<Sections>`. */
+  mediaBase?: string;
 }
 
 /** Asset-level `alt`/`caption` from the media registry, keyed by public URL. */

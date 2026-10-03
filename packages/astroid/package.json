@@ -64,6 +64,10 @@
       "types": "./src/components/media-meta.ts",
       "default": "./src/components/media-meta.ts"
     },
+    "./components/rich-html": {
+      "types": "./src/components/rich-html.ts",
+      "default": "./src/components/rich-html.ts"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {

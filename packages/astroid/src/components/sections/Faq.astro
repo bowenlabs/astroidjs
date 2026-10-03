@@ -7,11 +7,12 @@
 // silently breaks.
 import type { SectionRenderProps } from "../sections.js";
 import { colorwayClass, field, itemField, list, setting } from "../sections.js";
+import { sanitizeAstroidRichHtml } from "../rich-html.js";
 import Editable from "../Editable.astro";
 
 type Props = SectionRenderProps;
 
-const { item, base, edit } = Astro.props;
+const { item, base, edit, mediaBase } = Astro.props;
 
 const heading = field(item, "heading");
 const items = list(item, "items");
@@ -41,7 +42,7 @@ const items = list(item, "items");
             edit={edit}
             class="prose mt-3 max-w-none"
           >
-            <Fragment set:html={itemField(row, "answer") ?? ""} />
+            <Fragment set:html={sanitizeAstroidRichHtml(itemField(row, "answer"), { mediaBase })} />
           </Editable>
         </details>
       ))}
