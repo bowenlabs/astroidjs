@@ -92,4 +92,43 @@ describe("astroidRateRules", () => {
     }
     expect(new Set(all.map((r) => r.name)).size).toBe(all.length);
   });
+
+  it("adds no image proxy rule unless the site declares one", () => {
+    expect(names(base).some((n) => n.startsWith("image-proxy"))).toBe(false);
+    expect(hit(base, "GET", "/api/img/square")).toBeNull();
+  });
+
+  it("limits each declared image proxy path on GET, in every spelling", () => {
+    const shop: AstroidConfig = {
+      ...base,
+      security: { imageProxies: ["/api/img/square", "/api/img/shop"] },
+    };
+    expect(hit(shop, "GET", "/api/img/square")).toBe("image-proxy:/api/img/square");
+    expect(hit(shop, "GET", "/api/img/square/")).toBe("image-proxy:/api/img/square");
+    expect(hit(shop, "GET", "/api/img/shop")).toBe("image-proxy:/api/img/shop");
+    // Only the path itself, and only GET.
+    expect(hit(shop, "GET", "/api/img/square/other")).toBeNull();
+    expect(hit(shop, "POST", "/api/img/square")).toBeNull();
+    const rule = astroidRateRules(shop).find((r) => r.name === "image-proxy:/api/img/square");
+    expect(rule?.limit).toBe(1000);
+  });
+
+  it("lets a site rule for an image proxy path win over the default", () => {
+    const tuned: AstroidConfig = {
+      ...base,
+      security: {
+        imageProxies: ["/api/img/square"],
+        rateRules: [
+          {
+            name: "order-img-square",
+            method: "GET",
+            match: (p) => p === "/api/img/square",
+            limit: 300,
+            windowSec: 600,
+          },
+        ],
+      },
+    };
+    expect(hit(tuned, "GET", "/api/img/square")).toBe("order-img-square");
+  });
 });
