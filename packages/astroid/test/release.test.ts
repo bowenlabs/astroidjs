@@ -3,7 +3,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ASTROID_DEPLOY_BRANCH, generateAstroidReleaseWorkflow } from "../src/project/release.js";
+import {
+  ASTROID_DEPLOY_BRANCH,
+  ASTROID_RELEASE_ACTIONS,
+  astroidReleaseWorkflowPins,
+  generateAstroidReleaseWorkflow,
+} from "../src/project/release.js";
 
 // The workflow decides which commits reach production, so these check what it
 // does, not only that it exists.
@@ -37,7 +42,9 @@ describe("generateAstroidReleaseWorkflow", () => {
       if (i < 0) throw new Error(`not in the workflow: ${s}`);
       return i;
     };
-    expect(workflow).toContain("uses: actions/create-github-app-token@v2");
+    expect(workflow).toContain(
+      "uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2",
+    );
     expect(workflow).toContain("app-id: ${{ vars.RELEASE_APP_ID }}");
     expect(workflow).toContain("private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}");
     expect(workflow).toContain("token: ${{ steps.app-token.outputs.token }}");
@@ -292,5 +299,99 @@ describe("generateAstroidReleaseWorkflow", () => {
     expect(
       ciCheck([[checkRun("completed", "failure"), checkRun("completed", "success", earlier)]]).ok,
     ).toBe(false);
+  });
+
+  // The job holds a token that moves deploy/production, so a tag its owner, or
+  // anyone who took it over, moves must not change the code it runs.
+  it("pins every action to a full commit SHA, with its release in a comment", () => {
+    const lines = workflow.split("\n").filter((l) => /^\s*(?:- )?uses:/.test(l));
+    expect(lines).toHaveLength(2);
+    for (const line of lines) {
+      expect(line).toMatch(/uses: [\w-]+\/[\w-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$/);
+    }
+    expect(workflow).toContain(
+      "- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0",
+    );
+    expect(workflow).not.toMatch(/@v\d+\s*$/m);
+  });
+});
+
+// `astroid doctor` accepts the file when it's what `astroid generate` would
+// write over it, and `astroid generate` keeps a newer pin of the same major
+// version, as Renovate writes it. So these two are the whole drift check.
+describe("the release workflow's action pins", () => {
+  const generated = generateAstroidReleaseWorkflow();
+  const doctorAccepts = (file: string) => file === generateAstroidReleaseWorkflow(file);
+  const { checkout, createGithubAppToken } = ASTROID_RELEASE_ACTIONS;
+  const repin = (file: string, action: string, to: string) => {
+    const pattern = new RegExp(`(uses: ${action})@[0-9a-f]{40} # v[\\d.]+`);
+    expect(file).toMatch(pattern);
+    return file.replace(pattern, `$1@${to}`);
+  };
+  const newerSha = "0123456789abcdef0123456789abcdef01234567";
+
+  it("accepts exactly the generated file", () => {
+    expect(generateAstroidReleaseWorkflow(generated)).toBe(generated);
+    expect(doctorAccepts(generated)).toBe(true);
+    expect(astroidReleaseWorkflowPins(generated)).toEqual(ASTROID_RELEASE_ACTIONS);
+  });
+
+  it("keeps a newer release of the same major version, pinned by commit", () => {
+    for (const { action, version } of [checkout, createGithubAppToken]) {
+      const major = version.split(".")[0];
+      const nextPatch = version.replace(/\d+$/, (p) => String(Number(p) + 1));
+      for (const newer of [`${major}.99.0`, nextPatch]) {
+        const bumped = repin(generated, action, `${newerSha} # ${newer}`);
+        expect(doctorAccepts(bumped)).toBe(true);
+        expect(generateAstroidReleaseWorkflow(bumped)).toBe(bumped);
+      }
+    }
+    const both = repin(
+      repin(generated, checkout.action, `${newerSha} # v4.5.0`),
+      createGithubAppToken.action,
+      `${newerSha} # v2.3.0`,
+    );
+    expect(doctorAccepts(both)).toBe(true);
+    expect(astroidReleaseWorkflowPins(both)).toEqual({
+      checkout: { action: checkout.action, sha: newerSha, version: "v4.5.0" },
+      createGithubAppToken: {
+        action: createGithubAppToken.action,
+        sha: newerSha,
+        version: "v2.3.0",
+      },
+    });
+  });
+
+  // The same release at another commit is what a moved tag looks like.
+  it("refuses the same release at a different commit", () => {
+    const moved = repin(generated, checkout.action, `${newerSha} # ${checkout.version}`);
+    expect(doctorAccepts(moved)).toBe(false);
+    expect(generateAstroidReleaseWorkflow(moved)).toBe(generated);
+  });
+
+  it("refuses an older release, another major version, and a tag pin", () => {
+    for (const to of [
+      `${newerSha} # v4.3.1`,
+      `${newerSha} # v5.0.0`,
+      `${newerSha} # v3.99.0`,
+      `${newerSha} # v4.5`,
+      `${newerSha} # v4.5.0-beta.1`,
+      `${newerSha.slice(0, 7)} # v4.5.0`,
+      `${newerSha.toUpperCase()} # v4.5.0`,
+      newerSha,
+    ]) {
+      expect(doctorAccepts(repin(generated, checkout.action, to)), to).toBe(false);
+    }
+    for (const tagPin of ["v4", "v4.5.0", "main"]) {
+      const file = generated.replace(/(uses: actions\/checkout)@.*$/m, `$1@${tagPin}`);
+      expect(doctorAccepts(file), tagPin).toBe(false);
+      expect(generateAstroidReleaseWorkflow(file)).toBe(generated);
+    }
+  });
+
+  it("still refuses any other edit alongside a newer pin", () => {
+    const bumped = repin(generated, checkout.action, `${newerSha} # v4.5.0`);
+    expect(doctorAccepts(bumped.replace("fetch-depth: 0", "fetch-depth: 1"))).toBe(false);
+    expect(doctorAccepts(`${bumped}\n`)).toBe(false);
   });
 });

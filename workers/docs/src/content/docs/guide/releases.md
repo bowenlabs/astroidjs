@@ -28,6 +28,37 @@ The workflow holds no Cloudflare credential. `astroid doctor` fails when the
 file is missing or stale, so a hand edit can't quietly change which commits
 reach production.
 
+## Actions pinned by commit
+
+The release job holds a token that can move `deploy/production`, so each action
+it runs is pinned to the commit of one release, with the release in a trailing
+comment:
+
+```yaml
+- uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+```
+
+A tag such as `@v4` runs whatever commit the tag points at when the job starts,
+so whoever controls the tag controls what runs with the token. A commit can't
+be moved.
+
+Renovate updates a pin like this one to a newer release: it changes the SHA
+and the comment together, in a pull request. `astroid doctor` accepts that, and
+`astroid generate` keeps it rather than move it back. Only this change is
+allowed:
+
+- **A newer release of the same major version**, as `v<major>.<minor>.<patch>`,
+  pinned to a full 40-character commit SHA. `astroid doctor` notes the newer
+  release.
+- **Not a different commit for the same release.** That's what a tag moved
+  after its release looks like, so `astroid doctor` reports the file as stale.
+- **Not another major version, an older release, or a tag.** A new major
+  version reaches sites through an astroid release, after astroid has checked
+  it. Close Renovate's pull request for it.
+
+`astroid doctor` doesn't ask GitHub whether a SHA is the commit its comment
+names. Review that in Renovate's pull request, as for any other dependency.
+
 ## A release needs a green CI
 
 Before it moves `deploy/production`, the release workflow reads the check run
@@ -259,6 +290,64 @@ EOF
 GitHub accepts the app as a bypass actor only once it's installed on the
 repository, so install it first.
 
+### Guard release branches and release tags
+
+The release workflow releases a `v*` tag on `main` or on any `release/` branch.
+Without more rules, anyone with write access, or any app token that can push,
+could push unreviewed code to a new `release/` branch, tag it, and the workflow
+would move `deploy/production` to it. The `CI` check doesn't stop that, since
+CI passes on code that nobody reviewed. So guard both with two more rulesets,
+with repository admins as the only bypass actor. Role 5 is the built-in Admin
+role.
+
+```sh
+gh api -X POST "repos/{owner}/{repo}/rulesets" --input - <<EOF
+{
+  "name": "release branches",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": { "include": ["refs/heads/release/**"], "exclude": [] }
+  },
+  "rules": [
+    { "type": "creation" },
+    { "type": "update" },
+    { "type": "deletion" },
+    { "type": "non_fast_forward" }
+  ],
+  "bypass_actors": [
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }
+  ]
+}
+EOF
+
+gh api -X POST "repos/{owner}/{repo}/rulesets" --input - <<EOF
+{
+  "name": "release tags",
+  "target": "tag",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": { "include": ["refs/tags/v*"], "exclude": [] }
+  },
+  "rules": [
+    { "type": "creation" },
+    { "type": "update" },
+    { "type": "deletion" }
+  ],
+  "bypass_actors": [
+    { "actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always" }
+  ]
+}
+EOF
+```
+
+With these in place, only an admin can tag a release, and a patch release
+needs an admin to create its `release/` branch and push or merge the fix to
+it. The release app isn't a bypass actor on either ruleset: the workflow never
+creates a tag or touches a `release/` branch. A tag on `main` is only as
+reviewed as `main` is, so protect `main` with required pull request reviews
+too.
+
 Then point the Workers Builds production branch at `deploy/production`, and
 tag a release.
 
@@ -271,4 +360,4 @@ tag a release.
   app is installed on, `deploy/production` included. Keep it only in the Actions
   secret, and if it leaks, generate a new one on the app's settings page and
   delete the old one.
-- Each repository needs its own ruleset, even when the sites share one app.
+- Each repository needs its own rulesets, even when the sites share one app.

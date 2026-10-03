@@ -16,7 +16,10 @@ permissions:
 jobs:
   diagnose:
     if: github.event.label.name == 'agent:diagnose'
-    uses: bowenlabs/claude-plugins/.github/workflows/louise-diagnose.yml@main
+    # Pinned to a commit of claude-plugins' main, not to main itself: the called
+    # workflow gets the secrets below, so a change to it reaches this repository
+    # only through a reviewed change to this line.
+    uses: bowenlabs/claude-plugins/.github/workflows/louise-diagnose.yml@a199aa6387afd6b64548dd3dbdc1d5b206313357 # main
     with:
       agent_app_id: ${{ vars.LOUISE_AGENT_APP_ID }}
     secrets:
