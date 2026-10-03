@@ -32,11 +32,11 @@
     "access": "public"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.7.2",
-    "@louise-toolkit/astro": "^0.6.5",
+    "@better-auth/passkey": "^1.7.7",
+    "@louise-toolkit/astro": "^0.7.0",
     "astroidjs": "workspace:*",
-    "better-auth": "^1.7.2",
-    "louise-toolkit": "^0.40.0"
+    "better-auth": "^1.7.7",
+    "louise-toolkit": "^0.41.0"
   },
   "engines": {
     "node": ">=26.0.0"

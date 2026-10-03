@@ -198,7 +198,10 @@ fails while `main` stays green.
 
 Pre-1.0, a caret range never crosses a minor: `^0.31.0` means below 0.32.0. A
 site that moves to a new toolkit minor needs the Astroid release that accepts it,
-and the two move in one change. That's also why the toolkit is a peer dependency
+and the two move in one change. `@louise-toolkit/astro` moves with them: it pins
+the toolkit to one exact version, so an adapter left behind brings its own
+toolkit. That's how `create-astroid` 0.13.0's `^0.6.4` floated into adapter
+0.6.5, which pinned toolkit 0.40.0 beside the scaffold's 0.39 (#138). That's also why the toolkit is a peer dependency
 here: a direct dependency resolved a second, nested toolkit on a mismatch, which
 showed up as dozens of phantom Drizzle type errors.
 
