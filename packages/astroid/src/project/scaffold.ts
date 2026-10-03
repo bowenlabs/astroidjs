@@ -39,7 +39,11 @@ import { generateMapEmbedComponent, generateMapTileRoute } from "../map/scaffold
 import { generateAstroidGalleryPage } from "../portfolio/scaffold.js";
 import { astroidPortal } from "../portal/config.js";
 import { astroidHasEditor } from "../shape.js";
-import { generateAstroidPortalAuth, generateAstroidPortalAuthRoute } from "../portal/scaffold.js";
+import {
+  generateAstroidPortalAuth,
+  generateAstroidPortalAuthRoute,
+  generateAstroidPortalLogoutPage,
+} from "../portal/scaffold.js";
 import { generateAstroidTenancy } from "../tenancy/index.js";
 import { generateAstroidAuthRateLimiter } from "../auth-rate-limit/scaffold.js";
 import { generateAstroidEditSession } from "../realtime/scaffold.js";
@@ -407,6 +411,10 @@ export function generateAstroidScaffoldFiles(config: AstroidConfig): ScaffoldFil
     if (route) {
       files.push({ path: `src/pages${portal.basePath}/[...all].ts`, contents: route });
     }
+    // The sign-out page: POST-only and same-origin through `portalSignOut`, in
+    // the project's layout for the site to restyle.
+    const logout = generateAstroidPortalLogoutPage(config);
+    if (logout) files.push({ path: "src/pages/logout.astro", contents: logout });
   }
 
   return files;

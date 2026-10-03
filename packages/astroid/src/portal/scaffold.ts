@@ -1,7 +1,8 @@
 // Copyright (c) 2026 BowenLabs. Astroid is MIT licensed.
 //
-// The portal's SCAFFOLD-ONCE pieces: the second Better Auth instance, and the
-// `App.Locals` / `CloudflareEnv` additions that come with it.
+// The portal's SCAFFOLD-ONCE pieces: the second Better Auth instance, its
+// sign-out page, and the `App.Locals` / `CloudflareEnv` additions that come
+// with it.
 //
 // The auth instance is scaffolded rather than generated because a site edits it—the
 // reset email, the role a new account gets, extra user columns. What
@@ -12,6 +13,7 @@
 
 import type { AstroidConfig } from "../config.js";
 import { astroidAuthRateLimitOption, usesAuthRateLimit } from "../auth-rate-limit/scaffold.js";
+import { astroidHasEditor } from "../shape.js";
 import { astroidPortal } from "./config.js";
 
 /**
@@ -83,6 +85,17 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
     "}",
     "",
     "/**",
+    " * End the session the request's cookies name, and return Better Auth's",
+    " * response, whose `Set-Cookie` headers expire the session cookies.",
+    " * `src/pages/logout.astro` hands it to `portalSignOut`, which calls it only",
+    " * for a same-origin POST.",
+    " */",
+    "export async function signOutPortal(request: Request): Promise<Response> {",
+    "  const auth = await getPortalAuth(request);",
+    "  return auth.api.signOut({ headers: request.headers, asResponse: true });",
+    "}",
+    "",
+    "/**",
     " * Resolve the signed-in portal user, or null. The generated middleware passes",
     " * this to `resolvePortalSession`, which shares the lookup for the request.",
     " */",
@@ -98,6 +111,62 @@ export function generateAstroidPortalAuth(config: AstroidConfig): string | null 
     "    return null;",
     "  }",
     "}",
+    "",
+  ].join("\n");
+}
+
+/**
+ * `src/pages/logout.astro`—the portal's sign-out page, through
+ * `portalSignOut`: it signs out only on a same-origin POST, asks first on
+ * a GET or a refused POST, and sends a signed-out visitor home with every
+ * cookie the sign-out expired.
+ *
+ * Scaffolded once, in the project's own layout (`Site.astro`, or `App.astro`
+ * for an app with no editor), for the site to restyle. What the site keeps is
+ * the rule the page enforces: every Log out control is a form that POSTs here,
+ * never a link.
+ *
+ * Returns null when the project has no portal.
+ */
+export function generateAstroidPortalLogoutPage(config: AstroidConfig): string | null {
+  if (!astroidPortal(config)) return null;
+  const layout = astroidHasEditor(config) ? "Site" : "App";
+
+  return [
+    "---",
+    "// Log out of the portal. Scaffolded once; yours to restyle.",
+    "//",
+    "// `portalSignOut` signs out only on a same-origin POST, so another website",
+    "// can't sign your users out with a link. A GET (an old link, a bookmark) or",
+    "// a refused POST gets this page, which asks with a form; a failed sign-out",
+    "// keeps the session and offers to try again. Every Log out control on the",
+    '// site must be a `<form method="post" action="/logout">`, never a link.',
+    'import { portalSignOut } from "astroidjs";',
+    'import { redirectWithCookies } from "louise-toolkit/auth";',
+    `import ${layout} from "../layouts/${layout}.astro";`,
+    'import { signOutPortal } from "../portal-auth.js";',
+    "",
+    "export const prerender = false;",
+    "",
+    "const result = await portalSignOut(Astro.request, {",
+    "  user: Astro.locals.portalUser,",
+    "  signOut: signOutPortal,",
+    "});",
+    'if (result.state === "signed-out") return redirectWithCookies(result.cookies, "/");',
+    "Astro.response.status = result.status;",
+    'const failed = result.state === "failed";',
+    "---",
+    "",
+    `<${layout} title={failed ? "Couldn't log out" : "Log out"} noindex>`,
+    "  <main>",
+    '    <form method="post" action="/logout">',
+    '      <h1>{failed ? "Couldn\'t log you out" : "Log out?"}</h1>',
+    "      {failed && <p>You're still logged in on this device. Try again in a moment.</p>}",
+    '      <button type="submit">{failed ? "Try again" : "Log out"}</button>',
+    '      <a href="/">Cancel</a>',
+    "    </form>",
+    "  </main>",
+    `</${layout}>`,
     "",
   ].join("\n");
 }

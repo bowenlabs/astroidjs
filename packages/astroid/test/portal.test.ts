@@ -1,4 +1,5 @@
-import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { type DegradedEvent, onDegraded } from "louise-toolkit/errors";
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import type { AstroidConfig } from "../src/config.js";
 import { defineAstroid } from "../src/config.js";
 import { AstroidConfigError } from "../src/errors.js";
@@ -10,7 +11,12 @@ import {
 } from "../src/portal/config.js";
 import { guardResponse, matchesPrefix, portalGuard } from "../src/portal/guard.js";
 import { definePortalNav } from "../src/portal/nav.js";
+import {
+  generateAstroidPortalAuth,
+  generateAstroidPortalLogoutPage,
+} from "../src/portal/scaffold.js";
 import { isSameOrigin, requireCustomer, resolvePortalSession } from "../src/portal/session.js";
+import { ASTROID_PORTAL_SIGN_OUT_DEGRADED, portalSignOut } from "../src/portal/sign-out.js";
 import { generateAstroidMiddleware } from "../src/worker/generate.js";
 
 const base: AstroidConfig = {
@@ -325,5 +331,116 @@ describe("generated middleware", () => {
     expect(out).toContain("portalGuard(");
     // Sessions must be resolved before anything is authorized against them.
     expect(out.indexOf("extend:")).toBeLessThan(out.indexOf("guard:"));
+  });
+});
+
+describe("portalSignOut", () => {
+  const url = "https://acme.test/logout";
+  const user = u("customer");
+  const post = (headers: Record<string, string> = {}) =>
+    new Request(url, { method: "POST", headers: { cookie: "portal.session_token=t", ...headers } });
+  // Better Auth's sign-out answer: three expiring cookies, one header each.
+  const expired = () => {
+    const headers = new Headers();
+    for (const name of ["session_token", "session_data", "dont_remember"]) {
+      headers.append("set-cookie", `portal.${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`);
+    }
+    return new Response('{"success":true}', { status: 200, headers });
+  };
+
+  let events: DegradedEvent[] = [];
+  let stop: () => void;
+  beforeEach(() => {
+    events = [];
+    stop = onDegraded((event) => events.push(event));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    stop();
+    vi.restoreAllMocks();
+  });
+
+  it("is already signed out with no session, and never calls signOut", async () => {
+    const signOut = vi.fn(async () => expired());
+    const result = await portalSignOut(post({ origin: "https://acme.test" }), {
+      user: null,
+      signOut,
+    });
+    expect(result).toMatchObject({ state: "signed-out", status: 200 });
+    expect(result.cookies.getSetCookie()).toEqual([]);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("asks first on a GET, so a link can't sign anyone out", async () => {
+    // A SameSite=Lax cookie rides along on a top-level GET from any site.
+    const signOut = vi.fn(async () => expired());
+    const result = await portalSignOut(new Request(url), { user, signOut });
+    expect(result).toMatchObject({ state: "confirm", status: 200 });
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("refuses a cross-origin POST with 403 and asks, without signing out", async () => {
+    const signOut = vi.fn(async () => expired());
+    const result = await portalSignOut(post({ origin: "https://evil.test" }), { user, signOut });
+    expect(result).toMatchObject({ state: "confirm", status: 403 });
+    expect(result.cookies.getSetCookie()).toEqual([]);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("signs out a same-origin POST and keeps every expiring cookie apart", async () => {
+    const signOut = vi.fn(async (_request: Request) => expired());
+    const request = post({ origin: "https://acme.test" });
+    const result = await portalSignOut(request, { user, signOut });
+    expect(result).toMatchObject({ state: "signed-out", status: 200 });
+    // The browser's own request, cookies and all, so Better Auth sees it as sent.
+    expect(signOut).toHaveBeenCalledWith(request);
+    expect(result.cookies.getSetCookie()).toHaveLength(3);
+    expect(events).toEqual([]);
+  });
+
+  it("keeps the session and reports a sign-out that answers non-OK", async () => {
+    const signOut = vi.fn(async () => new Response(null, { status: 415 }));
+    const result = await portalSignOut(post({ origin: "https://acme.test" }), { user, signOut });
+    expect(result).toMatchObject({ state: "failed", status: 503 });
+    expect(result.cookies.getSetCookie()).toEqual([]);
+    expect(events.map((e) => e.name)).toEqual([ASTROID_PORTAL_SIGN_OUT_DEGRADED]);
+    expect(events[0]?.details).toEqual({ status: 415 });
+  });
+
+  it("keeps the session and reports a sign-out that throws", async () => {
+    const signOut = vi.fn(async (): Promise<Response> => {
+      throw new Error("D1 unavailable");
+    });
+    const result = await portalSignOut(post({ origin: "https://acme.test" }), { user, signOut });
+    expect(result).toMatchObject({ state: "failed", status: 503 });
+    expect(events.map((e) => e.name)).toEqual([ASTROID_PORTAL_SIGN_OUT_DEGRADED]);
+    expect(events[0]?.message).toContain("D1 unavailable");
+  });
+});
+
+describe("portal sign-out scaffold", () => {
+  it("adds nothing without a portal", () => {
+    expect(generateAstroidPortalLogoutPage(base)).toBeNull();
+  });
+
+  it("gives portal-auth.ts a signOutPortal for the request's own origin", () => {
+    const auth = generateAstroidPortalAuth(withPortal({ enabled: true })) ?? "";
+    expect(auth).toContain("export async function signOutPortal(request: Request)");
+    expect(auth).toContain("auth.api.signOut({ headers: request.headers, asResponse: true })");
+  });
+
+  it("scaffolds a POST-only logout page in the project's layout", () => {
+    const page = generateAstroidPortalLogoutPage(withPortal({ enabled: true })) ?? "";
+    expect(page).toContain("portalSignOut(Astro.request");
+    expect(page).toContain("signOut: signOutPortal");
+    expect(page).toContain('redirectWithCookies(result.cookies, "/")');
+    expect(page).toContain('<form method="post" action="/logout">');
+    expect(page).toContain('import Site from "../layouts/Site.astro";');
+    const app = generateAstroidPortalLogoutPage({
+      ...base,
+      editor: false,
+      portal: { enabled: true },
+    });
+    expect(app).toContain('import App from "../layouts/App.astro";');
   });
 });
