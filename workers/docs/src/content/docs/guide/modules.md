@@ -223,6 +223,8 @@ and stays dormant while that's unset or a placeholder. What reaches Sentry is
 the redacted message, the fingerprint, the path without its query string, and
 the stack's frames, tagged `louise_fingerprint`, so Watchtower can join each
 Sentry issue to its row.
+A failed database query arrives as its statement's kind and table, named
+`DrizzleQueryError`, never with its SQL or bound values.
 
 ### Edge caching (off by default)
 
