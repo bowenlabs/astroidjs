@@ -10,7 +10,9 @@
 // had a surface the others didn't (a portal, a checkout). That is a default, not
 // a per-site decision, so Astroid derives the whole set from the config.
 //
-// What's in scope: the public, UNAUTHENTICATED POST surfaces. Editor endpoints
+// What's in scope: the public, UNAUTHENTICATED POST surfaces, plus the one
+// kind of GET that spends money on every request: an image resize proxy, which
+// the site declares in `security.imageProxies`. Editor endpoints
 // (`/api/louise/*`) are session-gated and stay out on purpose—a limiter that
 // can lock the owner out of their own studio is worse than the abuse it stops.
 // The contact form is also absent by design: it's a worker route with its own
@@ -46,11 +48,18 @@ const WINDOW = 600;
 
 const exact = (path: string) => (p: string) => p === path;
 
+/** Requests per window an image proxy path takes from one address. A page of
+ *  about 50 images at its first visit, which the browser then caches, is about
+ *  twenty first visits, enough for a shop full of customers behind one Wi-Fi
+ *  address. */
+const IMAGE_PROXY_LIMIT = 1000;
+
 /**
  * The rule set for a project, derived from its config: the editor sign-in
  * surface unless the project has no editor, the portal's credential surfaces
- * when a portal is enabled, checkout when commerce is configured, and the
- * versioned API for an app with no editor.
+ * when a portal is enabled, checkout when commerce is configured, a `GET` rule
+ * for each image proxy in `security.imageProxies`, and the versioned API for an
+ * app with no editor.
  *
  * Rules are matched first-wins, and `security.rateRules` from the config are
  * placed FIRST—so a site tightens or loosens any default by declaring its own
@@ -128,6 +137,22 @@ export function astroidRateRules(config: AstroidConfig): RateRule[] {
       method: "POST",
       match: exact(ASTROID_CHECKOUT_PATH),
       limit: 20,
+      windowSec: WINDOW,
+    });
+  }
+
+  for (const path of config.security?.imageProxies ?? []) {
+    // One resize per request, billed to the zone. The budget is loose by
+    // design: it counts in KV, which reads before it writes, so the burst a
+    // single page view sends mostly reads the same count, and a KV failure lets
+    // the request through. It bounds a sustained abuser, not one page view.
+    // Named per path, so two proxies keep separate budgets. Two Workers that
+    // share a KV namespace share the budget too, as they do for every default.
+    rules.push({
+      name: `image-proxy:${path}`,
+      method: "GET",
+      match: exact(path),
+      limit: IMAGE_PROXY_LIMIT,
       windowSec: WINDOW,
     });
   }

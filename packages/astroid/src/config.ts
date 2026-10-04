@@ -493,6 +493,16 @@ export interface SecurityConfig {
    */
   rateRules?: RateRule[];
   /**
+   * Paths where the site mounts an image resize proxy, such as
+   * `defineImageProxy` from `louise-toolkit/media` at `"/api/img/square"`.
+   * Astroid can't see where a site mounts one, so it can't limit it on its own.
+   * Each path gets a default `GET` rate rule: every request is an edge resize
+   * billed to the zone, and an allowed host that's a shared bucket hands a
+   * client an endless supply of sources. Each path is absolute, isn't `/`, and
+   * has no trailing slash.
+   */
+  imageProxies?: string[];
+  /**
    * Extra origins to allow in the generated Content-Security-Policy, merged with
    * the ones Astroid derives from the enabled modules. Add a host here when you
    * pull in a third party Astroid can't see (a chat widget, a video embed).
@@ -964,6 +974,30 @@ function assertTenancy(config: AstroidConfig): void {
  *  failure arrives as an opaque edge error rather than the route's own 413. */
 const WORKERS_MAX_REQUEST_BODY_BYTES = 100 * 1024 * 1024;
 
+/**
+ * An image proxy path its rate rule could never match: not absolute, the site
+ * root, a trailing slash (the rule matches the normalized path, which has
+ * none), or listed twice.
+ */
+function assertImageProxies(paths: string[] | undefined): void {
+  if (paths === undefined) return;
+  const seen = new Set<string>();
+  for (const path of paths) {
+    if (typeof path !== "string" || !path.startsWith("/") || path === "/" || path.endsWith("/")) {
+      throw new AstroidConfigError(
+        `\`security.imageProxies\` entries are absolute paths with no trailing slash, ` +
+          `for example, "/api/img/square"; got ${JSON.stringify(path)}`,
+      );
+    }
+    if (seen.has(path)) {
+      throw new AstroidConfigError(
+        `\`security.imageProxies\` lists ${JSON.stringify(path)} twice. List each path once.`,
+      );
+    }
+    seen.add(path);
+  }
+}
+
 function assertMediaConfig(media: MediaConfig | undefined): void {
   const max = media?.maxUploadBytes;
   if (max === undefined) return;
@@ -1129,6 +1163,10 @@ export function defineAstroid(config: AstroidConfig): AstroidConfig {
   // A media limit above the platform's own body cap is unhonourable—reject it
   // here rather than let an editor watch a 120 MB upload die at the edge.
   assertMediaConfig(config.media);
+
+  // An image proxy path no rate rule could match fails here rather than leave
+  // the proxy unlimited.
+  assertImageProxies(config.security?.imageProxies);
 
   // A portal is a SECOND Better Auth instance beside the editor's. Reject any
   // isolation that would collide with the editor on the same origin (a shared

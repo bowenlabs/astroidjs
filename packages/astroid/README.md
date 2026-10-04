@@ -265,7 +265,10 @@ framework.
 **Rate-limit rules are data, derived from the config.** The generated middleware
 calls `astroidRateRules(config)`: the editor magic-link always (the
 email-bombing target, so the tightest budget in the set), the portal's
-credential surfaces when `portal.enabled`, checkout when `commerce` is set. The
+credential surfaces when `portal.enabled`, checkout when `commerce` is set, and
+a `GET` rule for each image resize proxy listed in `security.imageProxies`
+(1,000 requests per address per 10 minutes, since each request is a resize
+billed to the zone). The
 session-gated editor API stays out on purpose—a limiter that can lock the
 owner out of their own studio is worse than the abuse it stops. Add or override
 via `security.rateRules`, which is matched _before_ the defaults, so you replace
