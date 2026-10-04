@@ -223,8 +223,13 @@ and stays dormant while that's unset or a placeholder. What reaches Sentry is
 the redacted message, the fingerprint, the path without its query string, and
 the stack's frames, tagged `louise_fingerprint`, so Watchtower can join each
 Sentry issue to its row.
-A failed database query arrives as its statement's kind and table, named
-`DrizzleQueryError`, never with its SQL or bound values.
+A failed Drizzle query is reduced to its statement's kind and table, without
+its SQL or bound values. An unwrapped one is named `DrizzleQueryError`, and an
+error that wraps one, such as a `LouiseContentError`, keeps its own name and
+code. Some errors aren't reduced: one from a raw D1 call, one your code logs
+itself without `loggableError` from `louise-toolkit/errors`, one when the Astro
+adapter's `reportErrors` is `false`, and one a streamed page throws after its
+first bytes.
 
 ### Edge caching (off by default)
 
