@@ -217,4 +217,8 @@ here: a direct dependency resolved a second, nested toolkit on a mismatch, which
 showed up as dozens of phantom Drizzle type errors.
 
 To confirm a single toolkit, read the lockfile, not `node_modules/.pnpm`, which
-can keep directories from earlier installs.
+can keep directories from earlier installs. pnpm lists each version twice, once
+under `packages:` and once under `snapshots:` with its peers, so a plain
+`grep '^  louise-toolkit@'` prints two lines for one copy. Match only the
+`packages:` entries, which print one line per installed version:
+`grep -E '^  louise-toolkit@[0-9][^(]*:$' pnpm-lock.yaml`.
